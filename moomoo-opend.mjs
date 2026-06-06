@@ -21,6 +21,10 @@ export const TRD_SIDE_SELL = 2;
 export const ORDER_TYPE_LIMIT = 1;
 export const TIME_IN_FORCE_DAY = 0;
 export const SESSION_RTH = 1;
+export const QOT_SUBTYPE_BASIC = 1;
+export const QOT_SUBTYPE_ORDER_BOOK = 2;
+const CMD_QOT_UPDATE_BASIC_QOT = 3005;
+const CMD_QOT_UPDATE_ORDER_BOOK = 3013;
 export const DEFAULT_POLICY_PATH = path.join(PROJECT_ROOT, 'sim-trading-policy.json');
 
 let tradeSerialNo = 1;
@@ -179,6 +183,8 @@ export function loadMoomooConfig(opts = {}) {
     optionMaxQtyToAskVolumeRatio: numberValue(opts.optionMaxQtyToAskVolumeRatio || process.env.MOOMOO_OPTION_MAX_QTY_TO_ASK_VOLUME_RATIO, 'MOOMOO_OPTION_MAX_QTY_TO_ASK_VOLUME_RATIO', executionQuality.max_qty_to_ask_volume_ratio ?? 10),
     optionMinOpenInterest: numberValue(opts.optionMinOpenInterest || process.env.MOOMOO_OPTION_MIN_OPEN_INTEREST, 'MOOMOO_OPTION_MIN_OPEN_INTEREST', executionQuality.min_open_interest ?? 50),
     optionMinDayVolume: numberValue(opts.optionMinDayVolume || process.env.MOOMOO_OPTION_MIN_DAY_VOLUME, 'MOOMOO_OPTION_MIN_DAY_VOLUME', executionQuality.min_option_day_volume ?? 1),
+    quotePushWarmupMs: numberValue(opts.quotePushWarmupMs || process.env.MOOMOO_QUOTE_PUSH_WARMUP_MS, 'MOOMOO_QUOTE_PUSH_WARMUP_MS', 350),
+    quoteFallbackSnapshotMaxAgeMs: numberValue(opts.quoteFallbackSnapshotMaxAgeMs || process.env.MOOMOO_QUOTE_FALLBACK_SNAPSHOT_MAX_AGE_MS, 'MOOMOO_QUOTE_FALLBACK_SNAPSHOT_MAX_AGE_MS', 2000),
     underlyingTakeProfitPct: numberValue(opts.underlyingTakeProfitPct || process.env.MOOMOO_UNDERLYING_TAKE_PROFIT_PCT, 'MOOMOO_UNDERLYING_TAKE_PROFIT_PCT', exits.take_profit_underlying_move_pct ?? 50),
     underlyingStopLossPct: numberValue(opts.underlyingStopLossPct || process.env.MOOMOO_UNDERLYING_STOP_LOSS_PCT, 'MOOMOO_UNDERLYING_STOP_LOSS_PCT', exits.stop_loss_underlying_move_pct ?? 20),
     allowRealTrading: boolValue(opts.allowRealTrading ?? process.env.MOOMOO_ALLOW_REAL_TRADING, false),
@@ -309,6 +315,18 @@ export function selectSimulatedUsOptionAccount(response) {
   }) || null;
 }
 
+export function selectConfiguredUsRealAccount(response, config) {
+  const expected = String(config?.accId || '');
+  if (!expected) return null;
+  const accounts = response?.s2c?.accList || [];
+  return accounts.find((account) => {
+    const markets = account.trdMarketAuthList || [];
+    return String(account.accID || '') === expected
+      && Number(account.trdEnv) === TRD_ENV_REAL
+      && markets.includes(TRD_MARKET_US);
+  }) || null;
+}
+
 export function optionTypeCode(optionType) {
   const type = String(optionType || '').toUpperCase();
   if (type === 'C' || type === 'CALL') return OPTION_TYPE_CALL;
@@ -383,6 +401,320 @@ export async function getSecuritySnapshots(client, securities) {
   });
   assertMoomooSuccess(response, 'GetSecuritySnapshot');
   return response;
+}
+
+function securityKey(security) {
+  if (!security) return '';
+  return `${Number(security.market)}:${String(security.code || '').toUpperCase()}`;
+}
+
+function cloneSecurity(security) {
+  return {
+    market: Number(security.market),
+    code: String(security.code || '').trim().toUpperCase(),
+  };
+}
+
+function dedupeSecurities(securities) {
+  const out = [];
+  const seen = new Set();
+  for (const security of securities || []) {
+    const normalized = cloneSecurity(security || {});
+    if (!Number.isFinite(normalized.market) || !normalized.code) continue;
+    const key = securityKey(normalized);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(normalized);
+  }
+  return out;
+}
+
+function errorText(error) {
+  if (error?.message) return error.message;
+  try {
+    return JSON.stringify(normalizeForJson(error));
+  } catch {
+    return String(error);
+  }
+}
+
+function mergeBasicIntoSnapshot(snapshot, basic, receivedAt) {
+  if (!basic?.security) return snapshot;
+  const existing = snapshot || { basic: { security: cloneSecurity(basic.security) } };
+  const normalizedBasic = normalizeForJson(basic);
+  const mergedBasic = {
+    ...(existing.basic || {}),
+    ...normalizedBasic,
+    security: cloneSecurity(normalizedBasic.security || existing.basic?.security || basic.security),
+  };
+  if (mergedBasic.isSuspend === undefined && mergedBasic.isSuspended !== undefined) {
+    mergedBasic.isSuspend = mergedBasic.isSuspended;
+  }
+  const next = {
+    ...existing,
+    basic: mergedBasic,
+    quote_source: 'push_basic',
+    quote_received_at: receivedAt,
+    bid_ask_source: existing.bid_ask_source || null,
+    bid_ask_received_at: existing.bid_ask_received_at || null,
+  };
+  if (normalizedBasic.optionExData) {
+    next.optionExData = {
+      ...(existing.optionExData || {}),
+      ...normalizeForJson(normalizedBasic.optionExData),
+    };
+  }
+  return next;
+}
+
+function bestOrderBookLevel(levels) {
+  const first = Array.isArray(levels) && levels.length > 0 ? levels[0] : null;
+  if (!first) return null;
+  const price = Number(first.price);
+  const volume = Number(first.hpVolume ?? first.volume);
+  return {
+    price: Number.isFinite(price) ? price : null,
+    volume: Number.isFinite(volume) ? volume : null,
+    raw: normalizeForJson(first),
+  };
+}
+
+function mergeOrderBookIntoSnapshot(snapshot, orderBook, receivedAt) {
+  if (!orderBook?.security) return snapshot;
+  const existing = snapshot || { basic: { security: cloneSecurity(orderBook.security) } };
+  const bid = bestOrderBookLevel(orderBook.orderBookBidList);
+  const ask = bestOrderBookLevel(orderBook.orderBookAskList);
+  const basic = {
+    ...(existing.basic || {}),
+    security: cloneSecurity(existing.basic?.security || orderBook.security),
+  };
+  if (bid?.price !== null) basic.bidPrice = bid.price;
+  if (ask?.price !== null) basic.askPrice = ask.price;
+  if (bid?.volume !== null) {
+    basic.bidVol = bid.volume;
+    basic.hpBidVol = bid.volume;
+  }
+  if (ask?.volume !== null) {
+    basic.askVol = ask.volume;
+    basic.hpAskVol = ask.volume;
+  }
+  return {
+    ...existing,
+    basic,
+    order_book: {
+      security: cloneSecurity(orderBook.security),
+      best_bid: bid,
+      best_ask: ask,
+      svrRecvTimeBid: orderBook.svrRecvTimeBid,
+      svrRecvTimeBidTimestamp: orderBook.svrRecvTimeBidTimestamp,
+      svrRecvTimeAsk: orderBook.svrRecvTimeAsk,
+      svrRecvTimeAskTimestamp: orderBook.svrRecvTimeAskTimestamp,
+      received_at: receivedAt,
+    },
+    quote_source: 'push_order_book',
+    quote_received_at: receivedAt,
+    bid_ask_source: 'push_order_book',
+    bid_ask_received_at: receivedAt,
+  };
+}
+
+export function createMoomooQuoteFeed(client, config = {}) {
+  const snapshots = new Map();
+  const subscribedByType = new Map();
+  const errors = [];
+  let pushCount = 0;
+  const previousOnPush = client.onPush;
+
+  function rememberSnapshot(snapshot, source = 'snapshot') {
+    if (!snapshot?.basic?.security) return null;
+    const key = securityKey(snapshot.basic.security);
+    const normalized = normalizeForJson(snapshot);
+    const now = new Date().toISOString();
+    const existing = snapshots.get(key) || null;
+    const mergedBasic = {
+      ...(normalized.basic || {}),
+    };
+    if (existing?.bid_ask_source === 'push_order_book') {
+      if (existing.basic?.bidPrice !== undefined) mergedBasic.bidPrice = existing.basic.bidPrice;
+      if (existing.basic?.askPrice !== undefined) mergedBasic.askPrice = existing.basic.askPrice;
+      if (existing.basic?.bidVol !== undefined) mergedBasic.bidVol = existing.basic.bidVol;
+      if (existing.basic?.askVol !== undefined) mergedBasic.askVol = existing.basic.askVol;
+      if (existing.basic?.hpBidVol !== undefined) mergedBasic.hpBidVol = existing.basic.hpBidVol;
+      if (existing.basic?.hpAskVol !== undefined) mergedBasic.hpAskVol = existing.basic.hpAskVol;
+    }
+    snapshots.set(key, {
+      ...normalized,
+      basic: mergedBasic,
+      order_book: existing?.order_book || normalized.order_book || null,
+      quote_source: existing?.quote_source && String(existing.quote_source).startsWith('push_')
+        ? existing.quote_source
+        : (normalized.quote_source || source),
+      quote_received_at: existing?.quote_received_at && String(existing.quote_source || '').startsWith('push_')
+        ? existing.quote_received_at
+        : (normalized.quote_received_at || now),
+      bid_ask_source: existing?.bid_ask_source || normalized.bid_ask_source || 'snapshot',
+      bid_ask_received_at: existing?.bid_ask_received_at || normalized.bid_ask_received_at || now,
+      snapshot_received_at: now,
+    });
+    return snapshots.get(key);
+  }
+
+  client.onPush = (cmd, payload) => {
+    const receivedAt = new Date().toISOString();
+    pushCount += 1;
+    try {
+      if (cmd === CMD_QOT_UPDATE_BASIC_QOT) {
+        for (const basic of payload?.s2c?.basicQotList || []) {
+          const key = securityKey(basic.security);
+          snapshots.set(key, mergeBasicIntoSnapshot(snapshots.get(key), basic, receivedAt));
+        }
+      } else if (cmd === CMD_QOT_UPDATE_ORDER_BOOK) {
+        const orderBook = payload?.s2c;
+        const key = securityKey(orderBook?.security);
+        if (key) snapshots.set(key, mergeOrderBookIntoSnapshot(snapshots.get(key), orderBook, receivedAt));
+      }
+    } catch (error) {
+      errors.push({ at: receivedAt, error: errorText(error), cmd });
+    }
+    if (previousOnPush && typeof previousOnPush === 'function') previousOnPush(cmd, payload);
+  };
+
+  async function subscribeByType(securities, subType) {
+    const targets = dedupeSecurities(securities)
+      .filter((security) => {
+        const key = securityKey(security);
+        const set = subscribedByType.get(key);
+        return !set || !set.has(subType);
+      });
+    if (targets.length === 0) return { subscribed: 0, skipped: true };
+    const response = await client.Sub({
+      c2s: {
+        securityList: targets,
+        subTypeList: [subType],
+        isSubOrUnSub: true,
+        isRegOrUnRegPush: true,
+        isFirstPush: true,
+      },
+    });
+    assertMoomooSuccess(response, `Sub:${subType}`);
+    for (const security of targets) {
+      const key = securityKey(security);
+      if (!subscribedByType.has(key)) subscribedByType.set(key, new Set());
+      subscribedByType.get(key).add(subType);
+    }
+    return { subscribed: targets.length, response: normalizeForJson(response) };
+  }
+
+  async function ensureSubscribed(securities, opts = {}) {
+    const all = dedupeSecurities(securities);
+    const orderBookSecurities = dedupeSecurities(opts.orderBookSecurities || securities);
+    const result = {
+      basic: null,
+      order_book: null,
+      errors: [],
+    };
+    try {
+      result.basic = await subscribeByType(all, QOT_SUBTYPE_BASIC);
+    } catch (error) {
+      result.errors.push({ type: 'basic', error: errorText(error) });
+      errors.push({ at: new Date().toISOString(), type: 'basic', error: errorText(error) });
+    }
+    try {
+      result.order_book = await subscribeByType(orderBookSecurities, QOT_SUBTYPE_ORDER_BOOK);
+    } catch (error) {
+      result.errors.push({ type: 'order_book', error: errorText(error) });
+      errors.push({ at: new Date().toISOString(), type: 'order_book', error: errorText(error) });
+    }
+    return result;
+  }
+
+  async function primeSnapshots(securities) {
+    const all = dedupeSecurities(securities);
+    if (all.length === 0) return [];
+    const response = await getSecuritySnapshots(client, all);
+    const rows = response.s2c?.snapshotList || [];
+    for (const snapshot of rows) rememberSnapshot(snapshot, 'snapshot');
+    return rows.map((snapshot) => snapshots.get(securityKey(snapshot.basic?.security)) || normalizeForJson(snapshot));
+  }
+
+  function cachedSnapshots(securities) {
+    return dedupeSecurities(securities).map((security) => snapshots.get(securityKey(security)) || null);
+  }
+
+  function staleOrMissingSecurities(securities, maxAgeMs) {
+    const now = Date.now();
+    return dedupeSecurities(securities).filter((security) => {
+      const cached = snapshots.get(securityKey(security));
+      if (!cached) return true;
+      const snapshotMs = Date.parse(cached.snapshot_received_at || cached.quote_received_at || '');
+      if (!Number.isFinite(snapshotMs)) return true;
+      return now - snapshotMs > maxAgeMs;
+    });
+  }
+
+  async function getSnapshots(securities, opts = {}) {
+    const all = dedupeSecurities(securities);
+    const subscribe = opts.subscribe !== false;
+    const warmupMs = Math.max(0, Number(opts.warmupMs ?? config.quotePushWarmupMs ?? 350));
+    const fallbackMaxAgeMs = Math.max(0, Number(opts.fallbackSnapshotMaxAgeMs ?? config.quoteFallbackSnapshotMaxAgeMs ?? 2000));
+    let subscription = null;
+    if (subscribe) {
+      subscription = await ensureSubscribed(all, {
+        orderBookSecurities: opts.orderBookSecurities || all,
+      });
+    }
+    const needPrime = staleOrMissingSecurities(all, fallbackMaxAgeMs);
+    if (needPrime.length > 0) await primeSnapshots(needPrime);
+    if (warmupMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, warmupMs));
+    }
+    return {
+      snapshots: cachedSnapshots(all),
+      subscription,
+      feed_status: status(),
+    };
+  }
+
+  async function close() {
+    const all = [...subscribedByType.keys()].map((key) => {
+      const [market, code] = key.split(':');
+      return { market: Number(market), code };
+    });
+    if (all.length > 0) {
+      try {
+        await client.Sub({
+          c2s: {
+            securityList: all,
+            subTypeList: [QOT_SUBTYPE_BASIC, QOT_SUBTYPE_ORDER_BOOK],
+            isSubOrUnSub: false,
+            isRegOrUnRegPush: false,
+          },
+        });
+      } catch {
+        // Best-effort unsubscribe only.
+      }
+    }
+    client.onPush = previousOnPush;
+  }
+
+  function status() {
+    return {
+      mode: 'push_plus_snapshot_fallback',
+      subscribed_security_count: subscribedByType.size,
+      push_count: pushCount,
+      cached_snapshot_count: snapshots.size,
+      recent_errors: errors.slice(-5),
+    };
+  }
+
+  return {
+    ensureSubscribed,
+    getSnapshots,
+    primeSnapshots,
+    cachedSnapshots,
+    status,
+    close,
+  };
 }
 
 export function getBestLimitBuyPrice(snapshot) {
@@ -488,6 +820,10 @@ export function buildOptionExecutionQuote(snapshot, config) {
     ask,
     mid,
     last,
+    quote_source: snapshot?.quote_source || null,
+    quote_received_at: snapshot?.quote_received_at || null,
+    bid_ask_source: snapshot?.bid_ask_source || (snapshot?.basic ? 'snapshot' : null),
+    bid_ask_received_at: snapshot?.bid_ask_received_at || snapshot?.quote_received_at || null,
     tick,
     ask_size_contracts: askSize,
     bid_size_contracts: bidSize,

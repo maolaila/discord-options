@@ -4,20 +4,22 @@ import path from 'node:path';
 import {
   PROJECT_ROOT,
   QOT_MARKET_US_SECURITY,
+  TRD_ENV_REAL,
   TRD_ENV_SIMULATE,
   buildOptionExecutionQuote,
   connectMoomoo,
+  createMoomooQuoteFeed,
   ensureDir,
   fetchMoomooAccounts,
   fetchOrderFillList,
   fetchOrderList,
   fetchPositionList,
-  getSecuritySnapshots,
   loadMoomooConfig,
   maskId,
   normalizeForJson,
   parseCliArgs,
   placeLimitSellOrder,
+  selectConfiguredUsRealAccount,
   selectSimulatedUsOptionAccount,
 } from './moomoo-opend.mjs';
 import {
@@ -71,12 +73,12 @@ async function writeStatus(payload) {
   await fsp.writeFile(statusPath, `${JSON.stringify({ updated_at: new Date().toISOString(), ...payload }, null, 2)}\n`, 'utf8');
 }
 
-function simulationBuyPlans() {
+function submittedBuyPlans(mode) {
   const seen = new Map();
   for (const plan of readNdjson(executionsPath)) {
     const orderIDEx = String(plan.execution?.response?.s2c?.orderIDEx || '');
     if (!orderIDEx) continue;
-    if (plan.mode !== 'execute_simulate' || plan.order_status !== 'submitted') continue;
+    if (plan.mode !== mode || plan.order_status !== 'submitted') continue;
     if (plan.order?.side !== 'BUY_TO_OPEN') continue;
     seen.set(orderIDEx, plan);
   }
@@ -215,8 +217,47 @@ async function ensureSimAccount(client, config) {
   };
 }
 
-async function processOnce(client, config, state) {
-  const plans = simulationBuyPlans();
+function getMode(config) {
+  if (args['execute-real']) {
+    if (!config.allowRealTrading) {
+      throw new Error('Real exit monitoring is blocked. Set MOOMOO_ALLOW_REAL_TRADING=true and pass --execute-real only after confirming account and risk controls.');
+    }
+    if (String(process.env.MOOMOO_REAL_TRADING_CONFIRM || '') !== 'I_UNDERSTAND') {
+      throw new Error('Real exit monitoring is blocked. Set MOOMOO_REAL_TRADING_CONFIRM=I_UNDERSTAND to remove the last real-trading guard.');
+    }
+    config.trdEnv = TRD_ENV_REAL;
+    return 'execute_real';
+  }
+  config.trdEnv = TRD_ENV_SIMULATE;
+  return 'execute_simulate';
+}
+
+async function ensureTradingAccount(client, config, mode) {
+  if (mode === 'execute_simulate') {
+    return {
+      mode,
+      account: await ensureSimAccount(client, config),
+    };
+  }
+  const accounts = await fetchMoomooAccounts(client);
+  const account = selectConfiguredUsRealAccount(accounts, config);
+  if (!account) {
+    throw new Error('Configured real US trading account was not found or is not authorized for the US market. Check MOOMOO_ACC_ID with npm run moomoo:check.');
+  }
+  return {
+    mode,
+    account: {
+      accID: maskId(account.accID),
+      trdEnv: account.trdEnv,
+      trdMarketAuthList: account.trdMarketAuthList || [],
+      accType: account.accType,
+      jpAccType: account.jpAccType || [],
+    },
+  };
+}
+
+async function processOnce(client, config, state, quoteFeed, mode) {
+  const plans = submittedBuyPlans(mode);
   const orderList = normalizeForJson((await fetchOrderList(client, config)).s2c?.orderList || []);
   const fillList = await safeOrderFillList(client, config);
   const positionList = normalizeForJson((await fetchPositionList(client, config)).s2c?.positionList || []);
@@ -486,8 +527,10 @@ async function processOnce(client, config, state) {
     watched += 1;
     const optionSecurity = plan.contract?.security;
     const underlyingSecurity = { market: QOT_MARKET_US_SECURITY, code: plan.signal?.ticker };
-    const snapshotResponse = await getSecuritySnapshots(client, [optionSecurity, underlyingSecurity]);
-    const snapshots = snapshotResponse.s2c?.snapshotList || [];
+    const quoteResult = await quoteFeed.getSnapshots([optionSecurity, underlyingSecurity], {
+      orderBookSecurities: [optionSecurity],
+    });
+    const snapshots = quoteResult.snapshots || [];
     const optionSnapshot = snapshots.find((item) => item?.basic?.security?.code === optionSecurity.code) || null;
     const underlyingSnapshot = snapshots.find((item) => item?.basic?.security?.code === underlyingSecurity.code) || null;
     const underlyingPrice = numeric(underlyingSnapshot?.basic?.curPrice);
@@ -520,6 +563,8 @@ async function processOnce(client, config, state) {
         optionSnapshotBasic: normalizeForJson(optionSnapshot?.basic || null),
         underlyingSnapshotBasic: normalizeForJson(underlyingSnapshot?.basic || null),
         underlyingPrice,
+        quoteFeed: normalizeForJson(quoteResult.feed_status || null),
+        quoteSubscription: normalizeForJson(quoteResult.subscription || null),
         trigger,
         state: nextState,
       }),
@@ -544,6 +589,8 @@ async function processOnce(client, config, state) {
         optionSnapshotBasic: normalizeForJson(optionSnapshot?.basic || null),
         underlyingSnapshotBasic: normalizeForJson(underlyingSnapshot?.basic || null),
         underlyingPrice,
+        quoteFeed: normalizeForJson(quoteResult.feed_status || null),
+        quoteSubscription: normalizeForJson(quoteResult.subscription || null),
         trigger,
         state: nextState,
       }),
@@ -575,6 +622,8 @@ async function processOnce(client, config, state) {
           optionSnapshotBasic: normalizeForJson(optionSnapshot?.basic || null),
           underlyingSnapshotBasic: normalizeForJson(underlyingSnapshot?.basic || null),
           underlyingPrice,
+          quoteFeed: normalizeForJson(quoteResult.feed_status || null),
+          quoteSubscription: normalizeForJson(quoteResult.subscription || null),
           trigger,
           state: nextState,
         }),
@@ -621,6 +670,8 @@ async function processOnce(client, config, state) {
           optionSnapshotBasic: normalizeForJson(optionSnapshot?.basic || null),
           underlyingSnapshotBasic: normalizeForJson(underlyingSnapshot?.basic || null),
           underlyingPrice,
+          quoteFeed: normalizeForJson(quoteResult.feed_status || null),
+          quoteSubscription: normalizeForJson(quoteResult.subscription || null),
           trigger,
           exitOrder: {
             side: 'SELL_TO_CLOSE',
@@ -650,6 +701,12 @@ async function processOnce(client, config, state) {
       trigger,
       underlying_quote: normalizeForJson(underlyingSnapshot?.basic || null),
       option_quote: quoteModel,
+      option_quote_source: optionSnapshot?.quote_source || 'snapshot',
+      option_quote_received_at: optionSnapshot?.quote_received_at || null,
+      underlying_quote_source: underlyingSnapshot?.quote_source || 'snapshot',
+      underlying_quote_received_at: underlyingSnapshot?.quote_received_at || null,
+      quote_feed: normalizeForJson(quoteResult.feed_status || null),
+      quote_subscription: normalizeForJson(quoteResult.subscription || null),
       response: normalizeForJson(response),
     };
     await appendJsonLine(exitOrdersPath, exitPayload);
@@ -682,6 +739,8 @@ async function processOnce(client, config, state) {
         optionSnapshotBasic: normalizeForJson(optionSnapshot?.basic || null),
         underlyingSnapshotBasic: normalizeForJson(underlyingSnapshot?.basic || null),
         underlyingPrice,
+        quoteFeed: normalizeForJson(quoteResult.feed_status || null),
+        quoteSubscription: normalizeForJson(quoteResult.subscription || null),
         trigger,
         exitOrder: {
           side: 'SELL_TO_CLOSE',
@@ -700,29 +759,39 @@ async function processOnce(client, config, state) {
   await writeState(state);
   await writeStatus({
     phase: 'ok',
+    mode,
     plans: plans.length,
     watched,
     submitted_exits: submittedExits,
+    quote_feed: quoteFeed.status(),
   });
   return { plans: plans.length, watched, submittedExits };
 }
 
 async function main() {
   const config = loadMoomooConfig({ envFile: args.env });
-  config.trdEnv = TRD_ENV_SIMULATE;
-  const pollSeconds = Math.max(2, Number(args['poll-seconds'] || 10));
+  const mode = getMode(config);
+  const pollSeconds = Math.max(1, Number(args['poll-seconds'] || 2));
   const conn = await connectMoomoo(config);
+  const quoteFeed = createMoomooQuoteFeed(conn.client, config);
   try {
-    const simAccount = await ensureSimAccount(conn.client, config);
-    await writeStatus({ phase: 'started', sim_account: simAccount, poll_seconds: pollSeconds });
+    const tradingAccount = await ensureTradingAccount(conn.client, config, mode);
+    await writeStatus({
+      phase: 'started',
+      mode,
+      trading_account: tradingAccount.account,
+      poll_seconds: pollSeconds,
+      quote_feed: quoteFeed.status(),
+    });
     for (;;) {
       const state = loadState();
-      const result = await processOnce(conn.client, config, state);
-      console.log(`[${new Date().toISOString()}] plans=${result.plans} watched=${result.watched} submitted_exits=${result.submittedExits}`);
+      const result = await processOnce(conn.client, config, state, quoteFeed, mode);
+      console.log(`[${new Date().toISOString()}] mode=${mode} plans=${result.plans} watched=${result.watched} submitted_exits=${result.submittedExits} pushes=${quoteFeed.status().push_count}`);
       if (!args.watch) break;
       await new Promise((resolve) => setTimeout(resolve, pollSeconds * 1000));
     }
   } finally {
+    await quoteFeed.close();
     conn.close();
   }
 }

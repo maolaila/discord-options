@@ -31,7 +31,7 @@
     "quantity_rounding": "integer_contracts_nearest_target_without_exceeding_max"
   },
   "execution_quality": {
-    "quote_source": "live_bid_ask_snapshot",
+    "quote_source": "opend_push_orderbook_with_snapshot_fallback",
     "require_bid_ask": true,
     "min_bid_price": 0.01,
     "max_spread_pct_of_mid": 25,

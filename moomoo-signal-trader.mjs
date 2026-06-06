@@ -9,15 +9,16 @@ import {
   buildOptionExecutionQuote,
   buildLimitBuyOrderRequest,
   connectMoomoo,
+  createMoomooQuoteFeed,
   ensureDir,
   fetchMoomooAccounts,
   findOptionContract,
-  getSecuritySnapshots,
   loadMoomooConfig,
   maskId,
   normalizeForJson,
   parseCliArgs,
   placeLimitBuyOrder,
+  selectConfiguredUsRealAccount,
   selectSimulatedUsOptionAccount,
 } from './moomoo-opend.mjs';
 import {
@@ -315,6 +316,24 @@ async function ensureSimulatedOptionAccount(client, config, connectionHolder) {
   return connectionHolder.simAccount;
 }
 
+async function ensureRealTradingAccount(client, config, connectionHolder) {
+  if (connectionHolder.realAccountResolved) return connectionHolder.realAccount;
+  const accounts = await fetchMoomooAccounts(client);
+  const account = selectConfiguredUsRealAccount(accounts, config);
+  if (!account) {
+    throw new Error('Configured real US trading account was not found or is not authorized for the US market. Check MOOMOO_ACC_ID with npm run moomoo:check.');
+  }
+  connectionHolder.realAccountResolved = true;
+  connectionHolder.realAccount = {
+    accID: maskId(account.accID),
+    trdEnv: account.trdEnv,
+    markets: account.trdMarketAuthList || [],
+    accType: account.accType,
+    jpAccType: account.jpAccType || [],
+  };
+  return connectionHolder.realAccount;
+}
+
 function signalSummary(intent, signal) {
   return {
     source_signal_key: intent.source_signal_key || signal?.signal_key || '',
@@ -393,6 +412,11 @@ async function processIntent(intent, signalMaps, config, mode, connectionHolder)
   const client = connectionHolder.connection.client;
   if (mode === 'execute_simulate') {
     plan.simulated_account = await ensureSimulatedOptionAccount(client, config, connectionHolder);
+  } else if (mode === 'execute_real') {
+    plan.real_account = await ensureRealTradingAccount(client, config, connectionHolder);
+  }
+  if (!connectionHolder.quoteFeed) {
+    connectionHolder.quoteFeed = createMoomooQuoteFeed(client, config);
   }
 
   const resolved = await findOptionContract(client, summary);
@@ -410,8 +434,10 @@ async function processIntent(intent, signalMaps, config, mode, connectionHolder)
     market: QOT_MARKET_US_SECURITY,
     code: summary.ticker,
   };
-  const snapshotResponse = await getSecuritySnapshots(client, [contract.security, underlyingSecurity]);
-  const snapshots = snapshotResponse.s2c?.snapshotList || [];
+  const quoteResult = await connectionHolder.quoteFeed.getSnapshots([contract.security, underlyingSecurity], {
+    orderBookSecurities: [contract.security],
+  });
+  const snapshots = quoteResult.snapshots || [];
   const snapshot = snapshots.find((item) => item?.basic?.security?.code === contract.security.code) || snapshots[0] || null;
   const underlyingSnapshot = snapshots.find((item) => item?.basic?.security?.code === summary.ticker) || null;
   const optionExecutionQuote = buildOptionExecutionQuote(snapshot, config);
@@ -474,6 +500,11 @@ async function processIntent(intent, signalMaps, config, mode, connectionHolder)
     snapshot_at: new Date().toISOString(),
     basic: normalizeForJson(snapshot?.basic || null),
     option_ex_data: normalizeForJson(snapshot?.optionExData || null),
+    order_book: normalizeForJson(snapshot?.order_book || null),
+    quote_source: snapshot?.quote_source || 'snapshot',
+    quote_received_at: snapshot?.quote_received_at || null,
+    feed_status: normalizeForJson(quoteResult.feed_status || null),
+    subscription: normalizeForJson(quoteResult.subscription || null),
     selected_limit_buy_price: limitPrice,
     execution_quality: optionExecutionQuote,
   };
@@ -481,6 +512,8 @@ async function processIntent(intent, signalMaps, config, mode, connectionHolder)
     snapshot_at: new Date().toISOString(),
     security: underlyingSecurity,
     basic: normalizeForJson(underlyingSnapshot?.basic || null),
+    quote_source: underlyingSnapshot?.quote_source || 'snapshot',
+    quote_received_at: underlyingSnapshot?.quote_received_at || null,
     selected_entry_price: underlyingEntryPrice,
   };
   plan.position_sizing = positionSizing;
@@ -495,6 +528,10 @@ async function processIntent(intent, signalMaps, config, mode, connectionHolder)
       bid: optionExecutionQuote.bid,
       ask: optionExecutionQuote.ask,
       mid: optionExecutionQuote.mid,
+      quote_source: optionExecutionQuote.quote_source,
+      quote_received_at: optionExecutionQuote.quote_received_at,
+      bid_ask_source: optionExecutionQuote.bid_ask_source,
+      bid_ask_received_at: optionExecutionQuote.bid_ask_received_at,
       spread_abs: optionExecutionQuote.spread_abs,
       spread_pct_of_mid: optionExecutionQuote.spread_pct_of_mid,
       slippage_buffer: optionExecutionQuote.slippage_buffer,
@@ -567,6 +604,7 @@ async function processBatch(intents, signalMaps, config, mode) {
       plans.push(await processIntent(intent, signalMaps, config, mode, connectionHolder));
     }
   } finally {
+    await connectionHolder.quoteFeed?.close?.();
     connectionHolder.connection?.close();
   }
   return plans;

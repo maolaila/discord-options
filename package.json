@@ -11,8 +11,11 @@
     "moomoo:watch-plan": "node ./moomoo-signal-trader.mjs --watch --dry-run",
     "moomoo:simulate": "node ./moomoo-signal-trader.mjs --execute-simulate",
     "moomoo:watch-sim": "node ./moomoo-signal-trader.mjs --watch --execute-simulate",
+    "moomoo:real": "node ./moomoo-signal-trader.mjs --execute-real",
+    "moomoo:watch-real": "node ./moomoo-signal-trader.mjs --watch --execute-real",
     "moomoo:exit-once": "node ./moomoo-exit-monitor.mjs",
     "moomoo:exit-watch": "node ./moomoo-exit-monitor.mjs --watch",
+    "moomoo:exit-real-watch": "node ./moomoo-exit-monitor.mjs --watch --execute-real",
     "console": "node ./control-console.mjs"
   },
   "dependencies": {

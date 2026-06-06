@@ -250,7 +250,7 @@ MOOMOO_OPTION_MAX_QTY_TO_ASK_VOLUME_RATIO=10
 
 仓位按期权买入限价和合约乘数计算，目标约为模拟本金的 `25%`，不超过 `30%`。如果因为期权价格导致整数张数不能精确落在 `20%-30%`，计划文件会写明原因。止盈止损的百分比基准是买入期权时对应股票的价格，不是期权价格；同时仍记录信号自带的股票目标价和止损价。
 
-期权下单前会读取快照里的 `bid`、`ask`、`mid`、可见挂单量、当日成交量和 open interest。买入限价不再直接用 `ask`，而是按 `ask + max(1 tick, 10% 点差)` 的保守价格计算；计划文件同时记录 `bid - 滑点` 的卖出估算价和立即往返磨损比例。如果点差超过配置阈值、即时往返磨损过大、bid/ask 缺失、open interest 或当日成交量过低，计划会被拦截。目标张数如果明显超过可见 ask 挂单量，会按 `askVol * 10` 限制张数，并在 `position_sizing.reasons` 写明。
+期权下单前会先向 OpenD 订阅行情推送：正股使用 `Basic` 推送拿最新价，期权使用 `OrderBook` 推送拿最新 bid/ask；同时会读取一次 `GetSecuritySnapshot` 作为初始快照和兜底，用于 open interest、合约乘数、成交量等字段。买入限价不再直接用 `ask`，而是按 `ask + max(1 tick, 10% 点差)` 的保守价格计算；计划文件同时记录 `bid - 滑点` 的卖出估算价和立即往返磨损比例。如果点差超过配置阈值、即时往返磨损过大、bid/ask 缺失、open interest 或当日成交量过低，计划会被拦截。目标张数如果明显超过可见 ask 挂单量，会按 `askVol * 10` 限制张数，并在 `position_sizing.reasons` 写明。
 
 模拟执行需要显式传参：
 
@@ -270,7 +270,7 @@ npm run moomoo:watch-sim
 npm run moomoo:exit-watch
 ```
 
-控制台里的 `启动全套模拟` 会同时启动买入监听和卖出监控。卖出监控只处理本程序提交且已经成交的模拟买入单；触发股票目标价、股票止损价、标的价格百分比止盈/止损或收盘前退出时，按当前期权 `bid - 滑点` 的保守限价提交 `SELL` 单。卖出记录写入 `logs/moomoo-exit-orders.ndjson`，状态写入 `logs/moomoo-exit-status.json`。
+控制台里的 `启动全套模拟` 会同时启动买入监听和卖出监控。卖出监控只处理本程序提交且已经成交的同环境买入单；触发股票目标价、股票止损价、标的价格百分比止盈/止损或收盘前退出时，按当前期权 `bid - 滑点` 的保守限价提交 `SELL_TO_CLOSE` 单。行情触发采用 OpenD 推送缓存优先，订单/持仓状态仍每 `2` 秒向 OpenD 校验一次。卖出记录写入 `logs/moomoo-exit-orders.ndjson`，状态写入 `logs/moomoo-exit-status.json`。
 
 每个交易生命周期都会额外写入 `logs/trade-journal.ndjson`，用于后续人工复盘或本地整理后给 AI 参考。该文件是追加式 JSONL，每行包含：
 
@@ -285,7 +285,17 @@ npm run moomoo:exit-watch
 
 `--execute-simulate` 会自动从 OpenD 账户列表中选择 `trdEnv=0`、支持美股市场、且模拟账户类型支持期权的账户；不会使用 `.env` 里的真实账户 ID。
 
-实盘执行还有额外双重开关：`.env` 里 `MOOMOO_ALLOW_REAL_TRADING=true`，并且当前环境变量 `MOOMOO_REAL_TRADING_CONFIRM=I_UNDERSTAND`，同时传 `--execute-real`。不满足这些条件时，脚本会直接拒绝实盘下单。
+实盘执行还有额外三重开关：`.env` 里 `MOOMOO_ALLOW_REAL_TRADING=true`，当前环境变量 `MOOMOO_REAL_TRADING_CONFIRM=I_UNDERSTAND`，并且命令行传 `--execute-real`。不满足这些条件时，买入监听和卖出监控都会直接拒绝实盘下单。
+
+完整实盘链路需要同时启动买入监听和卖出监控：
+
+```powershell
+$env:MOOMOO_REAL_TRADING_CONFIRM="I_UNDERSTAND"
+npm run moomoo:watch-real
+npm run moomoo:exit-real-watch
+```
+
+实盘命令不会自动选择模拟账户；会使用 `.env` 里的 `MOOMOO_ACC_ID`，并在 OpenD 账户列表中验证它是支持美股市场的实盘账户。
 
 当前点差、滑点、可见 ask 流动性和立即往返磨损模型用于模拟盘和交易计划的保守估算。真实盘不会把这些估算当成真实成交价；真实成交必须以真实市场和券商实际成交回报为准。bid、ask 和 mid 只作为开仓/平仓限价和成交质量的参考。
 

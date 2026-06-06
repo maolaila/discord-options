@@ -166,6 +166,7 @@ export function buildPlanJournalPayload(plan, config, extra = {}) {
     },
     broker: {
       simulated_account: plan.simulated_account || null,
+      real_account: plan.real_account || null,
       order_request_redacted: order?.request || null,
       order_response: plan.execution?.response || null,
       error: plan.execution?.error || null,
@@ -193,6 +194,8 @@ export function buildExitJournalPayload({
   optionSnapshotBasic,
   underlyingSnapshotBasic,
   underlyingPrice,
+  quoteFeed,
+  quoteSubscription,
   trigger,
   exitOrder,
   exitResponse,
@@ -234,6 +237,8 @@ export function buildExitJournalPayload({
       underlying_snapshot_basic: underlyingSnapshotBasic || null,
       option_quote: optionQuote || null,
       option_snapshot_basic: optionSnapshotBasic || null,
+      quote_feed: quoteFeed || null,
+      quote_subscription: quoteSubscription || null,
     },
     exit_decision: {
       trigger: trigger || null,

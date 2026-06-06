@@ -20,6 +20,10 @@ import {
   placeLimitSellOrder,
   selectSimulatedUsOptionAccount,
 } from './moomoo-opend.mjs';
+import {
+  appendTradeJournalEvent,
+  buildExitJournalPayload,
+} from './trade-journal.mjs';
 
 const args = parseCliArgs();
 const logsDir = path.join(PROJECT_ROOT, 'logs');
@@ -223,7 +227,7 @@ async function processOnce(client, config, state) {
 
   for (const { orderIDEx, plan } of plans) {
     const stateRow = state.orders[orderIDEx] || {};
-    if (stateRow.status === 'exit_submitted' || stateRow.status === 'closed') continue;
+    if (stateRow.status === 'closed') continue;
 
     const order = ordersById.get(orderIDEx);
     const fills = fillsById.get(orderIDEx);
@@ -231,15 +235,159 @@ async function processOnce(client, config, state) {
     const fillAvgPrice = numeric(order?.fillAvgPrice)
       ?? (fills?.buyQty ? fills.buyValue / fills.buyQty : null);
 
-    if (!filledQty || filledQty <= 0) {
-      state.orders[orderIDEx] = {
+    if (stateRow.status === 'exit_submitted' || stateRow.status === 'exit_waiting_fill') {
+      const exitOrder = ordersById.get(String(stateRow.exit_order_id_ex || ''));
+      const exitFilledQty = numeric(exitOrder?.fillQty) ?? 0;
+      const exitFillAvgPrice = numeric(exitOrder?.fillAvgPrice) ?? numeric(stateRow.exit_price);
+      const code = plan.order?.code;
+      const position = positionList.find((item) => String(item.code || '') === String(code));
+      const canSellQty = numeric(position?.canSellQty) ?? 0;
+      const expectedExitQty = numeric(stateRow.exit_qty) ?? 0;
+      let nextState = {
         ...stateRow,
-        status: isTerminalUnfilledOrderStatus(order?.orderStatus) ? 'buy_not_filled_terminal' : 'waiting_buy_fill',
+        exit_order_status: exitOrder?.orderStatus ?? null,
+        exit_filled_qty: exitFilledQty,
+        exit_fill_avg_price: exitFillAvgPrice,
+        can_sell_qty: canSellQty,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (exitFilledQty > 0 && !stateRow.exit_fill_logged) {
+        await appendTradeJournalEvent(
+          'exit_order_filled',
+          buildExitJournalPayload({
+            plan,
+            config,
+            sourceBuyOrderIDEx: orderIDEx,
+            lifecycleStatus: 'exit_filled',
+            brokerOrder: normalizeForJson(order || null),
+            fills: normalizeForJson(fills || null),
+            position: normalizeForJson(position || null),
+            filledQty,
+            fillAvgPrice,
+            remainingQty: Math.max(0, Math.floor(filledQty - exitFilledQty)),
+            canSellQty,
+            exitOrder: {
+              side: 'SELL_TO_CLOSE',
+              code,
+              qty: exitFilledQty,
+              price: exitFillAvgPrice,
+              price_basis: 'broker_fill_avg_or_submitted_limit',
+              order_id_ex: stateRow.exit_order_id_ex,
+            },
+            state: nextState,
+            extra: {
+              exit_broker_order: normalizeForJson(exitOrder || null),
+            },
+          }),
+        );
+        nextState.exit_fill_logged = true;
+      }
+
+      const fullyExited = (expectedExitQty > 0 && exitFilledQty >= expectedExitQty)
+        || (position && canSellQty <= 0);
+      if (fullyExited) {
+        nextState = { ...nextState, status: 'closed', updated_at: new Date().toISOString() };
+        if (!stateRow.closed_logged) {
+          await appendTradeJournalEvent(
+            'position_closed',
+            buildExitJournalPayload({
+              plan,
+              config,
+              sourceBuyOrderIDEx: orderIDEx,
+              lifecycleStatus: 'closed',
+              brokerOrder: normalizeForJson(order || null),
+              fills: normalizeForJson(fills || null),
+              position: normalizeForJson(position || null),
+              filledQty,
+              fillAvgPrice,
+              remainingQty: 0,
+              canSellQty,
+              exitOrder: {
+                side: 'SELL_TO_CLOSE',
+                code,
+                qty: exitFilledQty || expectedExitQty,
+                price: exitFillAvgPrice,
+                price_basis: 'broker_fill_avg_or_submitted_limit',
+                order_id_ex: stateRow.exit_order_id_ex,
+              },
+              state: nextState,
+              extra: {
+                exit_broker_order: normalizeForJson(exitOrder || null),
+              },
+            }),
+          );
+          nextState.closed_logged = true;
+        }
+      } else {
+        nextState = { ...nextState, status: 'exit_waiting_fill', updated_at: new Date().toISOString() };
+        const changed = stateRow.exit_order_status !== nextState.exit_order_status
+          || stateRow.exit_filled_qty !== nextState.exit_filled_qty
+          || stateRow.status !== nextState.status;
+        if (changed) {
+          await appendTradeJournalEvent(
+            'exit_order_waiting_fill',
+            buildExitJournalPayload({
+              plan,
+              config,
+              sourceBuyOrderIDEx: orderIDEx,
+              lifecycleStatus: 'exit_waiting_fill',
+              brokerOrder: normalizeForJson(order || null),
+              fills: normalizeForJson(fills || null),
+              position: normalizeForJson(position || null),
+              filledQty,
+              fillAvgPrice,
+              remainingQty: Math.max(0, Math.floor(filledQty - exitFilledQty)),
+              canSellQty,
+              exitOrder: {
+                side: 'SELL_TO_CLOSE',
+                code,
+                qty: expectedExitQty,
+                price: numeric(stateRow.exit_price),
+                price_basis: 'submitted_limit',
+                order_id_ex: stateRow.exit_order_id_ex,
+              },
+              state: nextState,
+              extra: {
+                exit_broker_order: normalizeForJson(exitOrder || null),
+              },
+            }),
+          );
+        }
+      }
+
+      state.orders[orderIDEx] = nextState;
+      continue;
+    }
+
+    if (!filledQty || filledQty <= 0) {
+      const status = isTerminalUnfilledOrderStatus(order?.orderStatus) ? 'buy_not_filled_terminal' : 'waiting_buy_fill';
+      const nextState = {
+        ...stateRow,
+        status,
         code: plan.order?.code,
         submitted_qty: plan.order?.qty,
         order_status: order?.orderStatus ?? null,
         updated_at: new Date().toISOString(),
       };
+      const changed = stateRow.status !== nextState.status || stateRow.order_status !== nextState.order_status;
+      state.orders[orderIDEx] = nextState;
+      if (changed) {
+        await appendTradeJournalEvent(
+          status === 'buy_not_filled_terminal' ? 'buy_order_terminal_unfilled' : 'buy_order_waiting_fill',
+          buildExitJournalPayload({
+            plan,
+            config,
+            sourceBuyOrderIDEx: orderIDEx,
+            lifecycleStatus: status,
+            brokerOrder: normalizeForJson(order || null),
+            fills: normalizeForJson(fills || null),
+            filledQty,
+            fillAvgPrice,
+            state: nextState,
+          }),
+        );
+      }
       continue;
     }
 
@@ -249,20 +397,89 @@ async function processOnce(client, config, state) {
     const sellFilledQty = fills?.sellQty || 0;
     const remainingQty = Math.max(0, Math.floor(filledQty - sellFilledQty));
     const exitQty = Math.min(remainingQty, Math.floor(canSellQty));
+
+    let nextState = {
+      ...stateRow,
+      code,
+      filled_qty: filledQty,
+      fill_avg_price: fillAvgPrice,
+      remaining_qty: remainingQty,
+      can_sell_qty: canSellQty,
+      updated_at: new Date().toISOString(),
+    };
+    if (!stateRow.buy_fill_logged) {
+      await appendTradeJournalEvent(
+        'buy_order_filled',
+        buildExitJournalPayload({
+          plan,
+          config,
+          sourceBuyOrderIDEx: orderIDEx,
+          lifecycleStatus: 'buy_filled',
+          brokerOrder: normalizeForJson(order || null),
+          fills: normalizeForJson(fills || null),
+          position: normalizeForJson(position || null),
+          filledQty,
+          fillAvgPrice,
+          remainingQty,
+          canSellQty,
+          state: nextState,
+        }),
+      );
+      nextState.buy_fill_logged = true;
+    }
+
     if (remainingQty <= 0) {
-      state.orders[orderIDEx] = { ...stateRow, status: 'closed', code, updated_at: new Date().toISOString() };
+      nextState = { ...nextState, status: 'closed', updated_at: new Date().toISOString() };
+      if (!stateRow.closed_logged) {
+        await appendTradeJournalEvent(
+          'position_closed',
+          buildExitJournalPayload({
+            plan,
+            config,
+            sourceBuyOrderIDEx: orderIDEx,
+            lifecycleStatus: 'closed',
+            brokerOrder: normalizeForJson(order || null),
+            fills: normalizeForJson(fills || null),
+            position: normalizeForJson(position || null),
+            filledQty,
+            fillAvgPrice,
+            remainingQty,
+            canSellQty,
+            state: nextState,
+          }),
+        );
+        nextState.closed_logged = true;
+      }
+      state.orders[orderIDEx] = nextState;
       continue;
     }
     if (exitQty <= 0) {
-      state.orders[orderIDEx] = {
-        ...stateRow,
+      nextState = {
+        ...nextState,
         status: 'waiting_sellable_qty',
-        code,
-        filled_qty: filledQty,
-        remaining_qty: remainingQty,
-        can_sell_qty: canSellQty,
         updated_at: new Date().toISOString(),
       };
+      const changed = stateRow.status !== nextState.status || stateRow.can_sell_qty !== nextState.can_sell_qty;
+      state.orders[orderIDEx] = nextState;
+      if (changed) {
+        await appendTradeJournalEvent(
+          'position_waiting_sellable_qty',
+          buildExitJournalPayload({
+            plan,
+            config,
+            sourceBuyOrderIDEx: orderIDEx,
+            lifecycleStatus: 'waiting_sellable_qty',
+            brokerOrder: normalizeForJson(order || null),
+            fills: normalizeForJson(fills || null),
+            position: normalizeForJson(position || null),
+            filledQty,
+            fillAvgPrice,
+            remainingQty,
+            canSellQty,
+            state: nextState,
+          }),
+        );
+      }
       continue;
     }
 
@@ -275,40 +492,152 @@ async function processOnce(client, config, state) {
     const underlyingSnapshot = snapshots.find((item) => item?.basic?.security?.code === underlyingSecurity.code) || null;
     const underlyingPrice = numeric(underlyingSnapshot?.basic?.curPrice);
     const trigger = isRegularSessionNow() ? exitTrigger(plan, underlyingPrice) : null;
+    const quoteModel = buildOptionExecutionQuote(optionSnapshot, config);
 
-    state.orders[orderIDEx] = {
-      ...stateRow,
+    nextState = {
+      ...nextState,
       status: trigger ? 'exit_triggered' : 'monitoring',
-      code,
-      filled_qty: filledQty,
-      fill_avg_price: fillAvgPrice,
-      remaining_qty: remainingQty,
-      can_sell_qty: canSellQty,
       underlying_price: underlyingPrice,
       last_trigger: trigger,
       updated_at: new Date().toISOString(),
     };
+    state.orders[orderIDEx] = nextState;
+    await appendTradeJournalEvent(
+      'position_monitor_snapshot',
+      buildExitJournalPayload({
+        plan,
+        config,
+        sourceBuyOrderIDEx: orderIDEx,
+        lifecycleStatus: nextState.status,
+        brokerOrder: normalizeForJson(order || null),
+        fills: normalizeForJson(fills || null),
+        position: normalizeForJson(position || null),
+        filledQty,
+        fillAvgPrice,
+        remainingQty,
+        canSellQty,
+        optionQuote: quoteModel,
+        optionSnapshotBasic: normalizeForJson(optionSnapshot?.basic || null),
+        underlyingSnapshotBasic: normalizeForJson(underlyingSnapshot?.basic || null),
+        underlyingPrice,
+        trigger,
+        state: nextState,
+      }),
+    );
     if (!trigger) continue;
 
-    const quoteModel = buildOptionExecutionQuote(optionSnapshot, config);
+    await appendTradeJournalEvent(
+      'exit_triggered',
+      buildExitJournalPayload({
+        plan,
+        config,
+        sourceBuyOrderIDEx: orderIDEx,
+        lifecycleStatus: 'exit_triggered',
+        brokerOrder: normalizeForJson(order || null),
+        fills: normalizeForJson(fills || null),
+        position: normalizeForJson(position || null),
+        filledQty,
+        fillAvgPrice,
+        remainingQty,
+        canSellQty,
+        optionQuote: quoteModel,
+        optionSnapshotBasic: normalizeForJson(optionSnapshot?.basic || null),
+        underlyingSnapshotBasic: normalizeForJson(underlyingSnapshot?.basic || null),
+        underlyingPrice,
+        trigger,
+        state: nextState,
+      }),
+    );
+
     const sellPrice = sellLimitPriceFromQuote(quoteModel);
     if (sellPrice === null) {
-      state.orders[orderIDEx] = {
-        ...state.orders[orderIDEx],
+      nextState = {
+        ...nextState,
         status: 'exit_blocked_missing_bid',
         option_quote: quoteModel,
       };
+      state.orders[orderIDEx] = nextState;
+      await appendTradeJournalEvent(
+        'exit_blocked_missing_bid',
+        buildExitJournalPayload({
+          plan,
+          config,
+          sourceBuyOrderIDEx: orderIDEx,
+          lifecycleStatus: 'exit_blocked_missing_bid',
+          brokerOrder: normalizeForJson(order || null),
+          fills: normalizeForJson(fills || null),
+          position: normalizeForJson(position || null),
+          filledQty,
+          fillAvgPrice,
+          remainingQty,
+          canSellQty,
+          optionQuote: quoteModel,
+          optionSnapshotBasic: normalizeForJson(optionSnapshot?.basic || null),
+          underlyingSnapshotBasic: normalizeForJson(underlyingSnapshot?.basic || null),
+          underlyingPrice,
+          trigger,
+          state: nextState,
+        }),
+      );
       continue;
     }
 
     const remark = `exit:${String(plan.signal?.message_id || '').slice(-12)}`;
-    const response = await placeLimitSellOrder(client, config, {
-      code,
-      qty: exitQty,
-      price: sellPrice,
-      remark,
-      positionID: position?.positionID,
-    });
+    let response;
+    try {
+      response = await placeLimitSellOrder(client, config, {
+        code,
+        qty: exitQty,
+        price: sellPrice,
+        remark,
+        positionID: position?.positionID,
+      });
+    } catch (error) {
+      nextState = {
+        ...nextState,
+        status: 'exit_submit_failed',
+        exit_price: sellPrice,
+        exit_qty: exitQty,
+        exit_trigger: trigger,
+        exit_error: error.message,
+        updated_at: new Date().toISOString(),
+      };
+      state.orders[orderIDEx] = nextState;
+      await appendTradeJournalEvent(
+        'exit_order_submit_failed',
+        buildExitJournalPayload({
+          plan,
+          config,
+          sourceBuyOrderIDEx: orderIDEx,
+          lifecycleStatus: 'exit_submit_failed',
+          brokerOrder: normalizeForJson(order || null),
+          fills: normalizeForJson(fills || null),
+          position: normalizeForJson(position || null),
+          filledQty,
+          fillAvgPrice,
+          remainingQty,
+          canSellQty,
+          optionQuote: quoteModel,
+          optionSnapshotBasic: normalizeForJson(optionSnapshot?.basic || null),
+          underlyingSnapshotBasic: normalizeForJson(underlyingSnapshot?.basic || null),
+          underlyingPrice,
+          trigger,
+          exitOrder: {
+            side: 'SELL_TO_CLOSE',
+            code,
+            qty: exitQty,
+            price: sellPrice,
+            price_basis: quoteModel.sell_estimate_basis,
+            remark,
+          },
+          state: nextState,
+          extra: {
+            submit_error: error.message,
+          },
+        }),
+      );
+      continue;
+    }
     submittedExits += 1;
     const exitPayload = {
       submitted_at: new Date().toISOString(),
@@ -324,8 +653,8 @@ async function processOnce(client, config, state) {
       response: normalizeForJson(response),
     };
     await appendJsonLine(exitOrdersPath, exitPayload);
-    state.orders[orderIDEx] = {
-      ...state.orders[orderIDEx],
+    nextState = {
+      ...nextState,
       status: 'exit_submitted',
       exit_order_id_ex: String(response.s2c?.orderIDEx || ''),
       exit_submitted_at: exitPayload.submitted_at,
@@ -334,6 +663,38 @@ async function processOnce(client, config, state) {
       exit_trigger: trigger,
       updated_at: new Date().toISOString(),
     };
+    state.orders[orderIDEx] = nextState;
+    await appendTradeJournalEvent(
+      'exit_order_submitted',
+      buildExitJournalPayload({
+        plan,
+        config,
+        sourceBuyOrderIDEx: orderIDEx,
+        lifecycleStatus: 'exit_submitted',
+        brokerOrder: normalizeForJson(order || null),
+        fills: normalizeForJson(fills || null),
+        position: normalizeForJson(position || null),
+        filledQty,
+        fillAvgPrice,
+        remainingQty,
+        canSellQty,
+        optionQuote: quoteModel,
+        optionSnapshotBasic: normalizeForJson(optionSnapshot?.basic || null),
+        underlyingSnapshotBasic: normalizeForJson(underlyingSnapshot?.basic || null),
+        underlyingPrice,
+        trigger,
+        exitOrder: {
+          side: 'SELL_TO_CLOSE',
+          code,
+          qty: exitQty,
+          price: sellPrice,
+          price_basis: quoteModel.sell_estimate_basis,
+          remark,
+        },
+        exitResponse: normalizeForJson(response),
+        state: nextState,
+      }),
+    );
   }
 
   await writeState(state);

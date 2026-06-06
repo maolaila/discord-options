@@ -222,6 +222,8 @@ npm run moomoo:watch-plan
 - `logs/moomoo-order-plans.ndjson`: 每条信号的交易计划或拦截原因
 - `logs/moomoo-order-plans-latest.json`: 最近一次交易计划，便于人工检查
 - `logs/moomoo-executions.ndjson`: 只有显式执行模拟/实盘时才会写入
+- `logs/trade-journal.ndjson`: 交易复盘事件流，记录候选计划、买入提交、成交状态、持仓监控快照、退出触发和卖出提交
+- `logs/trade-journal-latest.json`: 最近一条复盘事件，便于控制台和人工检查
 
 模拟交易策略默认读取 `sim-trading-policy.json`。这是纯本地确定性程序规则，不调用 AI、LLM、OpenAI 或外部模型接口。
 
@@ -269,6 +271,17 @@ npm run moomoo:exit-watch
 ```
 
 控制台里的 `启动全套模拟` 会同时启动买入监听和卖出监控。卖出监控只处理本程序提交且已经成交的模拟买入单；触发股票目标价、股票止损价、标的价格百分比止盈/止损或收盘前退出时，按当前期权 `bid - 滑点` 的保守限价提交 `SELL` 单。卖出记录写入 `logs/moomoo-exit-orders.ndjson`，状态写入 `logs/moomoo-exit-status.json`。
+
+每个交易生命周期都会额外写入 `logs/trade-journal.ndjson`，用于后续人工复盘或本地整理后给 AI 参考。该文件是追加式 JSONL，每行包含：
+
+- Discord 信号：消息 ID、频道、发送时间、收到时间、ticker、到期日、行权价、方向、胜率、置信、风险。
+- 策略快照：当前筛选门槛、仓位比例、止盈止损百分比、点差/滑点/流动性阈值。
+- 入场决策：期权合约、bid/ask/mid、买入限价、卖出估算价、即时往返磨损、open interest、当日成交量、仓位张数和金额。
+- 风控线：以买入时标的股票价为基准的百分比止盈/止损线，以及信号自带股票目标价/止损价。
+- 执行过程：买入订单 ID、成交状态、成交均价、可卖数量、持仓快照、监控时的标的价和期权报价。
+- 退出过程：触发原因、卖出限价、卖出订单 ID、预估期权 PnL。
+
+这些复盘数据只落本地 `logs/`，不会提交 GitHub，也不会自动发送给外部 AI 或模型服务。真实盘如果以后启用，券商真实成交回报仍然是最终依据；journal 里的点差、滑点和预估 PnL 只作为复盘参考。
 
 `--execute-simulate` 会自动从 OpenD 账户列表中选择 `trdEnv=0`、支持美股市场、且模拟账户类型支持期权的账户；不会使用 `.env` 里的真实账户 ID。
 

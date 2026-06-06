@@ -272,6 +272,7 @@ function processSnapshot(entry) {
 function statusPayload() {
   const captureStatus = readJson(path.join(logsDir, 'capture-status.json'));
   const latestPlan = readJson(path.join(logsDir, 'moomoo-order-plans-latest.json'));
+  const latestTradeJournal = readJson(path.join(logsDir, 'trade-journal-latest.json'));
   const moomooCheck = redactMoomooCheck(readJson(path.join(logsDir, 'moomoo-check.json')));
   const exitStatus = readJson(path.join(logsDir, 'moomoo-exit-status.json'));
   return {
@@ -291,14 +292,18 @@ function statusPayload() {
       fileInfo('logs/moomoo-check.json'),
       fileInfo('logs/moomoo-exit-status.json'),
       fileInfo('logs/moomoo-exit-orders.ndjson'),
+      fileInfo('logs/trade-journal.ndjson'),
+      fileInfo('logs/trade-journal-latest.json'),
     ],
     captureStatus,
     latestPlan,
+    latestTradeJournal,
     moomooCheck,
     exitStatus,
     latestSignals: tailNdjson('logs/option-signals.ndjson', 8).reverse(),
     latestPlans: tailNdjson('logs/moomoo-order-plans.ndjson', 8).reverse(),
     latestExits: tailNdjson('logs/moomoo-exit-orders.ndjson', 8).reverse(),
+    latestTradeJournalRows: tailNdjson('logs/trade-journal.ndjson', 8).reverse(),
   };
 }
 

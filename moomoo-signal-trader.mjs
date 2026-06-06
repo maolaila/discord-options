@@ -20,6 +20,10 @@ import {
   placeLimitBuyOrder,
   selectSimulatedUsOptionAccount,
 } from './moomoo-opend.mjs';
+import {
+  appendTradeJournalEvent,
+  buildPlanJournalPayload,
+} from './trade-journal.mjs';
 
 const args = parseCliArgs();
 const logsDir = path.join(PROJECT_ROOT, 'logs');
@@ -345,6 +349,23 @@ async function writeLatestPlan(payload) {
   await fsp.writeFile(latestPlanPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
 }
 
+function journalEventTypeForPlan(plan) {
+  if (plan.order_status === 'submitted') return 'buy_order_submitted';
+  if (plan.order_status === 'submit_failed') return 'buy_order_submit_failed';
+  if (plan.order_status === 'dry_run_planned') return 'trade_candidate_planned';
+  if (plan.gate?.passed === false) return 'trade_candidate_rejected';
+  return 'trade_candidate_evaluated';
+}
+
+async function recordPlan(plan, config) {
+  await appendJsonLine(plansPath, plan);
+  await writeLatestPlan(plan);
+  await appendTradeJournalEvent(
+    journalEventTypeForPlan(plan),
+    buildPlanJournalPayload(plan, config),
+  );
+}
+
 async function processIntent(intent, signalMaps, config, mode, connectionHolder) {
   const signal = resolveSignal(intent, signalMaps);
   const gate = evaluateGate(intent, signal, config);
@@ -362,8 +383,7 @@ async function processIntent(intent, signalMaps, config, mode, connectionHolder)
   };
 
   if (!gate.passed) {
-    await appendJsonLine(plansPath, plan);
-    await writeLatestPlan(plan);
+    await recordPlan(plan, config);
     return plan;
   }
 
@@ -381,8 +401,7 @@ async function processIntent(intent, signalMaps, config, mode, connectionHolder)
     plan.gate.passed = false;
     plan.gate.reasons.push(`moomoo_contract_not_found:candidates=${resolved.candidateCount}`);
     plan.contract = { found: false, candidate_count: resolved.candidateCount };
-    await appendJsonLine(plansPath, plan);
-    await writeLatestPlan(plan);
+    await recordPlan(plan, config);
     return plan;
   }
 
@@ -507,8 +526,7 @@ async function processIntent(intent, signalMaps, config, mode, connectionHolder)
   } : null;
 
   if (plan.gate.passed === false) {
-    await appendJsonLine(plansPath, plan);
-    await writeLatestPlan(plan);
+    await recordPlan(plan, config);
     return plan;
   }
 
@@ -537,8 +555,7 @@ async function processIntent(intent, signalMaps, config, mode, connectionHolder)
     }
   }
 
-  await appendJsonLine(plansPath, plan);
-  await writeLatestPlan(plan);
+  await recordPlan(plan, config);
   return plan;
 }
 

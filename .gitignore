@@ -1,0 +1,18 @@
+node_modules/
+
+# Local secrets and machine-specific config.
+.env
+.env.*
+!.env.example
+secrets/
+
+# Runtime data. These may contain Discord message content, account snapshots,
+# browser login state, or simulated order records.
+logs/
+profile/
+analysis/
+signal-docs/
+
+# Misc local output.
+*.log
+*.ndjson

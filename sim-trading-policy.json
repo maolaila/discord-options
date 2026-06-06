@@ -1,0 +1,58 @@
+{
+  "name": "pa_strict_moomoo_simulation",
+  "version": 1,
+  "execution": {
+    "broker": "moomoo_opend",
+    "environment": "simulate_only",
+    "real_trading_allowed": false,
+    "ai_decisioning_allowed": false,
+    "external_model_calls_allowed": false,
+    "decision_engine": "local_deterministic_program"
+  },
+  "signal_filter": {
+    "advice_format": "pa",
+    "action": "trade",
+    "full_plan_required": true,
+    "min_win_rate_pct": 80,
+    "min_confidence": 5,
+    "max_risk_score": 2,
+    "require_entry_target_stop": true,
+    "direction_contract_match": {
+      "bull": "C",
+      "bear": "P"
+    }
+  },
+  "position_sizing": {
+    "paper_equity_usd": 10000,
+    "target_position_pct": 25,
+    "min_position_pct": 20,
+    "max_position_pct": 30,
+    "contract_multiplier_default": 100,
+    "quantity_rounding": "integer_contracts_nearest_target_without_exceeding_max"
+  },
+  "execution_quality": {
+    "quote_source": "live_bid_ask_snapshot",
+    "require_bid_ask": true,
+    "min_bid_price": 0.01,
+    "max_spread_pct_of_mid": 25,
+    "max_spread_abs": 1,
+    "max_round_trip_loss_pct": 40,
+    "buy_limit_basis": "ask_plus_slippage_buffer",
+    "sell_estimate_basis": "bid_minus_slippage_buffer",
+    "slippage_ticks": 1,
+    "slippage_pct_of_spread": 10,
+    "cap_qty_by_visible_ask": true,
+    "max_qty_to_ask_volume_ratio": 10,
+    "min_open_interest": 50,
+    "min_option_day_volume": 1
+  },
+  "exit_rules": {
+    "price_basis": "underlying_stock_price_at_option_entry",
+    "take_profit_underlying_move_pct": 50,
+    "stop_loss_underlying_move_pct": 20,
+    "also_use_signal_stock_target": true,
+    "also_use_signal_stock_stop": true,
+    "exit_before_regular_session_close": true,
+    "no_overnight_holding": true
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "moomoo-api",
+  "version": "10.6.6608",
+  "type": "module",
+  "license": "ISC",
+  "description": "moomoo Websocket API for Node.js",
+  "keywords": [
+    "moomoo",
+    "api",
+    "moomoo-api",
+    "moomooopend"
+  ],
+  "main": "main.js",
+  "scripts": {
+    "build:pb": "npx pbjs -t json-module -w commonjs -o proto.cjs proto/*.proto",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "protobufjs": "^6.8.8"
+  },
+  "dependencies": {
+    "long": "^4.0.0",
+    "protobufjs": "^6.8.8",
+    "bytebuffer": "^5.0.1"
+  }
+}

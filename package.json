@@ -1,0 +1,24 @@
+{
+  "name": "discord-web-message-capture",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Capture Discord web gateway message events from a local browser session.",
+  "main": "capture-discord.js",
+  "scripts": {
+    "capture": "powershell -NoProfile -ExecutionPolicy Bypass -File ./run-capture.ps1",
+    "moomoo:check": "node ./moomoo-check.mjs",
+    "moomoo:plan": "node ./moomoo-signal-trader.mjs --dry-run",
+    "moomoo:watch-plan": "node ./moomoo-signal-trader.mjs --watch --dry-run",
+    "moomoo:simulate": "node ./moomoo-signal-trader.mjs --execute-simulate",
+    "moomoo:watch-sim": "node ./moomoo-signal-trader.mjs --watch --execute-simulate",
+    "moomoo:exit-once": "node ./moomoo-exit-monitor.mjs",
+    "moomoo:exit-watch": "node ./moomoo-exit-monitor.mjs --watch",
+    "console": "node ./control-console.mjs"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "moomoo-api": "file:vendor/MMAPI4JS_10.6.6608/src",
+    "playwright-core": "^1.54.0",
+    "ws": "^8.21.0"
+  }
+}

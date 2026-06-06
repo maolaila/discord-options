@@ -164,7 +164,7 @@ function startWatchSim(envFile) {
 }
 
 function startExitMonitor(envFile) {
-  return startProcess('exitMonitor', 'Moomoo sell monitor', nodeBin(), [
+  return startProcess('exitMonitor', 'Moomoo 卖出监控', nodeBin(), [
     path.join(ROOT, 'moomoo-exit-monitor.mjs'),
     '--watch',
     ...envArgs(envFile),
@@ -679,10 +679,17 @@ function htmlPage() {
       }
     }
     function renderProcesses(processes) {
-      const names = ['browser', 'capture', 'watchSim', 'watchPlan', 'moomooCheck'];
+      const names = ['browser', 'capture', 'watchSim', 'exitMonitor', 'watchPlan', 'moomooCheck'];
       $('processRows').innerHTML = names.map((name) => {
         const p = processes[name] || { label: name, running: false, lastLog: [] };
-        const state = p.running ? '<span class="ok">运行中</span>' : (p.exitCode === null || p.exitCode === undefined ? '<span class="warn">未启动</span>' : '<span class="bad">已退出</span>');
+        let state = '<span class="warn">未启动</span>';
+        if (p.running) {
+          state = '<span class="ok">运行中</span>';
+        } else if (p.oneShot && p.exitCode === 0) {
+          state = '<span class="ok">已完成</span>';
+        } else if (p.exitCode !== null && p.exitCode !== undefined) {
+          state = '<span class="bad">已退出</span>';
+        }
         const last = (p.lastLog || []).slice(-3).join('\\n');
         return '<tr><td>' + text(p.label) + '</td><td>' + state + '</td><td class="mono">' + text(p.pid) + '</td><td class="mono">' + text(last) + '</td></tr>';
       }).join('');
@@ -720,8 +727,17 @@ function htmlPage() {
     }
     function renderLogs(processes) {
       $('captureLog').textContent = (processes.capture?.lastLog || []).join('\\n');
-      const watch = processes.watchSim?.running || processes.watchSim?.lastLog?.length ? processes.watchSim : processes.watchPlan;
-      $('watchLog').textContent = (watch?.lastLog || []).join('\\n');
+      const parts = [];
+      if (processes.watchSim?.lastLog?.length) {
+        parts.push('[Moomoo 模拟监听]\\n' + processes.watchSim.lastLog.join('\\n'));
+      }
+      if (processes.exitMonitor?.lastLog?.length) {
+        parts.push('[卖出监控]\\n' + processes.exitMonitor.lastLog.join('\\n'));
+      }
+      if (!parts.length && processes.watchPlan?.lastLog?.length) {
+        parts.push('[干跑监听]\\n' + processes.watchPlan.lastLog.join('\\n'));
+      }
+      $('watchLog').textContent = parts.join('\\n\\n');
     }
     async function refresh() {
       $('clock').textContent = new Date().toLocaleString();
@@ -730,8 +746,11 @@ function htmlPage() {
       const capture = data.processes.capture;
       const watchSim = data.processes.watchSim;
       const watchPlan = data.processes.watchPlan;
+      const exitMonitor = data.processes.exitMonitor;
       $('statCapture').innerHTML = capture?.running ? '<span class="ok">运行中</span>' : '<span class="warn">未运行</span>';
-      $('statWatch').innerHTML = watchSim?.running ? '<span class="ok">模拟监听</span>' : (watchPlan?.running ? '<span class="info">干跑监听</span>' : '<span class="warn">未运行</span>');
+      $('statWatch').innerHTML = watchSim?.running && exitMonitor?.running
+        ? '<span class="ok">模拟+卖出监控</span>'
+        : (watchSim?.running ? '<span class="ok">模拟监听</span>' : (watchPlan?.running ? '<span class="info">干跑监听</span>' : '<span class="warn">未运行</span>'));
       const gs = data.moomooCheck?.global_state;
       $('statOpenD').innerHTML = gs?.qotLogined && gs?.trdLogined ? '<span class="ok">已连接</span>' : '<span class="warn">待检查</span>';
       $('statSignal').textContent = shortContract((data.latestSignals || [])[0]);

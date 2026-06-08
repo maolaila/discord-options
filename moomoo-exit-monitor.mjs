@@ -271,6 +271,13 @@ function isTerminalUnfilledOrderStatus(status) {
   return [3, 15, 21, 22, 23].includes(Number(status));
 }
 
+function transientPollError(error) {
+  const message = error?.message || String(error);
+  if (message.includes('频率太高')) return { kind: 'rate_limited', cooldownSeconds: 30, message };
+  if (message.toLowerCase().includes('timeout')) return { kind: 'timeout', cooldownSeconds: 10, message };
+  return null;
+}
+
 async function ensureSimAccount(client, config) {
   const accounts = await fetchMoomooAccounts(client);
   const account = selectSimulatedUsOptionAccount(accounts);
@@ -857,18 +864,18 @@ async function main() {
       try {
         result = await processOnce(conn.client, config, state, quoteFeed, mode);
       } catch (error) {
-        const message = error?.message || String(error);
-        if (!args.watch || !message.includes('频率太高')) throw error;
+        const transient = transientPollError(error);
+        if (!args.watch || !transient) throw error;
         await writeStatus({
-          phase: 'rate_limited',
+          phase: transient.kind,
           mode,
-          error: message,
-          cooldown_seconds: 30,
+          error: transient.message,
+          cooldown_seconds: transient.cooldownSeconds,
           poll_seconds: pollSeconds,
           quote_feed: quoteFeed.status(),
         });
-        console.error(`[${new Date().toISOString()}] rate limited by OpenD; cooling down 30s`);
-        await new Promise((resolve) => setTimeout(resolve, 30000));
+        console.error(`[${new Date().toISOString()}] OpenD poll ${transient.kind}; cooling down ${transient.cooldownSeconds}s`);
+        await new Promise((resolve) => setTimeout(resolve, transient.cooldownSeconds * 1000));
         continue;
       }
       console.log(`[${new Date().toISOString()}] mode=${mode} plans=${result.plans} watched=${result.watched} submitted_exits=${result.submittedExits} pushes=${quoteFeed.status().push_count}`);

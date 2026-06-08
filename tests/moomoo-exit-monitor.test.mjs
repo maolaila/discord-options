@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   closeExitTrigger,
+  exitOrderClosesPosition,
   exitTrigger,
   isRegularSessionNow,
   sellLimitPriceFromQuote,
@@ -70,4 +71,26 @@ test('force close phase uses a more aggressive protected sell limit', () => {
 
   assert.equal(sellLimitPriceFromQuote(quote, { close_exit_phase: 'standard' }), 0.35);
   assert.equal(sellLimitPriceFromQuote(quote, { close_exit_phase: 'force' }), 0.3);
+});
+
+test('pending exit order does not count as closed just because sellable qty is locked', () => {
+  assert.equal(exitOrderClosesPosition({
+    expectedExitQty: 1,
+    exitFilledQty: 0,
+    position: { qty: 1, canSellQty: 0 },
+  }), false);
+});
+
+test('exit is closed after the sell order fills or position quantity reaches zero', () => {
+  assert.equal(exitOrderClosesPosition({
+    expectedExitQty: 1,
+    exitFilledQty: 1,
+    position: { qty: 1, canSellQty: 0 },
+  }), true);
+
+  assert.equal(exitOrderClosesPosition({
+    expectedExitQty: 1,
+    exitFilledQty: 0,
+    position: { qty: 0, canSellQty: 0 },
+  }), true);
 });

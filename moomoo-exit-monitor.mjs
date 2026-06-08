@@ -267,6 +267,15 @@ export function sellLimitPriceFromQuote(quoteModel, trigger = null) {
   return null;
 }
 
+export function exitOrderClosesPosition({ expectedExitQty, exitFilledQty, position }) {
+  const expected = numeric(expectedExitQty) ?? 0;
+  const exited = numeric(exitFilledQty) ?? 0;
+  if (expected > 0 && exited >= expected) return true;
+
+  const positionQty = numeric(position?.qty);
+  return position && positionQty !== null && positionQty <= 0;
+}
+
 function isTerminalUnfilledOrderStatus(status) {
   return [3, 15, 21, 22, 23].includes(Number(status));
 }
@@ -400,8 +409,7 @@ async function processOnce(client, config, state, quoteFeed, mode) {
         nextState.exit_fill_logged = true;
       }
 
-      const fullyExited = (expectedExitQty > 0 && exitFilledQty >= expectedExitQty)
-        || (position && canSellQty <= 0);
+      const fullyExited = exitOrderClosesPosition({ expectedExitQty, exitFilledQty, position });
       if (fullyExited) {
         nextState = { ...nextState, status: 'closed', updated_at: new Date().toISOString() };
         if (!stateRow.closed_logged) {

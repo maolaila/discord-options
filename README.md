@@ -240,8 +240,10 @@ MOOMOO_POSITION_MIN_PCT=20
 MOOMOO_POSITION_MAX_PCT=30
 MOOMOO_UNDERLYING_TAKE_PROFIT_PCT=50
 MOOMOO_UNDERLYING_STOP_LOSS_PCT=20
-MOOMOO_OPTION_MAX_SPREAD_PCT_OF_MID=25
-MOOMOO_OPTION_MAX_ROUND_TRIP_LOSS_PCT=40
+MOOMOO_OPTION_MAX_SPREAD_PCT_OF_MID=35
+# 可选：固定美元绝对点差门槛；0/false/off/null 表示禁用，当前策略默认禁用
+# MOOMOO_OPTION_MAX_SPREAD_ABS=0
+MOOMOO_OPTION_MAX_ROUND_TRIP_LOSS_PCT=50
 MOOMOO_OPTION_SLIPPAGE_TICKS=1
 MOOMOO_OPTION_SLIPPAGE_PCT_OF_SPREAD=10
 MOOMOO_OPTION_CAP_QTY_BY_VISIBLE_ASK=true
@@ -250,7 +252,7 @@ MOOMOO_OPTION_MAX_QTY_TO_ASK_VOLUME_RATIO=10
 
 仓位按期权买入限价和合约乘数计算，目标约为模拟本金的 `25%`，不超过 `30%`。如果因为期权价格导致整数张数不能精确落在 `20%-30%`，计划文件会写明原因。止盈止损的百分比基准是买入期权时对应股票的价格，不是期权价格；同时仍记录信号自带的股票目标价和止损价。
 
-期权下单前会先向 OpenD 订阅行情推送：正股使用 `Basic` 推送拿最新价，期权使用 `OrderBook` 推送拿最新 bid/ask；同时会读取一次 `GetSecuritySnapshot` 作为初始快照和兜底，用于 open interest、合约乘数、成交量等字段。买入限价不再直接用 `ask`，而是按 `ask + max(1 tick, 10% 点差)` 的保守价格计算；计划文件同时记录 `bid - 滑点` 的卖出估算价和立即往返磨损比例。如果点差超过配置阈值、即时往返磨损过大、bid/ask 缺失、open interest 或当日成交量过低，计划会被拦截。目标张数如果明显超过可见 ask 挂单量，会按 `askVol * 10` 限制张数，并在 `position_sizing.reasons` 写明。
+期权下单前会先向 OpenD 订阅行情推送：正股使用 `Basic` 推送拿最新价，期权使用 `OrderBook` 推送拿最新 bid/ask；同时会读取一次 `GetSecuritySnapshot` 作为初始快照和兜底，用于 open interest、合约乘数、成交量等字段。买入限价不再直接用 `ask`，而是按 `ask + max(1 tick, 10% 点差)` 的保守价格计算；计划文件同时记录 `bid - 滑点` 的卖出估算价和立即往返磨损比例。当前模拟跟单策略不使用固定美元绝对点差拦截高权利金期权，相对点差和即时往返磨损门槛也已放宽，只保留 bid/ask 缺失、明显过宽相对点差、明显过高往返损耗、open interest 和当日成交量等基础拦截。目标张数如果明显超过可见 ask 挂单量，会按 `askVol * 10` 限制张数，并在 `position_sizing.reasons` 写明。
 
 模拟执行需要显式传参：
 

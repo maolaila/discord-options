@@ -558,6 +558,8 @@ async function processIntent(intent, signalMaps, config, mode, connectionHolder)
       signal_stock_target: summary.stock_target,
       signal_stock_stop: summary.stock_stop,
       exit_before_regular_session_close: true,
+      close_exit_start_time_et: config.closeExitStartTimeEt,
+      force_close_exit_start_time_et: config.forceCloseExitStartTimeEt,
       no_overnight_holding: true,
     },
   } : null;

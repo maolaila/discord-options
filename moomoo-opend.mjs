@@ -187,6 +187,8 @@ export function loadMoomooConfig(opts = {}) {
     quoteFallbackSnapshotMaxAgeMs: numberValue(opts.quoteFallbackSnapshotMaxAgeMs || process.env.MOOMOO_QUOTE_FALLBACK_SNAPSHOT_MAX_AGE_MS, 'MOOMOO_QUOTE_FALLBACK_SNAPSHOT_MAX_AGE_MS', 2000),
     underlyingTakeProfitPct: numberValue(opts.underlyingTakeProfitPct || process.env.MOOMOO_UNDERLYING_TAKE_PROFIT_PCT, 'MOOMOO_UNDERLYING_TAKE_PROFIT_PCT', exits.take_profit_underlying_move_pct ?? 50),
     underlyingStopLossPct: numberValue(opts.underlyingStopLossPct || process.env.MOOMOO_UNDERLYING_STOP_LOSS_PCT, 'MOOMOO_UNDERLYING_STOP_LOSS_PCT', exits.stop_loss_underlying_move_pct ?? 20),
+    closeExitStartTimeEt: String(opts.closeExitStartTimeEt || process.env.MOOMOO_CLOSE_EXIT_START_TIME_ET || exits.close_exit_start_time_et || '15:45').trim(),
+    forceCloseExitStartTimeEt: String(opts.forceCloseExitStartTimeEt || process.env.MOOMOO_FORCE_CLOSE_EXIT_START_TIME_ET || exits.force_close_exit_start_time_et || '15:55').trim(),
     allowRealTrading: boolValue(opts.allowRealTrading ?? process.env.MOOMOO_ALLOW_REAL_TRADING, false),
     policy,
   };

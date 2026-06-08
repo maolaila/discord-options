@@ -53,6 +53,8 @@
     "also_use_signal_stock_target": true,
     "also_use_signal_stock_stop": true,
     "exit_before_regular_session_close": true,
+    "close_exit_start_time_et": "15:45",
+    "force_close_exit_start_time_et": "15:55",
     "no_overnight_holding": true
   }
 }

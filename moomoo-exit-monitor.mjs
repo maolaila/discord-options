@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   PROJECT_ROOT,
   QOT_MARKET_US_SECURITY,
@@ -33,6 +34,10 @@ const executionsPath = path.join(logsDir, 'moomoo-executions.ndjson');
 const exitOrdersPath = path.join(logsDir, 'moomoo-exit-orders.ndjson');
 const statePath = path.join(logsDir, 'moomoo-exit-state.json');
 const statusPath = path.join(logsDir, 'moomoo-exit-status.json');
+const regularSessionStartMinutes = 9 * 60 + 30;
+const regularSessionEndMinutes = 16 * 60;
+const defaultCloseExitStartMinutes = 15 * 60 + 45;
+const defaultForceCloseExitStartMinutes = 15 * 60 + 55;
 
 function numeric(value) {
   if (value === null || value === undefined || value === '') return null;
@@ -127,7 +132,7 @@ async function safeOrderFillList(client, config) {
   }
 }
 
-function nyParts(date = new Date()) {
+export function nyParts(date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/New_York',
     weekday: 'short',
@@ -150,22 +155,66 @@ function isWeekday(parts) {
   return !['Sat', 'Sun'].includes(parts.weekday);
 }
 
-function isRegularSessionNow() {
-  const p = nyParts();
-  if (!isWeekday(p)) return false;
-  const minutes = p.hour * 60 + p.minute;
-  return minutes >= 9 * 60 + 30 && minutes <= 16 * 60;
+function parseEtTimeToMinutes(value, fallback) {
+  const text = String(value || '').trim();
+  const match = text.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return fallback;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (!Number.isInteger(hour) || !Number.isInteger(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+    return fallback;
+  }
+  return hour * 60 + minute;
 }
 
-function isExitBeforeCloseNow() {
-  const p = nyParts();
-  if (!isWeekday(p)) return false;
-  const minutes = p.hour * 60 + p.minute;
-  return minutes >= 15 * 60 + 55 && minutes <= 16 * 60;
+function formatEtMinutes(minutes) {
+  const hour = Math.floor(minutes / 60);
+  const minute = minutes % 60;
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
 
-function exitTrigger(plan, underlyingPrice) {
-  const rules = plan.order?.underlying_exit_rules || {};
+function nySessionMinutes(date = new Date()) {
+  const p = nyParts(date);
+  return { parts: p, minutes: p.hour * 60 + p.minute };
+}
+
+export function isRegularSessionNow(date = new Date()) {
+  const { parts, minutes } = nySessionMinutes(date);
+  if (!isWeekday(parts)) return false;
+  return minutes >= regularSessionStartMinutes && minutes <= regularSessionEndMinutes;
+}
+
+export function closeExitTrigger(rules = {}, date = new Date()) {
+  if (!rules.exit_before_regular_session_close && !rules.no_overnight_holding) return null;
+  const { parts, minutes } = nySessionMinutes(date);
+  if (!isWeekday(parts)) return null;
+  const closeStart = parseEtTimeToMinutes(rules.close_exit_start_time_et, defaultCloseExitStartMinutes);
+  const forceStartRaw = parseEtTimeToMinutes(rules.force_close_exit_start_time_et, defaultForceCloseExitStartMinutes);
+  const forceStart = Math.max(closeStart, forceStartRaw);
+  if (minutes < closeStart || minutes > regularSessionEndMinutes) return null;
+  return {
+    reason: 'exit_before_regular_session_close',
+    line: null,
+    underlying_price: null,
+    close_exit_phase: minutes >= forceStart ? 'force' : 'standard',
+    close_exit_start_time_et: formatEtMinutes(closeStart),
+    force_close_exit_start_time_et: formatEtMinutes(forceStart),
+  };
+}
+
+function mergeExitRules(plan, config) {
+  return {
+    ...(config?.policy?.exit_rules || {}),
+    ...(plan.order?.underlying_exit_rules || {}),
+  };
+}
+
+export function exitTrigger(plan, underlyingPrice, opts = {}) {
+  const now = opts.now || new Date();
+  const rules = mergeExitRules(plan, opts.config);
+  const closeTrigger = closeExitTrigger(rules, now);
+  if (!isRegularSessionNow(now)) return null;
+
   const direction = String(plan.signal?.direction || '').toLowerCase();
   const entry = numeric(rules.entry_price ?? plan.underlying_quote?.selected_entry_price ?? plan.signal?.stock_entry);
   const target = numeric(rules.signal_stock_target ?? plan.signal?.stock_target);
@@ -173,7 +222,7 @@ function exitTrigger(plan, underlyingPrice) {
   const stopMovePct = numeric(rules.stop_loss_move_pct) ?? 20;
   const takeMovePct = numeric(rules.take_profit_move_pct) ?? 50;
   const price = numeric(underlyingPrice);
-  if (price === null || entry === null || !direction) return null;
+  if (price === null || entry === null || !direction) return closeTrigger;
 
   if (direction === 'bull') {
     if (target !== null && price >= target) return { reason: 'signal_stock_target', line: target, underlying_price: price };
@@ -187,13 +236,32 @@ function exitTrigger(plan, underlyingPrice) {
     if (price >= entry * (1 + stopMovePct / 100)) return { reason: 'underlying_20pct_stop_loss', line: entry * (1 + stopMovePct / 100), underlying_price: price };
   }
 
-  if (rules.exit_before_regular_session_close && isExitBeforeCloseNow()) {
-    return { reason: 'exit_before_regular_session_close', line: null, underlying_price: price };
+  if (closeTrigger) {
+    return { ...closeTrigger, underlying_price: price };
   }
   return null;
 }
 
-function sellLimitPriceFromQuote(quoteModel) {
+function decimalPlaces(value) {
+  const text = String(value);
+  const dot = text.indexOf('.');
+  return dot >= 0 ? Math.min(6, text.length - dot - 1) : 0;
+}
+
+function roundDownToTick(value, tick) {
+  const normalizedTick = Number.isFinite(tick) && tick > 0 ? tick : 0.01;
+  const decimals = Math.max(2, decimalPlaces(normalizedTick));
+  return Number((Math.floor((value / normalizedTick) + 1e-9) * normalizedTick).toFixed(decimals));
+}
+
+export function sellLimitPriceFromQuote(quoteModel, trigger = null) {
+  const bid = numeric(quoteModel.bid);
+  if (trigger?.close_exit_phase === 'force' && bid !== null && bid > 0) {
+    const tick = numeric(quoteModel.tick) || 0.01;
+    const spreadAbs = numeric(quoteModel.spread_abs) || 0;
+    const extraBuffer = Math.max(tick * 2, spreadAbs * 0.5);
+    return Math.max(tick, roundDownToTick(bid - extraBuffer, tick));
+  }
   if (Number.isFinite(quoteModel.sell_estimate_price) && quoteModel.sell_estimate_price > 0) return quoteModel.sell_estimate_price;
   if (Number.isFinite(quoteModel.bid) && quoteModel.bid > 0) return quoteModel.bid;
   return null;
@@ -534,7 +602,7 @@ async function processOnce(client, config, state, quoteFeed, mode) {
     const optionSnapshot = snapshots.find((item) => item?.basic?.security?.code === optionSecurity.code) || null;
     const underlyingSnapshot = snapshots.find((item) => item?.basic?.security?.code === underlyingSecurity.code) || null;
     const underlyingPrice = numeric(underlyingSnapshot?.basic?.curPrice);
-    const trigger = isRegularSessionNow() ? exitTrigger(plan, underlyingPrice) : null;
+    const trigger = exitTrigger(plan, underlyingPrice, { config });
     const quoteModel = buildOptionExecutionQuote(optionSnapshot, config);
 
     nextState = {
@@ -596,7 +664,7 @@ async function processOnce(client, config, state, quoteFeed, mode) {
       }),
     );
 
-    const sellPrice = sellLimitPriceFromQuote(quoteModel);
+    const sellPrice = sellLimitPriceFromQuote(quoteModel, trigger);
     if (sellPrice === null) {
       nextState = {
         ...nextState,
@@ -771,7 +839,7 @@ async function processOnce(client, config, state, quoteFeed, mode) {
 async function main() {
   const config = loadMoomooConfig({ envFile: args.env });
   const mode = getMode(config);
-  const pollSeconds = Math.max(1, Number(args['poll-seconds'] || 2));
+  const pollSeconds = Math.max(5, Number(args['poll-seconds'] || process.env.MOOMOO_EXIT_POLL_SECONDS || 5));
   const conn = await connectMoomoo(config);
   const quoteFeed = createMoomooQuoteFeed(conn.client, config);
   try {
@@ -785,7 +853,24 @@ async function main() {
     });
     for (;;) {
       const state = loadState();
-      const result = await processOnce(conn.client, config, state, quoteFeed, mode);
+      let result;
+      try {
+        result = await processOnce(conn.client, config, state, quoteFeed, mode);
+      } catch (error) {
+        const message = error?.message || String(error);
+        if (!args.watch || !message.includes('频率太高')) throw error;
+        await writeStatus({
+          phase: 'rate_limited',
+          mode,
+          error: message,
+          cooldown_seconds: 30,
+          poll_seconds: pollSeconds,
+          quote_feed: quoteFeed.status(),
+        });
+        console.error(`[${new Date().toISOString()}] rate limited by OpenD; cooling down 30s`);
+        await new Promise((resolve) => setTimeout(resolve, 30000));
+        continue;
+      }
       console.log(`[${new Date().toISOString()}] mode=${mode} plans=${result.plans} watched=${result.watched} submitted_exits=${result.submittedExits} pushes=${quoteFeed.status().push_count}`);
       if (!args.watch) break;
       await new Promise((resolve) => setTimeout(resolve, pollSeconds * 1000));
@@ -796,8 +881,10 @@ async function main() {
   }
 }
 
-main().catch(async (error) => {
-  await writeStatus({ phase: 'error', error: error.message });
-  console.error(error);
-  process.exit(1);
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch(async (error) => {
+    await writeStatus({ phase: 'error', error: error.message });
+    console.error(error);
+    process.exit(1);
+  });
+}

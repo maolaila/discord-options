@@ -270,7 +270,7 @@ npm run moomoo:watch-sim
 npm run moomoo:exit-watch
 ```
 
-控制台里的 `启动全套模拟` 会同时启动买入监听和卖出监控。卖出监控只处理本程序提交且已经成交的同环境买入单；触发股票目标价、股票止损价、标的价格百分比止盈/止损或收盘前退出时，按当前期权 `bid - 滑点` 的保守限价提交 `SELL_TO_CLOSE` 单。行情触发采用 OpenD 推送缓存优先，订单/持仓状态仍每 `2` 秒向 OpenD 校验一次。卖出记录写入 `logs/moomoo-exit-orders.ndjson`，状态写入 `logs/moomoo-exit-status.json`。
+控制台里的 `启动全套模拟` 会同时启动买入监听和卖出监控。卖出监控只处理本程序提交且已经成交的同环境买入单；触发股票目标价、股票止损价、标的价格百分比止盈/止损或收盘前退出时，按当前期权 `bid - 滑点` 的保守限价提交 `SELL_TO_CLOSE` 单。收盘退出使用纽约时间：`15:45 ET` 开始主动退出，`15:55 ET` 后进入强制退出阶段并使用更积极但仍受最小 tick 保护的限价；这个时间风控不要求正股快照成功返回。行情触发采用 OpenD 推送缓存优先，订单/持仓状态默认每 `5` 秒向 OpenD 校验一次，避免触发未完成订单查询限频。卖出记录写入 `logs/moomoo-exit-orders.ndjson`，状态写入 `logs/moomoo-exit-status.json`。
 
 每个交易生命周期都会额外写入 `logs/trade-journal.ndjson`，用于后续人工复盘或本地整理后给 AI 参考。该文件是追加式 JSONL，每行包含：
 

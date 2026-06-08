@@ -215,6 +215,7 @@ export function exitTrigger(plan, underlyingPrice, opts = {}) {
   const closeTrigger = closeExitTrigger(rules, now);
   if (!isRegularSessionNow(now)) return null;
 
+  const optionTrigger = optionPriceExitTrigger(plan, opts.optionQuote, opts.entryOptionPrice, opts);
   const direction = String(plan.signal?.direction || '').toLowerCase();
   const entry = numeric(rules.entry_price ?? plan.underlying_quote?.selected_entry_price ?? plan.signal?.stock_entry);
   const target = numeric(rules.signal_stock_target ?? plan.signal?.stock_target);
@@ -222,22 +223,56 @@ export function exitTrigger(plan, underlyingPrice, opts = {}) {
   const stopMovePct = numeric(rules.stop_loss_move_pct) ?? 20;
   const takeMovePct = numeric(rules.take_profit_move_pct) ?? 50;
   const price = numeric(underlyingPrice);
-  if (price === null || entry === null || !direction) return closeTrigger;
+  const useSignalStockLines = rules.use_signal_stock_lines !== false;
+  if (price === null || entry === null || !direction) return optionTrigger || closeTrigger;
 
-  if (direction === 'bull') {
+  if (useSignalStockLines && direction === 'bull') {
     if (target !== null && price >= target) return { reason: 'signal_stock_target', line: target, underlying_price: price };
     if (stop !== null && price <= stop) return { reason: 'signal_stock_stop', line: stop, underlying_price: price };
     if (price >= entry * (1 + takeMovePct / 100)) return { reason: 'underlying_50pct_take_profit', line: entry * (1 + takeMovePct / 100), underlying_price: price };
     if (price <= entry * (1 - stopMovePct / 100)) return { reason: 'underlying_20pct_stop_loss', line: entry * (1 - stopMovePct / 100), underlying_price: price };
-  } else if (direction === 'bear') {
+  } else if (useSignalStockLines && direction === 'bear') {
     if (target !== null && price <= target) return { reason: 'signal_stock_target', line: target, underlying_price: price };
     if (stop !== null && price >= stop) return { reason: 'signal_stock_stop', line: stop, underlying_price: price };
     if (price <= entry * (1 - takeMovePct / 100)) return { reason: 'underlying_50pct_take_profit', line: entry * (1 - takeMovePct / 100), underlying_price: price };
     if (price >= entry * (1 + stopMovePct / 100)) return { reason: 'underlying_20pct_stop_loss', line: entry * (1 + stopMovePct / 100), underlying_price: price };
   }
 
+  if (optionTrigger) return optionTrigger;
   if (closeTrigger) {
     return { ...closeTrigger, underlying_price: price };
+  }
+  return null;
+}
+
+export function optionPriceExitTrigger(plan, optionQuote, entryOptionPrice, opts = {}) {
+  const rules = mergeExitRules(plan, opts.config);
+  if (rules.option_price_exit_enabled === false) return null;
+  const entry = numeric(entryOptionPrice);
+  const current = numeric(optionQuote?.sell_estimate_price ?? optionQuote?.bid);
+  if (entry === null || entry <= 0 || current === null || current <= 0) return null;
+
+  const stopPct = numeric(rules.option_stop_loss_pct ?? opts.config?.optionExitStopLossPct) ?? 20;
+  const takePct = numeric(rules.option_take_profit_pct ?? opts.config?.optionExitTakeProfitPct) ?? 50;
+  const stopLine = entry * (1 - stopPct / 100);
+  const takeLine = entry * (1 + takePct / 100);
+  if (current <= stopLine) {
+    return {
+      reason: 'option_20pct_stop_loss',
+      line: Number(stopLine.toFixed(4)),
+      option_price: current,
+      entry_option_price: entry,
+      option_stop_loss_pct: stopPct,
+    };
+  }
+  if (current >= takeLine) {
+    return {
+      reason: 'option_50pct_take_profit',
+      line: Number(takeLine.toFixed(4)),
+      option_price: current,
+      entry_option_price: entry,
+      option_take_profit_pct: takePct,
+    };
   }
   return null;
 }
@@ -616,9 +651,13 @@ async function processOnce(client, config, state, quoteFeed, mode) {
     const snapshots = quoteResult.snapshots || [];
     const optionSnapshot = snapshots.find((item) => item?.basic?.security?.code === optionSecurity.code) || null;
     const underlyingSnapshot = snapshots.find((item) => item?.basic?.security?.code === underlyingSecurity.code) || null;
-    const underlyingPrice = numeric(underlyingSnapshot?.basic?.curPrice);
-    const trigger = exitTrigger(plan, underlyingPrice, { config });
     const quoteModel = buildOptionExecutionQuote(optionSnapshot, config);
+    const underlyingPrice = numeric(underlyingSnapshot?.basic?.curPrice);
+    const trigger = exitTrigger(plan, underlyingPrice, {
+      config,
+      optionQuote: quoteModel,
+      entryOptionPrice: fillAvgPrice,
+    });
 
     nextState = {
       ...nextState,

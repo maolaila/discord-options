@@ -54,6 +54,8 @@ export function buildStrategySnapshot(config) {
     max_position_pct: config.maxPositionPct,
     underlying_take_profit_pct: config.underlyingTakeProfitPct,
     underlying_stop_loss_pct: config.underlyingStopLossPct,
+    option_take_profit_pct: config.optionExitTakeProfitPct,
+    option_stop_loss_pct: config.optionExitStopLossPct,
     execution_quality: {
       require_bid_ask: config.optionRequireBidAsk,
       min_bid_price: config.optionMinBidPrice,
@@ -83,27 +85,35 @@ export function buildRiskLines(plan, config = {}) {
   const entry = numeric(rules.entry_price ?? plan?.underlying_quote?.selected_entry_price ?? signal.stock_entry);
   const signalTarget = numeric(rules.signal_stock_target ?? signal.stock_target);
   const signalStop = numeric(rules.signal_stock_stop ?? signal.stock_stop);
+  const useSignalStockLines = rules.use_signal_stock_lines !== false;
   const takePct = numeric(rules.take_profit_move_pct ?? config.underlyingTakeProfitPct) ?? 50;
   const stopPct = numeric(rules.stop_loss_move_pct ?? config.underlyingStopLossPct) ?? 20;
+  const optionTakePct = numeric(rules.option_take_profit_pct ?? config.optionExitTakeProfitPct) ?? 50;
+  const optionStopPct = numeric(rules.option_stop_loss_pct ?? config.optionExitStopLossPct) ?? 20;
 
   let pctTakeProfitLine = null;
   let pctStopLossLine = null;
-  if (entry !== null && direction === 'bull') {
+  if (useSignalStockLines && entry !== null && direction === 'bull') {
     pctTakeProfitLine = entry * (1 + takePct / 100);
     pctStopLossLine = entry * (1 - stopPct / 100);
-  } else if (entry !== null && direction === 'bear') {
+  } else if (useSignalStockLines && entry !== null && direction === 'bear') {
     pctTakeProfitLine = entry * (1 - takePct / 100);
     pctStopLossLine = entry * (1 + stopPct / 100);
   }
 
   return {
-    price_basis: 'underlying_stock_price_at_option_entry',
+    price_basis: useSignalStockLines ? 'underlying_stock_price_at_option_entry' : 'option_fill_price_signal_stock_lines_stale',
     direction,
     underlying_entry_price: entry,
+    use_signal_stock_lines: useSignalStockLines,
+    stock_line_context: rules.stock_line_context || null,
     signal_stock_target: signalTarget,
     signal_stock_stop: signalStop,
     take_profit_underlying_move_pct: takePct,
     stop_loss_underlying_move_pct: stopPct,
+    option_price_exit_enabled: rules.option_price_exit_enabled !== false,
+    option_take_profit_pct: optionTakePct,
+    option_stop_loss_pct: optionStopPct,
     percent_take_profit_underlying_line: pctTakeProfitLine === null ? null : Number(pctTakeProfitLine.toFixed(4)),
     percent_stop_loss_underlying_line: pctStopLossLine === null ? null : Number(pctStopLossLine.toFixed(4)),
     exit_before_regular_session_close: rules.exit_before_regular_session_close ?? true,

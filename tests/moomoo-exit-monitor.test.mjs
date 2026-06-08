@@ -61,6 +61,69 @@ test('price triggers still take priority before close exit', () => {
   assert.equal(trigger.underlying_price, 106);
 });
 
+test('stale stock lines do not trigger immediate stock stop exits', () => {
+  const plan = {
+    order: {
+      underlying_exit_rules: {
+        ...closeRules,
+        use_signal_stock_lines: false,
+        option_price_exit_enabled: true,
+        option_stop_loss_pct: 20,
+        option_take_profit_pct: 50,
+        signal_stock_target: 555,
+        signal_stock_stop: 579.7,
+      },
+    },
+    signal: {
+      direction: 'bear',
+      stock_entry: 569.7,
+      stock_target: 555,
+      stock_stop: 579.7,
+    },
+  };
+
+  const trigger = exitTrigger(plan, 591.27, {
+    now: dateAtEtTime('14:30'), // 10:30 ET
+    optionQuote: { sell_estimate_price: 25.7, bid: 25.95 },
+    entryOptionPrice: 26.55,
+  });
+
+  assert.equal(trigger, null);
+});
+
+test('option price exits use fill price for stop loss and take profit', () => {
+  const plan = {
+    order: {
+      underlying_exit_rules: {
+        ...closeRules,
+        use_signal_stock_lines: false,
+        option_price_exit_enabled: true,
+        option_stop_loss_pct: 20,
+        option_take_profit_pct: 50,
+      },
+    },
+    signal: { direction: 'bear' },
+  };
+
+  const stop = exitTrigger(plan, 591.27, {
+    now: dateAtEtTime('14:30'), // 10:30 ET
+    optionQuote: { sell_estimate_price: 21.2, bid: 21.25 },
+    entryOptionPrice: 26.55,
+  });
+  assert.equal(stop.reason, 'option_20pct_stop_loss');
+  assert.equal(stop.line, 21.24);
+  assert.equal(stop.option_price, 21.2);
+
+  const take = exitTrigger(plan, 591.27, {
+    now: dateAtEtTime('14:30'), // 10:30 ET
+    optionQuote: { sell_estimate_price: 39.85, bid: 39.9 },
+    entryOptionPrice: 26.55,
+  });
+  assert.equal(take.reason, 'option_50pct_take_profit');
+  assert.equal(take.line, 39.825);
+  assert.equal(take.option_price, 39.85);
+});
+
 test('force close phase uses a more aggressive protected sell limit', () => {
   const quote = {
     bid: 0.4,

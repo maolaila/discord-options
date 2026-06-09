@@ -227,12 +227,12 @@ npm run moomoo:watch-plan
 
 模拟交易策略默认读取 `sim-trading-policy.json`。这是纯本地确定性程序规则，不调用 AI、LLM、OpenAI 或外部模型接口。
 
-当前自动交易门槛是：`PA only`、`胜率 >= 80`、`置信 >= 5`、`风险 <= 2`、必须有股票入场/目标/止损，且 `bull` 只买 Call、`bear` 只买 Put。可以在 `.env` 里改：
+当前自动交易门槛是：`PA only`、`胜率 >= 75`、`置信 >= 4`、`风险 <= 2`、必须有股票入场/目标/止损，且 `bull` 只买 Call、`bear` 只买 Put。可以在 `.env` 里改：
 
 ```text
 MOOMOO_REQUIRED_ADVICE_FORMAT=pa
-MOOMOO_MIN_WIN_RATE=80
-MOOMOO_MIN_CONFIDENCE=5
+MOOMOO_MIN_WIN_RATE=75
+MOOMOO_MIN_CONFIDENCE=4
 MOOMOO_MAX_RISK_SCORE=2
 MOOMOO_PAPER_EQUITY_USD=10000
 MOOMOO_POSITION_TARGET_PCT=25

@@ -13,8 +13,8 @@
     "advice_format": "pa",
     "action": "trade",
     "full_plan_required": true,
-    "min_win_rate_pct": 80,
-    "min_confidence": 5,
+    "min_win_rate_pct": 75,
+    "min_confidence": 4,
     "max_risk_score": 2,
     "require_entry_target_stop": true,
     "direction_contract_match": {

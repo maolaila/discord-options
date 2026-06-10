@@ -227,7 +227,7 @@ npm run moomoo:watch-plan
 
 模拟交易策略默认读取 `sim-trading-policy.json`。这是纯本地确定性程序规则，不调用 AI、LLM、OpenAI 或外部模型接口。
 
-当前自动交易门槛是：`PA only`、`胜率 >= 80`、`置信 >= 5`、`风险 <= 2`、必须有股票入场/目标/止损，且 `bull` 只买 Call、`bear` 只买 Put。可以在 `.env` 里改：
+当前自动交易门槛分两类：PA 信号仍要求 `胜率 >= 80`、`置信 >= 5`、`风险 <= 2`、必须有股票入场/目标/止损，且 `bull` 只买 Call、`bear` 只买 Put；Nightwatch 0DTE Flow Alert 不要求股票入场/目标/止损，只处理 ask 侧买入流，按消息里的 0DTE 合约生成买入意图。可以在 `.env` 里改：
 
 ```text
 MOOMOO_REQUIRED_ADVICE_FORMAT=pa
@@ -238,8 +238,8 @@ MOOMOO_PAPER_EQUITY_USD=10000
 MOOMOO_POSITION_TARGET_PCT=25
 MOOMOO_POSITION_MIN_PCT=20
 MOOMOO_POSITION_MAX_PCT=30
-MOOMOO_UNDERLYING_TAKE_PROFIT_PCT=50
-MOOMOO_UNDERLYING_STOP_LOSS_PCT=20
+MOOMOO_OPTION_TAKE_PROFIT_PCT=50
+MOOMOO_OPTION_STOP_LOSS_PCT=20
 MOOMOO_OPTION_MAX_SPREAD_PCT_OF_MID=25
 MOOMOO_OPTION_MAX_ROUND_TRIP_LOSS_PCT=40
 MOOMOO_OPTION_SLIPPAGE_TICKS=1
@@ -248,9 +248,9 @@ MOOMOO_OPTION_CAP_QTY_BY_VISIBLE_ASK=true
 MOOMOO_OPTION_MAX_QTY_TO_ASK_VOLUME_RATIO=10
 ```
 
-仓位按期权买入限价和合约乘数计算，目标约为模拟本金的 `25%`，不超过 `30%`。如果因为期权价格导致整数张数不能精确落在 `20%-30%`，计划文件会写明原因。止盈止损的百分比基准是买入期权时对应股票的价格，不是期权价格；同时仍记录信号自带的股票目标价和止损价。
+仓位按期权买入限价和合约乘数计算，目标约为模拟本金的 `25%`，不超过 `30%`。如果因为期权价格导致整数张数不能精确落在 `20%-30%`，计划文件会写明原因。止盈止损的百分比基准是期权买入成交均价：当前可卖价格达到入场均价 `+50%` 触发止盈，达到 `-20%` 触发止损。旧的 `MOOMOO_UNDERLYING_TAKE_PROFIT_PCT` / `MOOMOO_UNDERLYING_STOP_LOSS_PCT` 仍会作为兼容读取，但建议改用新的 `MOOMOO_OPTION_*` 变量。
 
-期权下单前会先向 OpenD 订阅行情推送：正股使用 `Basic` 推送拿最新价，期权使用 `OrderBook` 推送拿最新 bid/ask；同时会读取一次 `GetSecuritySnapshot` 作为初始快照和兜底，用于 open interest、合约乘数、成交量等字段。买入限价不再直接用 `ask`，而是按 `ask + max(1 tick, 10% 点差)` 的保守价格计算；计划文件同时记录 `bid - 滑点` 的卖出估算价和立即往返磨损比例。如果点差超过配置阈值、即时往返磨损过大、bid/ask 缺失、open interest 或当日成交量过低，计划会被拦截。目标张数如果明显超过可见 ask 挂单量，会按 `askVol * 10` 限制张数，并在 `position_sizing.reasons` 写明。
+期权下单前会先向 OpenD 订阅期权 `OrderBook` 推送拿最新 bid/ask，并读取一次 `GetSecuritySnapshot` 作为初始快照和兜底，用于 open interest、合约乘数、成交量等字段。正股或指数行情只作为可选参考；SPX 会用 moomoo 的 `.SPX` 查合约链，但不会把 `.SPX` 行情作为下单硬门槛。买入限价不再直接用 `ask`，而是按 `ask + max(1 tick, 10% 点差)` 的保守价格计算；计划文件同时记录 `bid - 滑点` 的卖出估算价和立即往返磨损比例。如果点差超过配置阈值、即时往返磨损过大、bid/ask 缺失、open interest 或当日成交量过低，计划会被拦截。目标张数如果明显超过可见 ask 挂单量，会按 `askVol * 10` 限制张数，并在 `position_sizing.reasons` 写明。
 
 模拟执行需要显式传参：
 
@@ -270,7 +270,7 @@ npm run moomoo:watch-sim
 npm run moomoo:exit-watch
 ```
 
-控制台里的 `启动全套模拟` 会同时启动买入监听和卖出监控。卖出监控只处理本程序提交且已经成交的同环境买入单；触发股票目标价、股票止损价、标的价格百分比止盈/止损或收盘前退出时，按当前期权 `bid - 滑点` 的保守限价提交 `SELL_TO_CLOSE` 单。行情触发采用 OpenD 推送缓存优先，订单/持仓状态仍每 `2` 秒向 OpenD 校验一次。卖出记录写入 `logs/moomoo-exit-orders.ndjson`，状态写入 `logs/moomoo-exit-status.json`。
+控制台里的 `启动全套模拟` 会同时启动买入监听和卖出监控。卖出监控只处理本程序提交且已经成交的同环境买入单；触发期权成交均价相对止盈/止损或收盘前退出时，按当前期权 `bid - 滑点` 的保守限价提交 `SELL_TO_CLOSE` 单。行情触发采用 OpenD 推送缓存优先，订单/持仓状态仍每 `2` 秒向 OpenD 校验一次。卖出记录写入 `logs/moomoo-exit-orders.ndjson`，状态写入 `logs/moomoo-exit-status.json`。
 
 每个交易生命周期都会额外写入 `logs/trade-journal.ndjson`，用于后续人工复盘或本地整理后给 AI 参考。该文件是追加式 JSONL，每行包含：
 

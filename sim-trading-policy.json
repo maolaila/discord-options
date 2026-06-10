@@ -47,11 +47,11 @@
     "min_option_day_volume": 1
   },
   "exit_rules": {
-    "price_basis": "underlying_stock_price_at_option_entry",
-    "take_profit_underlying_move_pct": 50,
-    "stop_loss_underlying_move_pct": 20,
-    "also_use_signal_stock_target": true,
-    "also_use_signal_stock_stop": true,
+    "price_basis": "option_entry_fill_price",
+    "take_profit_option_return_pct": 50,
+    "stop_loss_option_return_pct": 20,
+    "also_use_signal_stock_target": false,
+    "also_use_signal_stock_stop": false,
     "exit_before_regular_session_close": true,
     "no_overnight_holding": true
   }

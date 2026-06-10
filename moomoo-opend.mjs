@@ -185,6 +185,16 @@ export function loadMoomooConfig(opts = {}) {
     optionMinDayVolume: numberValue(opts.optionMinDayVolume || process.env.MOOMOO_OPTION_MIN_DAY_VOLUME, 'MOOMOO_OPTION_MIN_DAY_VOLUME', executionQuality.min_option_day_volume ?? 1),
     quotePushWarmupMs: numberValue(opts.quotePushWarmupMs || process.env.MOOMOO_QUOTE_PUSH_WARMUP_MS, 'MOOMOO_QUOTE_PUSH_WARMUP_MS', 350),
     quoteFallbackSnapshotMaxAgeMs: numberValue(opts.quoteFallbackSnapshotMaxAgeMs || process.env.MOOMOO_QUOTE_FALLBACK_SNAPSHOT_MAX_AGE_MS, 'MOOMOO_QUOTE_FALLBACK_SNAPSHOT_MAX_AGE_MS', 2000),
+    optionTakeProfitPct: numberValue(
+      opts.optionTakeProfitPct || process.env.MOOMOO_OPTION_TAKE_PROFIT_PCT || process.env.MOOMOO_UNDERLYING_TAKE_PROFIT_PCT,
+      'MOOMOO_OPTION_TAKE_PROFIT_PCT',
+      exits.take_profit_option_return_pct ?? exits.take_profit_underlying_move_pct ?? 50,
+    ),
+    optionStopLossPct: numberValue(
+      opts.optionStopLossPct || process.env.MOOMOO_OPTION_STOP_LOSS_PCT || process.env.MOOMOO_UNDERLYING_STOP_LOSS_PCT,
+      'MOOMOO_OPTION_STOP_LOSS_PCT',
+      exits.stop_loss_option_return_pct ?? exits.stop_loss_underlying_move_pct ?? 20,
+    ),
     underlyingTakeProfitPct: numberValue(opts.underlyingTakeProfitPct || process.env.MOOMOO_UNDERLYING_TAKE_PROFIT_PCT, 'MOOMOO_UNDERLYING_TAKE_PROFIT_PCT', exits.take_profit_underlying_move_pct ?? 50),
     underlyingStopLossPct: numberValue(opts.underlyingStopLossPct || process.env.MOOMOO_UNDERLYING_STOP_LOSS_PCT, 'MOOMOO_UNDERLYING_STOP_LOSS_PCT', exits.stop_loss_underlying_move_pct ?? 20),
     allowRealTrading: boolValue(opts.allowRealTrading ?? process.env.MOOMOO_ALLOW_REAL_TRADING, false),
@@ -338,8 +348,15 @@ export function optionLegName(optionType) {
   return optionTypeCode(optionType) === OPTION_TYPE_CALL ? 'call' : 'put';
 }
 
+export function moomooUnderlyingCode(ticker) {
+  const code = String(ticker || '').trim().toUpperCase();
+  if (code === 'SPX') return '.SPX';
+  return code;
+}
+
 export async function findOptionContract(client, signal) {
   const ticker = String(signal.ticker || '').trim().toUpperCase();
+  const ownerCode = moomooUnderlyingCode(ticker);
   const expiration = String(signal.expiration || '').trim();
   const strike = Number(signal.strike);
   if (!ticker || !expiration || !Number.isFinite(strike)) {
@@ -351,7 +368,7 @@ export async function findOptionContract(client, signal) {
     c2s: {
       owner: {
         market: QOT_MARKET_US_SECURITY,
-        code: ticker,
+        code: ownerCode,
       },
       type: optionTypeCode(signal.option_type),
       beginTime: expiration,

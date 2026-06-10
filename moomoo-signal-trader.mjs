@@ -15,6 +15,7 @@ import {
   findOptionContract,
   loadMoomooConfig,
   maskId,
+  moomooUnderlyingCode,
   normalizeForJson,
   parseCliArgs,
   placeLimitBuyOrder,
@@ -100,8 +101,13 @@ function formatMatches(signal, config) {
   return String(signal?.advice_format || '').toLowerCase() === String(config.requiredAdviceFormat).toLowerCase();
 }
 
+function isFlowSignal(signal) {
+  return String(signal?.advice_format || '').toLowerCase() === 'flow';
+}
+
 function evaluateGate(intent, signal, config) {
   const reasons = [];
+  const flowSignal = isFlowSignal(signal);
   if (!signal) reasons.push('missing_matching_option_signal');
   if (intent.status !== 'paper_intent_only') reasons.push(`unsupported_intent_status:${intent.status || ''}`);
   if (intent.action !== 'BUY_TO_OPEN') reasons.push(`unsupported_intent_action:${intent.action || ''}`);
@@ -109,21 +115,21 @@ function evaluateGate(intent, signal, config) {
 
   const action = signal?.action || (intent.action === 'BUY_TO_OPEN' ? 'trade' : '');
   if (action !== 'trade') reasons.push(`signal_action_not_trade:${action || ''}`);
-  if (signal && !formatMatches(signal, config)) reasons.push(`advice_format_not_allowed:${signal.advice_format || 'missing'}`);
+  if (signal && !flowSignal && !formatMatches(signal, config)) reasons.push(`advice_format_not_allowed:${signal.advice_format || 'missing'}`);
   if (signal && signal.signal_actionable !== true) reasons.push('signal_not_actionable');
-  if (signal && signal.full_plan_ready !== true) reasons.push('signal_missing_full_stock_plan');
-  if (!hasStockPlan(intent, signal)) reasons.push('missing_stock_entry_target_stop');
+  if (signal && !flowSignal && signal.full_plan_ready !== true) reasons.push('signal_missing_full_stock_plan');
+  if (!flowSignal && !hasStockPlan(intent, signal)) reasons.push('missing_stock_entry_target_stop');
   if (!directionMatchesContract(intent, signal)) reasons.push('direction_option_type_mismatch');
 
   const winRate = numeric(signal?.win_rate_pct ?? intent.win_rate_pct);
-  if (winRate === null || winRate < config.minWinRate) reasons.push(`win_rate_below_gate:${winRate ?? 'missing'}`);
+  if (!flowSignal && (winRate === null || winRate < config.minWinRate)) reasons.push(`win_rate_below_gate:${winRate ?? 'missing'}`);
 
   const confidence = numeric(signal?.confidence ?? intent.confidence);
-  if (confidence === null || confidence < config.minConfidence) reasons.push(`confidence_below_gate:${confidence ?? 'missing'}`);
+  if (!flowSignal && (confidence === null || confidence < config.minConfidence)) reasons.push(`confidence_below_gate:${confidence ?? 'missing'}`);
 
   const risk = numeric(signal?.risk_score ?? intent.risk_score);
-  if (risk === null) reasons.push('missing_risk_score');
-  if (risk !== null && risk > config.maxRiskScore) reasons.push(`risk_score_above_gate:${risk}`);
+  if (!flowSignal && risk === null) reasons.push('missing_risk_score');
+  if (!flowSignal && risk !== null && risk > config.maxRiskScore) reasons.push(`risk_score_above_gate:${risk}`);
 
   if (!intent.ticker || !intent.expiration || !intent.strike || !intent.option_type) reasons.push('missing_option_contract_fields');
 
@@ -131,6 +137,7 @@ function evaluateGate(intent, signal, config) {
     passed: reasons.length === 0,
     reasons,
     values: {
+      gate_profile: flowSignal ? 'nightwatch_flow' : 'pa_full_plan',
       win_rate_pct: winRate,
       confidence,
       risk_score: risk,
@@ -354,6 +361,12 @@ function signalSummary(intent, signal) {
     win_rate_pct: numeric(signal?.win_rate_pct ?? intent.win_rate_pct),
     confidence: numeric(signal?.confidence ?? intent.confidence),
     risk_score: numeric(signal?.risk_score ?? intent.risk_score),
+    advice_format: signal?.advice_format || '',
+    source_type: signal?.source_type || '',
+    flow_aggressor_side: signal?.flow_aggressor_side || null,
+    flow_execution_type: signal?.flow_execution_type || null,
+    flow_contract_count: numeric(signal?.flow_contract_count),
+    flow_avg_option_price: numeric(signal?.flow_avg_option_price),
     title: signal?.title || '',
   };
 }
@@ -432,14 +445,26 @@ async function processIntent(intent, signalMaps, config, mode, connectionHolder)
   const contract = resolved.contract;
   const underlyingSecurity = {
     market: QOT_MARKET_US_SECURITY,
-    code: summary.ticker,
+    code: moomooUnderlyingCode(summary.ticker),
   };
-  const quoteResult = await connectionHolder.quoteFeed.getSnapshots([contract.security, underlyingSecurity], {
+  const quoteResult = await connectionHolder.quoteFeed.getSnapshots([contract.security], {
     orderBookSecurities: [contract.security],
   });
+  let underlyingQuoteResult = null;
+  let underlyingQuoteError = null;
+  if (underlyingSecurity.code && underlyingSecurity.code !== '.SPX') {
+    try {
+      underlyingQuoteResult = await connectionHolder.quoteFeed.getSnapshots([underlyingSecurity], {
+        orderBookSecurities: [],
+      });
+    } catch (error) {
+      underlyingQuoteError = error.message;
+    }
+  }
   const snapshots = quoteResult.snapshots || [];
   const snapshot = snapshots.find((item) => item?.basic?.security?.code === contract.security.code) || snapshots[0] || null;
-  const underlyingSnapshot = snapshots.find((item) => item?.basic?.security?.code === summary.ticker) || null;
+  const underlyingSnapshots = underlyingQuoteResult?.snapshots || [];
+  const underlyingSnapshot = underlyingSnapshots.find((item) => item?.basic?.security?.code === underlyingSecurity.code) || null;
   const optionExecutionQuote = buildOptionExecutionQuote(snapshot, config);
   const limitPrice = optionExecutionQuote.buy_limit_price;
   const underlyingEntryPrice = numeric(underlyingSnapshot?.basic?.curPrice);
@@ -452,11 +477,6 @@ async function processIntent(intent, signalMaps, config, mode, connectionHolder)
     plan.order_status = 'quote_quality_rejected';
     plan.gate.passed = false;
     plan.gate.reasons.push(...optionExecutionQuote.reasons.map((reason) => `option_quote_quality:${reason}`));
-  }
-  if (underlyingEntryPrice === null) {
-    plan.order_status = 'underlying_quote_not_available';
-    plan.gate.passed = false;
-    plan.gate.reasons.push('missing_underlying_current_price');
   }
 
   const contractMultiplier = numeric(snapshot?.optionExData?.contractMultiplier)
@@ -494,6 +514,7 @@ async function processIntent(intent, signalMaps, config, mode, connectionHolder)
     strike_time: contract.strikeTime,
     strike_price: contract.strikePrice,
     lot_size: contract.lotSize,
+    owner: normalizeForJson(contract.owner || underlyingSecurity),
     candidate_count: resolved.candidateCount,
   };
   plan.quote = {
@@ -515,6 +536,8 @@ async function processIntent(intent, signalMaps, config, mode, connectionHolder)
     quote_source: underlyingSnapshot?.quote_source || 'snapshot',
     quote_received_at: underlyingSnapshot?.quote_received_at || null,
     selected_entry_price: underlyingEntryPrice,
+    optional: true,
+    error: underlyingQuoteError,
   };
   plan.position_sizing = positionSizing;
   plan.order = orderRequest ? {
@@ -550,15 +573,18 @@ async function processIntent(intent, signalMaps, config, mode, connectionHolder)
       target: summary.stock_target,
       stop: summary.stock_stop,
     },
-    underlying_exit_rules: {
-      price_basis: 'underlying_stock_price_at_option_entry',
-      entry_price: underlyingEntryPrice,
-      stop_loss_move_pct: config.underlyingStopLossPct,
-      take_profit_move_pct: config.underlyingTakeProfitPct,
-      signal_stock_target: summary.stock_target,
-      signal_stock_stop: summary.stock_stop,
+    option_exit_rules: {
+      price_basis: 'option_entry_fill_price',
+      stop_loss_return_pct: config.optionStopLossPct,
+      take_profit_return_pct: config.optionTakeProfitPct,
       exit_before_regular_session_close: true,
       no_overnight_holding: true,
+    },
+    underlying_exit_rules: {
+      price_basis: 'stock_lines_reference_only',
+      entry_price: underlyingEntryPrice,
+      signal_stock_target: summary.stock_target,
+      signal_stock_stop: summary.stock_stop,
     },
   } : null;
 

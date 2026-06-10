@@ -73,6 +73,63 @@ function parsePremium(description) {
   return match ? Number(match[1].replace(/,/g, '')) : null;
 }
 
+function scaledNumber(value, suffix) {
+  const parsed = Number(String(value || '').replace(/,/g, ''));
+  if (!Number.isFinite(parsed)) return null;
+  const unit = String(suffix || '').toUpperCase();
+  if (unit === 'M') return parsed * 1000000;
+  if (unit === 'K') return parsed * 1000;
+  return parsed;
+}
+
+function dateKeyInTimeZone(iso, timeZone) {
+  const date = new Date(iso || Date.now());
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const parts = Object.fromEntries(formatter.formatToParts(date).map((part) => [part.type, part.value]));
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function executionTypeFromIcon(icon) {
+  if (icon === '\u26a1') return 'sweep';
+  if (icon === '\u25a3') return 'floor';
+  if (icon === '\u21c6') return 'multileg';
+  return 'unknown';
+}
+
+function discordMessageText(record) {
+  const pieces = [record?.content || ''];
+  for (const embed of Array.isArray(record?.embeds) ? record.embeds : []) {
+    pieces.push(embed.title || '', embed.description || '');
+    for (const field of Array.isArray(embed.fields) ? embed.fields : []) {
+      pieces.push(field.name || '', field.value || '');
+    }
+  }
+  return pieces.filter(Boolean).join('\n');
+}
+
+function parseNightwatchFlowLine(text) {
+  const flowRe = /(?:\u{1F7E2}|\u{1F534})\s*(\d{1,2}:\d{2})(?::\d{2})?\s+([A-Z][A-Z0-9.-]*)\s+([0-9]+(?:\.[0-9]+)?)([CP])\s*(\u4e70|\u5356|\u4e2d)\s*(\u26a1|\u25a3|\u21c6)?\s+\$([0-9,]+(?:\.[0-9]+)?)([KkMm]?)\s+([0-9,]+(?:\.[0-9]+)?)([Kk]?)\s*\u5f20\s+avg\s+\$?([0-9]+(?:\.[0-9]+)?)/u;
+  const match = String(text || '').match(flowRe);
+  if (!match) return null;
+  return {
+    flow_time_et: match[1],
+    ticker: match[2].toUpperCase(),
+    strike: Number(match[3]),
+    option_type: match[4].toUpperCase(),
+    aggressor_side: match[5] === '\u4e70' ? 'ask_buy' : match[5] === '\u5356' ? 'bid_sell' : 'mid',
+    execution_icon: match[6] || '',
+    execution_type: executionTypeFromIcon(match[6] || ''),
+    premium_usd: scaledNumber(match[7], match[8]),
+    contract_count: scaledNumber(match[9], match[10]),
+    avg_option_price: Number(match[11]),
+  };
+}
+
 function parseNumberAfter(label, text) {
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const match = String(text || '').match(new RegExp(`${escaped}\\s*([0-9]+(?:\\.[0-9]+)?)`));
@@ -151,6 +208,7 @@ function buildSignalKey(signal) {
 
 function evaluateSignal(signal) {
   const notes = [];
+  const isFlow = signal.advice_format === 'flow';
   const isTrade = signal.action === 'trade';
   const hasContract = Boolean(signal.ticker && signal.expiration && signal.strike && signal.option_type);
   const hasPlan = signal.entry_stock_price !== null && signal.target_stock_price !== null && signal.stop_stock_price !== null;
@@ -161,11 +219,13 @@ function evaluateSignal(signal) {
   if (!isTrade) notes.push('not_trade_decision');
   if (!hasContract) notes.push('missing_option_contract');
   if (!directionOk) notes.push('missing_or_neutral_direction');
-  if (!hasPlan) notes.push('missing_stock_entry_target_stop');
-  if (!confidenceOk && !winRateOk) notes.push('confidence_or_winrate_below_gate');
+  if (!isFlow && !hasPlan) notes.push('missing_stock_entry_target_stop');
+  if (!isFlow && !confidenceOk && !winRateOk) notes.push('confidence_or_winrate_below_gate');
 
-  const signalActionable = isTrade && hasContract && directionOk && (confidenceOk || winRateOk);
-  const fullPlanReady = signalActionable && hasPlan;
+  const signalActionable = isFlow
+    ? isTrade && hasContract && directionOk
+    : isTrade && hasContract && directionOk && (confidenceOk || winRateOk);
+  const fullPlanReady = isFlow ? false : signalActionable && hasPlan;
 
   return {
     signal_actionable: signalActionable,
@@ -178,7 +238,72 @@ function evaluateSignal(signal) {
   };
 }
 
+function parseNightwatchFlowSignal(record, observedVia) {
+  const flow = parseNightwatchFlowLine(discordMessageText(record));
+  if (!flow) return null;
+
+  const messageIso = record.timestamp || record.captured_at || new Date().toISOString();
+  const expiration = dateKeyInTimeZone(messageIso, 'America/New_York');
+  const action = flow.aggressor_side === 'ask_buy' ? 'trade' : 'unknown';
+  const direction = flow.option_type === 'P' ? 'bear' : 'bull';
+  const signal = {
+    observed_at: new Date().toISOString(),
+    observed_via: observedVia,
+    source: record.source || '',
+    source_type: 'nightwatch_flow_alert',
+    event_type: record.event_type || '',
+    message_id: record.id || '',
+    channel_id: record.channel_id || '',
+    guild_id: record.guild_id || null,
+    message_timestamp: record.timestamp || '',
+    captured_at: record.captured_at || '',
+    capture_lag_ms: record.capture_lag_ms ?? null,
+    author_id: record.author && record.author.id ? record.author.id : '',
+    author_username: record.author && record.author.username ? record.author.username : '',
+    advice_format: 'flow',
+    title: `Nightwatch 0DTE Flow ${flow.ticker} ${flow.strike}${flow.option_type}`,
+    description: oneLine(discordMessageText(record)),
+    ticker: flow.ticker,
+    expiration,
+    strike: flow.strike,
+    option_type: flow.option_type,
+    title_suffix: 'Nightwatch 0DTE Flow Alert',
+    contract_key: `${flow.ticker}_${expiration}_${flow.strike}${flow.option_type}`,
+    polygon_option_ticker: polygonOptionTicker(flow.ticker, expiration, flow.option_type, flow.strike),
+    occ_symbol: occSymbol(flow.ticker, expiration, flow.option_type, flow.strike),
+    action,
+    direction,
+    direction_inferred: true,
+    entry_stock_price: null,
+    target_stock_price: null,
+    stop_stock_price: null,
+    win_rate_pct: null,
+    risk_score: null,
+    confidence: null,
+    premium_usd: flow.premium_usd,
+    flow_time_et: flow.flow_time_et,
+    flow_aggressor_side: flow.aggressor_side,
+    flow_execution_type: flow.execution_type,
+    flow_execution_icon: flow.execution_icon,
+    flow_contract_count: flow.contract_count,
+    flow_avg_option_price: flow.avg_option_price,
+    execution_view: '',
+    price_structure: '',
+    option_structure: `0DTE ${flow.aggressor_side} ${flow.execution_type}`,
+    execution_plan: '',
+    invalidation: '',
+    risk_note: '',
+  };
+
+  Object.assign(signal, evaluateSignal(signal));
+  signal.signal_key = buildSignalKey(signal);
+  return signal;
+}
+
 function parseOptionSignal(record, observedVia) {
+  const flowSignal = parseNightwatchFlowSignal(record, observedVia);
+  if (flowSignal) return flowSignal;
+
   const embed = firstEmbed(record);
   if (!embed) return null;
 

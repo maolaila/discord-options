@@ -16,7 +16,8 @@
     "moomoo:exit-once": "node ./moomoo-exit-monitor.mjs",
     "moomoo:exit-watch": "node ./moomoo-exit-monitor.mjs --watch",
     "moomoo:exit-real-watch": "node ./moomoo-exit-monitor.mjs --watch --execute-real",
-    "console": "node ./control-console.mjs"
+    "console": "node ./control-console.mjs",
+    "test": "node --test ./tests"
   },
   "dependencies": {
     "dotenv": "^17.4.2",

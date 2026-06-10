@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   PROJECT_ROOT,
   QOT_MARKET_US_SECURITY,
@@ -34,6 +35,10 @@ const executionsPath = path.join(logsDir, 'moomoo-executions.ndjson');
 const exitOrdersPath = path.join(logsDir, 'moomoo-exit-orders.ndjson');
 const statePath = path.join(logsDir, 'moomoo-exit-state.json');
 const statusPath = path.join(logsDir, 'moomoo-exit-status.json');
+const regularSessionStartMinutes = 9 * 60 + 30;
+const regularSessionEndMinutes = 16 * 60;
+const defaultCloseExitStartMinutes = 15 * 60 + 45;
+const defaultForceCloseExitStartMinutes = 15 * 60 + 55;
 
 function numeric(value) {
   if (value === null || value === undefined || value === '') return null;
@@ -128,7 +133,7 @@ async function safeOrderFillList(client, config) {
   }
 }
 
-function nyParts(date = new Date()) {
+export function nyParts(date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/New_York',
     weekday: 'short',
@@ -151,23 +156,120 @@ function isWeekday(parts) {
   return !['Sat', 'Sun'].includes(parts.weekday);
 }
 
-function isRegularSessionNow() {
-  const p = nyParts();
-  if (!isWeekday(p)) return false;
-  const minutes = p.hour * 60 + p.minute;
-  return minutes >= 9 * 60 + 30 && minutes <= 16 * 60;
+function parseEtTimeToMinutes(value, fallback) {
+  const text = String(value || '').trim();
+  const match = text.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return fallback;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (!Number.isInteger(hour) || !Number.isInteger(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+    return fallback;
+  }
+  return hour * 60 + minute;
 }
 
-function isExitBeforeCloseNow() {
-  const p = nyParts();
-  if (!isWeekday(p)) return false;
-  const minutes = p.hour * 60 + p.minute;
-  return minutes >= 15 * 60 + 55 && minutes <= 16 * 60;
+function formatEtMinutes(minutes) {
+  const hour = Math.floor(minutes / 60);
+  const minute = minutes % 60;
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
 
-function sellLimitPriceFromQuote(quoteModel) {
-  if (Number.isFinite(quoteModel.sell_estimate_price) && quoteModel.sell_estimate_price > 0) return quoteModel.sell_estimate_price;
-  if (Number.isFinite(quoteModel.bid) && quoteModel.bid > 0) return quoteModel.bid;
+function nySessionMinutes(date = new Date()) {
+  const p = nyParts(date);
+  return { parts: p, minutes: p.hour * 60 + p.minute };
+}
+
+export function isRegularSessionNow(date = new Date()) {
+  const { parts, minutes } = nySessionMinutes(date);
+  if (!isWeekday(parts)) return false;
+  return minutes >= regularSessionStartMinutes && minutes <= regularSessionEndMinutes;
+}
+
+export function closeExitTrigger(rules = {}, date = new Date()) {
+  if (!rules.exit_before_regular_session_close && !rules.no_overnight_holding) return null;
+  const { parts, minutes } = nySessionMinutes(date);
+  if (!isWeekday(parts)) return null;
+  const closeStart = parseEtTimeToMinutes(rules.close_exit_start_time_et, defaultCloseExitStartMinutes);
+  const forceStartRaw = parseEtTimeToMinutes(rules.force_close_exit_start_time_et, defaultForceCloseExitStartMinutes);
+  const forceStart = Math.max(closeStart, forceStartRaw);
+  if (minutes < closeStart || minutes > regularSessionEndMinutes) return null;
+  return {
+    reason: 'exit_before_regular_session_close',
+    line: null,
+    underlying_price: null,
+    close_exit_phase: minutes >= forceStart ? 'force' : 'standard',
+    close_exit_start_time_et: formatEtMinutes(closeStart),
+    force_close_exit_start_time_et: formatEtMinutes(forceStart),
+  };
+}
+
+function mergeExitRules(plan, config) {
+  const optionRules = plan.order?.option_exit_rules || {};
+  const stockRules = plan.order?.underlying_exit_rules || {};
+  return {
+    ...(config?.policy?.exit_rules || {}),
+    ...stockRules,
+    option_price_exit_enabled: stockRules.option_price_exit_enabled ?? true,
+    option_stop_loss_pct: stockRules.option_stop_loss_pct
+      ?? optionRules.stop_loss_return_pct
+      ?? optionRules.stop_loss_move_pct
+      ?? config?.optionExitStopLossPct
+      ?? config?.optionStopLossPct,
+    option_take_profit_pct: stockRules.option_take_profit_pct
+      ?? optionRules.take_profit_return_pct
+      ?? optionRules.take_profit_move_pct
+      ?? config?.optionExitTakeProfitPct
+      ?? config?.optionTakeProfitPct,
+    exit_before_regular_session_close: stockRules.exit_before_regular_session_close
+      ?? optionRules.exit_before_regular_session_close
+      ?? config?.policy?.exit_rules?.exit_before_regular_session_close
+      ?? true,
+    close_exit_start_time_et: stockRules.close_exit_start_time_et
+      ?? optionRules.close_exit_start_time_et
+      ?? config?.closeExitStartTimeEt,
+    force_close_exit_start_time_et: stockRules.force_close_exit_start_time_et
+      ?? optionRules.force_close_exit_start_time_et
+      ?? config?.forceCloseExitStartTimeEt,
+    no_overnight_holding: stockRules.no_overnight_holding
+      ?? optionRules.no_overnight_holding
+      ?? config?.policy?.exit_rules?.no_overnight_holding
+      ?? true,
+  };
+}
+
+export function exitTrigger(plan, underlyingPrice, opts = {}) {
+  const now = opts.now || new Date();
+  const rules = mergeExitRules(plan, opts.config);
+  const closeTrigger = closeExitTrigger(rules, now);
+  if (!isRegularSessionNow(now)) return null;
+
+  const optionTrigger = optionPriceExitTrigger(plan, opts.optionQuote, opts.entryOptionPrice, opts);
+  const direction = String(plan.signal?.direction || '').toLowerCase();
+  const entry = numeric(rules.entry_price ?? plan.underlying_quote?.selected_entry_price ?? plan.signal?.stock_entry);
+  const target = numeric(rules.signal_stock_target ?? plan.signal?.stock_target);
+  const stop = numeric(rules.signal_stock_stop ?? plan.signal?.stock_stop);
+  const stopMovePct = numeric(rules.stop_loss_move_pct) ?? 20;
+  const takeMovePct = numeric(rules.take_profit_move_pct) ?? 50;
+  const price = numeric(underlyingPrice);
+  const useSignalStockLines = rules.use_signal_stock_lines !== false;
+  if (price === null || entry === null || !direction) return optionTrigger || closeTrigger;
+
+  if (useSignalStockLines && direction === 'bull') {
+    if (target !== null && price >= target) return { reason: 'signal_stock_target', line: target, underlying_price: price };
+    if (stop !== null && price <= stop) return { reason: 'signal_stock_stop', line: stop, underlying_price: price };
+    if (price >= entry * (1 + takeMovePct / 100)) return { reason: 'underlying_50pct_take_profit', line: entry * (1 + takeMovePct / 100), underlying_price: price };
+    if (price <= entry * (1 - stopMovePct / 100)) return { reason: 'underlying_20pct_stop_loss', line: entry * (1 - stopMovePct / 100), underlying_price: price };
+  } else if (useSignalStockLines && direction === 'bear') {
+    if (target !== null && price <= target) return { reason: 'signal_stock_target', line: target, underlying_price: price };
+    if (stop !== null && price >= stop) return { reason: 'signal_stock_stop', line: stop, underlying_price: price };
+    if (price <= entry * (1 - takeMovePct / 100)) return { reason: 'underlying_50pct_take_profit', line: entry * (1 - takeMovePct / 100), underlying_price: price };
+    if (price >= entry * (1 + stopMovePct / 100)) return { reason: 'underlying_20pct_stop_loss', line: entry * (1 + stopMovePct / 100), underlying_price: price };
+  }
+
+  if (optionTrigger) return optionTrigger;
+  if (closeTrigger) {
+    return { ...closeTrigger, underlying_price: price };
+  }
   return null;
 }
 
@@ -178,58 +280,81 @@ function optionReturnPct(entryPrice, exitPrice) {
   return Number(((exit - entry) / entry * 100).toFixed(4));
 }
 
-function exitRules(plan) {
-  return plan.order?.option_exit_rules || plan.order?.underlying_exit_rules || {};
-}
+export function optionPriceExitTrigger(plan, optionQuote, entryOptionPrice, opts = {}) {
+  const rules = mergeExitRules(plan, opts.config);
+  if (rules.option_price_exit_enabled === false) return null;
+  const entry = numeric(entryOptionPrice);
+  const current = numeric(optionQuote?.sell_estimate_price ?? optionQuote?.bid);
+  if (entry === null || entry <= 0 || current === null || current <= 0) return null;
 
-function exitTrigger(plan, config, { optionEntryPrice, optionExitPrice, underlyingPrice } = {}) {
-  const rules = exitRules(plan);
-  const entry = numeric(optionEntryPrice);
-  const exit = numeric(optionExitPrice);
-  const stopPct = numeric(rules.stop_loss_return_pct ?? rules.stop_loss_move_pct ?? config.optionStopLossPct ?? config.underlyingStopLossPct) ?? 20;
-  const takePct = numeric(rules.take_profit_return_pct ?? rules.take_profit_move_pct ?? config.optionTakeProfitPct ?? config.underlyingTakeProfitPct) ?? 50;
-
-  if (entry !== null && entry > 0 && exit !== null) {
-    const takeLine = entry * (1 + takePct / 100);
-    const stopLine = entry * (1 - stopPct / 100);
-    const returnPct = optionReturnPct(entry, exit);
-    if (exit >= takeLine) {
-      return {
-        reason: 'option_50pct_take_profit',
-        line: Number(takeLine.toFixed(4)),
-        option_entry_price: entry,
-        option_exit_price: exit,
-        option_return_pct: returnPct,
-        underlying_price: numeric(underlyingPrice),
-      };
-    }
-    if (exit <= stopLine) {
-      return {
-        reason: 'option_20pct_stop_loss',
-        line: Number(stopLine.toFixed(4)),
-        option_entry_price: entry,
-        option_exit_price: exit,
-        option_return_pct: returnPct,
-        underlying_price: numeric(underlyingPrice),
-      };
-    }
-  }
-
-  if (rules.exit_before_regular_session_close !== false && isExitBeforeCloseNow()) {
+  const stopPct = numeric(rules.option_stop_loss_pct ?? opts.config?.optionExitStopLossPct) ?? 20;
+  const takePct = numeric(rules.option_take_profit_pct ?? opts.config?.optionExitTakeProfitPct) ?? 50;
+  const stopLine = entry * (1 - stopPct / 100);
+  const takeLine = entry * (1 + takePct / 100);
+  if (current <= stopLine) {
     return {
-      reason: 'exit_before_regular_session_close',
-      line: null,
-      option_entry_price: entry,
-      option_exit_price: exit,
-      option_return_pct: optionReturnPct(entry, exit),
-      underlying_price: numeric(underlyingPrice),
+      reason: 'option_20pct_stop_loss',
+      line: Number(stopLine.toFixed(4)),
+      option_price: current,
+      entry_option_price: entry,
+      option_stop_loss_pct: stopPct,
+    };
+  }
+  if (current >= takeLine) {
+    return {
+      reason: 'option_50pct_take_profit',
+      line: Number(takeLine.toFixed(4)),
+      option_price: current,
+      entry_option_price: entry,
+      option_take_profit_pct: takePct,
     };
   }
   return null;
 }
 
+function decimalPlaces(value) {
+  const text = String(value);
+  const dot = text.indexOf('.');
+  return dot >= 0 ? Math.min(6, text.length - dot - 1) : 0;
+}
+
+function roundDownToTick(value, tick) {
+  const normalizedTick = Number.isFinite(tick) && tick > 0 ? tick : 0.01;
+  const decimals = Math.max(2, decimalPlaces(normalizedTick));
+  return Number((Math.floor((value / normalizedTick) + 1e-9) * normalizedTick).toFixed(decimals));
+}
+
+export function sellLimitPriceFromQuote(quoteModel, trigger = null) {
+  const bid = numeric(quoteModel.bid);
+  if (trigger?.close_exit_phase === 'force' && bid !== null && bid > 0) {
+    const tick = numeric(quoteModel.tick) || 0.01;
+    const spreadAbs = numeric(quoteModel.spread_abs) || 0;
+    const extraBuffer = Math.max(tick * 2, spreadAbs * 0.5);
+    return Math.max(tick, roundDownToTick(bid - extraBuffer, tick));
+  }
+  if (Number.isFinite(quoteModel.sell_estimate_price) && quoteModel.sell_estimate_price > 0) return quoteModel.sell_estimate_price;
+  if (Number.isFinite(quoteModel.bid) && quoteModel.bid > 0) return quoteModel.bid;
+  return null;
+}
+
+export function exitOrderClosesPosition({ expectedExitQty, exitFilledQty, position }) {
+  const expected = numeric(expectedExitQty) ?? 0;
+  const exited = numeric(exitFilledQty) ?? 0;
+  if (expected > 0 && exited >= expected) return true;
+
+  const positionQty = numeric(position?.qty);
+  return position && positionQty !== null && positionQty <= 0;
+}
+
 function isTerminalUnfilledOrderStatus(status) {
   return [3, 15, 21, 22, 23].includes(Number(status));
+}
+
+function transientPollError(error) {
+  const message = error?.message || String(error);
+  if (message.includes('频率太高')) return { kind: 'rate_limited', cooldownSeconds: 30, message };
+  if (message.toLowerCase().includes('timeout')) return { kind: 'timeout', cooldownSeconds: 10, message };
+  return null;
 }
 
 async function ensureSimAccount(client, config) {
@@ -354,8 +479,7 @@ async function processOnce(client, config, state, quoteFeed, mode) {
         nextState.exit_fill_logged = true;
       }
 
-      const fullyExited = (expectedExitQty > 0 && exitFilledQty >= expectedExitQty)
-        || (position && canSellQty <= 0);
+      const fullyExited = exitOrderClosesPosition({ expectedExitQty, exitFilledQty, position });
       if (fullyExited) {
         nextState = { ...nextState, status: 'closed', updated_at: new Date().toISOString() };
         if (!stateRow.closed_logged) {
@@ -577,16 +701,14 @@ async function processOnce(client, config, state, quoteFeed, mode) {
     const optionSnapshot = snapshots.find((item) => item?.basic?.security?.code === optionSecurity.code) || null;
     const underlyingSnapshots = underlyingQuoteResult?.snapshots || [];
     const underlyingSnapshot = underlyingSnapshots.find((item) => item?.basic?.security?.code === underlyingSecurity.code) || null;
-    const underlyingPrice = numeric(underlyingSnapshot?.basic?.curPrice);
     const quoteModel = buildOptionExecutionQuote(optionSnapshot, config);
-    const optionExitPrice = sellLimitPriceFromQuote(quoteModel);
-    const trigger = isRegularSessionNow()
-      ? exitTrigger(plan, config, {
-        optionEntryPrice: fillAvgPrice,
-        optionExitPrice,
-        underlyingPrice,
-      })
-      : null;
+    const underlyingPrice = numeric(underlyingSnapshot?.basic?.curPrice);
+    const trigger = exitTrigger(plan, underlyingPrice, {
+      config,
+      optionQuote: quoteModel,
+      entryOptionPrice: fillAvgPrice,
+    });
+    const optionExitPrice = sellLimitPriceFromQuote(quoteModel, trigger);
 
     nextState = {
       ...nextState,
@@ -651,7 +773,7 @@ async function processOnce(client, config, state, quoteFeed, mode) {
       }),
     );
 
-    const sellPrice = sellLimitPriceFromQuote(quoteModel);
+    const sellPrice = sellLimitPriceFromQuote(quoteModel, trigger);
     if (sellPrice === null) {
       nextState = {
         ...nextState,
@@ -826,7 +948,7 @@ async function processOnce(client, config, state, quoteFeed, mode) {
 async function main() {
   const config = loadMoomooConfig({ envFile: args.env });
   const mode = getMode(config);
-  const pollSeconds = Math.max(1, Number(args['poll-seconds'] || 2));
+  const pollSeconds = Math.max(5, Number(args['poll-seconds'] || process.env.MOOMOO_EXIT_POLL_SECONDS || 5));
   const conn = await connectMoomoo(config);
   const quoteFeed = createMoomooQuoteFeed(conn.client, config);
   try {
@@ -840,7 +962,24 @@ async function main() {
     });
     for (;;) {
       const state = loadState();
-      const result = await processOnce(conn.client, config, state, quoteFeed, mode);
+      let result;
+      try {
+        result = await processOnce(conn.client, config, state, quoteFeed, mode);
+      } catch (error) {
+        const transient = transientPollError(error);
+        if (!args.watch || !transient) throw error;
+        await writeStatus({
+          phase: transient.kind,
+          mode,
+          error: transient.message,
+          cooldown_seconds: transient.cooldownSeconds,
+          poll_seconds: pollSeconds,
+          quote_feed: quoteFeed.status(),
+        });
+        console.error(`[${new Date().toISOString()}] OpenD poll ${transient.kind}; cooling down ${transient.cooldownSeconds}s`);
+        await new Promise((resolve) => setTimeout(resolve, transient.cooldownSeconds * 1000));
+        continue;
+      }
       console.log(`[${new Date().toISOString()}] mode=${mode} plans=${result.plans} watched=${result.watched} submitted_exits=${result.submittedExits} pushes=${quoteFeed.status().push_count}`);
       if (!args.watch) break;
       await new Promise((resolve) => setTimeout(resolve, pollSeconds * 1000));
@@ -851,8 +990,10 @@ async function main() {
   }
 }
 
-main().catch(async (error) => {
-  await writeStatus({ phase: 'error', error: error.message });
-  console.error(error);
-  process.exit(1);
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch(async (error) => {
+    await writeStatus({ phase: 'error', error: error.message });
+    console.error(error);
+    process.exit(1);
+  });
+}

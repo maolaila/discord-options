@@ -67,6 +67,28 @@ function numberValue(value, name, defaultValue = undefined) {
   return parsed;
 }
 
+function optionalMaxGateNumberValue(value, name, defaultValue = undefined) {
+  if (value === undefined || value === '') return defaultValue;
+  if (value === null || value === false) return null;
+  const normalized = String(value).trim().toLowerCase();
+  if (['0', 'false', 'no', 'n', 'off', 'none', 'null', 'disabled', 'disable'].includes(normalized)) return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) throw new Error(`${name} must be a number or disabled.`);
+  if (parsed <= 0) return null;
+  return parsed;
+}
+
+function firstPresent(...values) {
+  for (const value of values) {
+    if (value !== undefined && value !== '') return value;
+  }
+  return undefined;
+}
+
+function policyField(object, key, defaultValue = undefined) {
+  return object && Object.prototype.hasOwnProperty.call(object, key) ? object[key] : defaultValue;
+}
+
 function mappedInt(value, map, name, defaultValue = undefined) {
   if (value === undefined || value === null || value === '') return defaultValue;
   const raw = String(value).trim();
@@ -175,7 +197,11 @@ export function loadMoomooConfig(opts = {}) {
     optionRequireBidAsk: boolValue(opts.optionRequireBidAsk ?? process.env.MOOMOO_OPTION_REQUIRE_BID_ASK, executionQuality.require_bid_ask ?? true),
     optionMinBidPrice: numberValue(opts.optionMinBidPrice || process.env.MOOMOO_OPTION_MIN_BID_PRICE, 'MOOMOO_OPTION_MIN_BID_PRICE', executionQuality.min_bid_price ?? 0.01),
     optionMaxSpreadPctOfMid: numberValue(opts.optionMaxSpreadPctOfMid || process.env.MOOMOO_OPTION_MAX_SPREAD_PCT_OF_MID, 'MOOMOO_OPTION_MAX_SPREAD_PCT_OF_MID', executionQuality.max_spread_pct_of_mid ?? 25),
-    optionMaxSpreadAbs: numberValue(opts.optionMaxSpreadAbs || process.env.MOOMOO_OPTION_MAX_SPREAD_ABS, 'MOOMOO_OPTION_MAX_SPREAD_ABS', executionQuality.max_spread_abs ?? 1),
+    optionMaxSpreadAbs: optionalMaxGateNumberValue(
+      firstPresent(opts.optionMaxSpreadAbs, process.env.MOOMOO_OPTION_MAX_SPREAD_ABS, policyField(executionQuality, 'max_spread_abs', 1)),
+      'MOOMOO_OPTION_MAX_SPREAD_ABS',
+      1,
+    ),
     optionMaxRoundTripLossPct: numberValue(opts.optionMaxRoundTripLossPct || process.env.MOOMOO_OPTION_MAX_ROUND_TRIP_LOSS_PCT, 'MOOMOO_OPTION_MAX_ROUND_TRIP_LOSS_PCT', executionQuality.max_round_trip_loss_pct ?? 40),
     optionSlippageTicks: numberValue(opts.optionSlippageTicks || process.env.MOOMOO_OPTION_SLIPPAGE_TICKS, 'MOOMOO_OPTION_SLIPPAGE_TICKS', executionQuality.slippage_ticks ?? 1),
     optionSlippagePctOfSpread: numberValue(opts.optionSlippagePctOfSpread || process.env.MOOMOO_OPTION_SLIPPAGE_PCT_OF_SPREAD, 'MOOMOO_OPTION_SLIPPAGE_PCT_OF_SPREAD', executionQuality.slippage_pct_of_spread ?? 10),
@@ -197,6 +223,10 @@ export function loadMoomooConfig(opts = {}) {
     ),
     underlyingTakeProfitPct: numberValue(opts.underlyingTakeProfitPct || process.env.MOOMOO_UNDERLYING_TAKE_PROFIT_PCT, 'MOOMOO_UNDERLYING_TAKE_PROFIT_PCT', exits.take_profit_underlying_move_pct ?? 50),
     underlyingStopLossPct: numberValue(opts.underlyingStopLossPct || process.env.MOOMOO_UNDERLYING_STOP_LOSS_PCT, 'MOOMOO_UNDERLYING_STOP_LOSS_PCT', exits.stop_loss_underlying_move_pct ?? 20),
+    optionExitTakeProfitPct: numberValue(opts.optionExitTakeProfitPct || process.env.MOOMOO_OPTION_EXIT_TAKE_PROFIT_PCT, 'MOOMOO_OPTION_EXIT_TAKE_PROFIT_PCT', exits.option_take_profit_pct ?? 50),
+    optionExitStopLossPct: numberValue(opts.optionExitStopLossPct || process.env.MOOMOO_OPTION_EXIT_STOP_LOSS_PCT, 'MOOMOO_OPTION_EXIT_STOP_LOSS_PCT', exits.option_stop_loss_pct ?? 20),
+    closeExitStartTimeEt: String(opts.closeExitStartTimeEt || process.env.MOOMOO_CLOSE_EXIT_START_TIME_ET || exits.close_exit_start_time_et || '15:45').trim(),
+    forceCloseExitStartTimeEt: String(opts.forceCloseExitStartTimeEt || process.env.MOOMOO_FORCE_CLOSE_EXIT_START_TIME_ET || exits.force_close_exit_start_time_et || '15:55').trim(),
     allowRealTrading: boolValue(opts.allowRealTrading ?? process.env.MOOMOO_ALLOW_REAL_TRADING, false),
     policy,
   };
@@ -751,6 +781,11 @@ function numericOrNull(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function positiveGateNumberOrNull(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
 function decimalPlaces(value) {
   const text = String(value);
   const dot = text.indexOf('.');
@@ -806,7 +841,8 @@ export function buildOptionExecutionQuote(snapshot, config) {
   if (spreadPctOfMid !== null && spreadPctOfMid > Number(config.optionMaxSpreadPctOfMid ?? 25)) {
     reasons.push(`spread_pct_above_gate:${spreadPctOfMid}`);
   }
-  if (spreadAbs !== null && spreadAbs > Number(config.optionMaxSpreadAbs ?? 1)) {
+  const maxSpreadAbs = positiveGateNumberOrNull(config.optionMaxSpreadAbs);
+  if (spreadAbs !== null && maxSpreadAbs !== null && spreadAbs > maxSpreadAbs) {
     reasons.push(`spread_abs_above_gate:${spreadAbs}`);
   }
 

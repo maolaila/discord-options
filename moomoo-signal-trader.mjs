@@ -398,6 +398,39 @@ async function recordPlan(plan, config) {
   );
 }
 
+function stockLineContext(summary, underlyingEntryPrice) {
+  const direction = String(summary.direction || '').toLowerCase();
+  const signalEntry = numeric(summary.stock_entry);
+  const signalTarget = numeric(summary.stock_target);
+  const signalStop = numeric(summary.stock_stop);
+  const current = numeric(underlyingEntryPrice);
+  const staleReasons = [];
+
+  if (!['bull', 'bear'].includes(direction)) staleReasons.push('unsupported_direction');
+  if (signalEntry === null || signalTarget === null || signalStop === null) staleReasons.push('missing_signal_stock_lines');
+  if (current === null) staleReasons.push('missing_current_underlying_price');
+
+  if (staleReasons.length === 0 && direction === 'bull') {
+    if (!(signalStop < signalEntry && signalEntry < signalTarget)) staleReasons.push('invalid_bull_stock_line_order');
+    if (current <= signalStop || current >= signalTarget) staleReasons.push('current_outside_signal_stock_range');
+  } else if (staleReasons.length === 0 && direction === 'bear') {
+    if (!(signalTarget < signalEntry && signalEntry < signalStop)) staleReasons.push('invalid_bear_stock_line_order');
+    if (current <= signalTarget || current >= signalStop) staleReasons.push('current_outside_signal_stock_range');
+  }
+
+  return {
+    status: staleReasons.length === 0 ? 'active' : 'stale',
+    use_signal_stock_lines: staleReasons.length === 0,
+    stale_reasons: staleReasons,
+    direction,
+    current_underlying_price: current,
+    signal_stock_entry: signalEntry,
+    signal_stock_target: signalTarget,
+    signal_stock_stop: signalStop,
+    stale_behavior: staleReasons.length === 0 ? 'use_signal_stock_lines_plus_option_20_50' : 'ignore_signal_stock_lines_use_option_20_50_and_close_exit',
+  };
+}
+
 async function processIntent(intent, signalMaps, config, mode, connectionHolder) {
   const signal = resolveSignal(intent, signalMaps);
   const gate = evaluateGate(intent, signal, config);
@@ -540,6 +573,7 @@ async function processIntent(intent, signalMaps, config, mode, connectionHolder)
     error: underlyingQuoteError,
   };
   plan.position_sizing = positionSizing;
+  const stockContext = stockLineContext(summary, underlyingEntryPrice);
   plan.order = orderRequest ? {
     side: 'BUY_TO_OPEN',
     order_type: 'LIMIT',
@@ -575,16 +609,29 @@ async function processIntent(intent, signalMaps, config, mode, connectionHolder)
     },
     option_exit_rules: {
       price_basis: 'option_entry_fill_price',
-      stop_loss_return_pct: config.optionStopLossPct,
-      take_profit_return_pct: config.optionTakeProfitPct,
+      stop_loss_return_pct: config.optionExitStopLossPct ?? config.optionStopLossPct,
+      take_profit_return_pct: config.optionExitTakeProfitPct ?? config.optionTakeProfitPct,
       exit_before_regular_session_close: true,
+      close_exit_start_time_et: config.closeExitStartTimeEt,
+      force_close_exit_start_time_et: config.forceCloseExitStartTimeEt,
       no_overnight_holding: true,
     },
     underlying_exit_rules: {
-      price_basis: 'stock_lines_reference_only',
+      price_basis: 'underlying_stock_price_at_option_entry',
       entry_price: underlyingEntryPrice,
+      stop_loss_move_pct: config.underlyingStopLossPct,
+      take_profit_move_pct: config.underlyingTakeProfitPct,
+      option_price_exit_enabled: true,
+      option_stop_loss_pct: config.optionExitStopLossPct,
+      option_take_profit_pct: config.optionExitTakeProfitPct,
+      use_signal_stock_lines: stockContext.use_signal_stock_lines,
+      stock_line_context: stockContext,
       signal_stock_target: summary.stock_target,
       signal_stock_stop: summary.stock_stop,
+      exit_before_regular_session_close: true,
+      close_exit_start_time_et: config.closeExitStartTimeEt,
+      force_close_exit_start_time_et: config.forceCloseExitStartTimeEt,
+      no_overnight_holding: true,
     },
   } : null;
 

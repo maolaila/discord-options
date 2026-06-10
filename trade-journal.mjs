@@ -52,10 +52,12 @@ export function buildStrategySnapshot(config) {
     target_position_pct: config.targetPositionPct,
     min_position_pct: config.minPositionPct,
     max_position_pct: config.maxPositionPct,
-    option_take_profit_pct: config.optionTakeProfitPct,
-    option_stop_loss_pct: config.optionStopLossPct,
+    legacy_option_take_profit_pct: config.optionTakeProfitPct,
+    legacy_option_stop_loss_pct: config.optionStopLossPct,
     underlying_take_profit_pct: config.underlyingTakeProfitPct,
     underlying_stop_loss_pct: config.underlyingStopLossPct,
+    option_take_profit_pct: config.optionExitTakeProfitPct,
+    option_stop_loss_pct: config.optionExitStopLossPct,
     execution_quality: {
       require_bid_ask: config.optionRequireBidAsk,
       min_bid_price: config.optionMinBidPrice,
@@ -80,29 +82,56 @@ export function buildStrategySnapshot(config) {
 
 export function buildRiskLines(plan, config = {}, opts = {}) {
   const signal = plan?.signal || {};
-  const optionRules = plan?.order?.option_exit_rules || plan?.order?.underlying_exit_rules || {};
-  const stockRules = plan?.order?.underlying_exit_rules || {};
+  const optionRules = plan?.order?.option_exit_rules || {};
+  const rules = plan?.order?.underlying_exit_rules || {};
+  const direction = String(signal.direction || '').toLowerCase();
   const optionEntry = numeric(opts.optionEntryPrice ?? plan?.order?.price);
-  const signalTarget = numeric(stockRules.signal_stock_target ?? signal.stock_target);
-  const signalStop = numeric(stockRules.signal_stock_stop ?? signal.stock_stop);
-  const takePct = numeric(optionRules.take_profit_return_pct ?? optionRules.take_profit_move_pct ?? config.optionTakeProfitPct ?? config.underlyingTakeProfitPct) ?? 50;
-  const stopPct = numeric(optionRules.stop_loss_return_pct ?? optionRules.stop_loss_move_pct ?? config.optionStopLossPct ?? config.underlyingStopLossPct) ?? 20;
+  const entry = numeric(rules.entry_price ?? plan?.underlying_quote?.selected_entry_price ?? signal.stock_entry);
+  const signalTarget = numeric(rules.signal_stock_target ?? signal.stock_target);
+  const signalStop = numeric(rules.signal_stock_stop ?? signal.stock_stop);
+  const useSignalStockLines = rules.use_signal_stock_lines !== false;
+  const takePct = numeric(rules.take_profit_move_pct ?? config.underlyingTakeProfitPct) ?? 50;
+  const stopPct = numeric(rules.stop_loss_move_pct ?? config.underlyingStopLossPct) ?? 20;
+  const optionTakePct = numeric(optionRules.take_profit_return_pct ?? rules.option_take_profit_pct ?? config.optionExitTakeProfitPct ?? config.optionTakeProfitPct) ?? 50;
+  const optionStopPct = numeric(optionRules.stop_loss_return_pct ?? rules.option_stop_loss_pct ?? config.optionExitStopLossPct ?? config.optionStopLossPct) ?? 20;
 
-  const pctTakeProfitLine = optionEntry === null ? null : optionEntry * (1 + takePct / 100);
-  const pctStopLossLine = optionEntry === null ? null : optionEntry * (1 - stopPct / 100);
+  const pctTakeProfitOptionLine = optionEntry === null ? null : optionEntry * (1 + optionTakePct / 100);
+  const pctStopLossOptionLine = optionEntry === null ? null : optionEntry * (1 - optionStopPct / 100);
+
+  let pctTakeProfitLine = null;
+  let pctStopLossLine = null;
+  if (useSignalStockLines && entry !== null && direction === 'bull') {
+    pctTakeProfitLine = entry * (1 + takePct / 100);
+    pctStopLossLine = entry * (1 - stopPct / 100);
+  } else if (useSignalStockLines && entry !== null && direction === 'bear') {
+    pctTakeProfitLine = entry * (1 - takePct / 100);
+    pctStopLossLine = entry * (1 + stopPct / 100);
+  }
 
   return {
-    price_basis: 'option_entry_fill_price',
-    direction: String(signal.direction || '').toLowerCase(),
+    price_basis: useSignalStockLines ? 'underlying_stock_price_at_option_entry' : 'option_fill_price_signal_stock_lines_stale',
+    direction,
     option_entry_reference_price: optionEntry,
-    take_profit_option_return_pct: takePct,
-    stop_loss_option_return_pct: stopPct,
-    percent_take_profit_option_line: pctTakeProfitLine === null ? null : Number(pctTakeProfitLine.toFixed(4)),
-    percent_stop_loss_option_line: pctStopLossLine === null ? null : Number(pctStopLossLine.toFixed(4)),
-    signal_stock_target_reference_only: signalTarget,
-    signal_stock_stop_reference_only: signalStop,
-    exit_before_regular_session_close: optionRules.exit_before_regular_session_close ?? true,
-    no_overnight_holding: optionRules.no_overnight_holding ?? true,
+    take_profit_option_return_pct: optionTakePct,
+    stop_loss_option_return_pct: optionStopPct,
+    percent_take_profit_option_line: pctTakeProfitOptionLine === null ? null : Number(pctTakeProfitOptionLine.toFixed(4)),
+    percent_stop_loss_option_line: pctStopLossOptionLine === null ? null : Number(pctStopLossOptionLine.toFixed(4)),
+    underlying_entry_price: entry,
+    use_signal_stock_lines: useSignalStockLines,
+    stock_line_context: rules.stock_line_context || null,
+    signal_stock_target: signalTarget,
+    signal_stock_stop: signalStop,
+    take_profit_underlying_move_pct: takePct,
+    stop_loss_underlying_move_pct: stopPct,
+    option_price_exit_enabled: rules.option_price_exit_enabled !== false,
+    option_take_profit_pct: optionTakePct,
+    option_stop_loss_pct: optionStopPct,
+    percent_take_profit_underlying_line: pctTakeProfitLine === null ? null : Number(pctTakeProfitLine.toFixed(4)),
+    percent_stop_loss_underlying_line: pctStopLossLine === null ? null : Number(pctStopLossLine.toFixed(4)),
+    exit_before_regular_session_close: rules.exit_before_regular_session_close ?? optionRules.exit_before_regular_session_close ?? true,
+    close_exit_start_time_et: rules.close_exit_start_time_et ?? optionRules.close_exit_start_time_et ?? null,
+    force_close_exit_start_time_et: rules.force_close_exit_start_time_et ?? optionRules.force_close_exit_start_time_et ?? null,
+    no_overnight_holding: rules.no_overnight_holding ?? optionRules.no_overnight_holding ?? true,
   };
 }
 

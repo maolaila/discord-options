@@ -171,19 +171,22 @@ node .\rebuild-option-pipeline.js --write-docs
 
 本项目可以把已识别的期权买卖建议转换成 moomoo OpenD 交易计划。默认只做 `dry-run`：查询期权链、期权快照、生成限价买入参数并写日志，不会真实下单。
 
-启动本地控制台页面：
+### 一键启动 DC 期权监听控制台
+
+在 PowerShell 里进入项目目录后运行：
 
 ```powershell
+cd D:\discord-options
 .\start-console.ps1
 ```
 
-控制台地址默认是：
+脚本会在后台启动网页控制台，并自动打开默认浏览器。控制台地址默认是：
 
 ```text
 http://127.0.0.1:18766
 ```
 
-控制台里的 `启动全套模拟` 会启动 Discord CDP 浏览器、抓包监听、OpenD 检查和 moomoo 模拟账户监听。启动或重启抓包后，等抓包日志出现 `Attached`，再刷新 Discord 页面一次。
+如果只想监听 Discord 期权消息，先在网页控制台点 `Discord 浏览器`，再点 `抓包`。如果要完整跑模拟交易链路，点 `启动全套模拟`，它会启动 Discord CDP 浏览器、抓包监听、OpenD 检查、moomoo 模拟账户买入监听和卖出监控。启动或重启抓包后，等抓包日志出现 `Attached`，再刷新 Discord 页面一次。
 
 控制台默认读取本项目根目录下的 `.env`。如果要临时读取其他位置的配置，可以先设置 `MOOMOO_CONTROL_ENV_FILE` 环境变量，再启动控制台：
 

@@ -211,21 +211,20 @@ function evaluateSignal(signal) {
   const isFlow = signal.advice_format === 'flow';
   const isTrade = signal.action === 'trade';
   const hasContract = Boolean(signal.ticker && signal.expiration && signal.strike && signal.option_type);
-  const hasPlan = signal.entry_stock_price !== null && signal.target_stock_price !== null && signal.stop_stock_price !== null;
-  const confidenceOk = signal.confidence !== null && signal.confidence >= 4;
-  const winRateOk = signal.win_rate_pct !== null && signal.win_rate_pct >= 75;
+  const hasStop = signal.stop_stock_price !== null;
+  const winRateOk = signal.win_rate_pct !== null && signal.win_rate_pct >= 60;
   const directionOk = signal.direction === 'bull' || signal.direction === 'bear';
 
   if (!isTrade) notes.push('not_trade_decision');
   if (!hasContract) notes.push('missing_option_contract');
   if (!directionOk) notes.push('missing_or_neutral_direction');
-  if (!isFlow && !hasPlan) notes.push('missing_stock_entry_target_stop');
-  if (!isFlow && !confidenceOk && !winRateOk) notes.push('confidence_or_winrate_below_gate');
+  if (!isFlow && !hasStop) notes.push('missing_stock_stop');
+  if (!isFlow && !winRateOk) notes.push('win_rate_below_60_gate');
 
   const signalActionable = isFlow
     ? isTrade && hasContract && directionOk
-    : isTrade && hasContract && directionOk && (confidenceOk || winRateOk);
-  const fullPlanReady = isFlow ? false : signalActionable && hasPlan;
+    : isTrade && hasContract && directionOk && hasStop && winRateOk;
+  const fullPlanReady = isFlow ? false : signalActionable && hasStop;
 
   return {
     signal_actionable: signalActionable,
@@ -233,7 +232,7 @@ function evaluateSignal(signal) {
     order_intent: signalActionable ? 'buy_to_open' : 'none',
     order_side: signalActionable ? 'BUY' : 'NONE',
     order_type: signalActionable ? 'OPTION_LONG' : 'NONE',
-    management_mode: hasPlan ? 'option_stop_take_profit_plus_stock_lines' : 'option_stop_take_profit_only',
+    management_mode: hasStop ? 'option_stop_take_profit_plus_entry_stop_gate' : 'option_stop_take_profit_only',
     gate_notes: notes,
   };
 }

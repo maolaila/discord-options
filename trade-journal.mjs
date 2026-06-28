@@ -132,6 +132,7 @@ export function buildRiskLines(plan, config = {}, opts = {}) {
     close_exit_start_time_et: rules.close_exit_start_time_et ?? optionRules.close_exit_start_time_et ?? null,
     force_close_exit_start_time_et: rules.force_close_exit_start_time_et ?? optionRules.force_close_exit_start_time_et ?? null,
     no_overnight_holding: rules.no_overnight_holding ?? optionRules.no_overnight_holding ?? true,
+    controlled_overnight: rules.controlled_overnight ?? optionRules.controlled_overnight ?? config.policy?.exit_rules?.controlled_overnight ?? null,
   };
 }
 

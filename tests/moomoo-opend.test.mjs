@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  ORDER_TYPE_MARKET,
+  TRD_SIDE_BUY,
+  buildMarketBuyOrderRequest,
   buildOptionExecutionQuote,
   loadMoomooConfig,
 } from '../moomoo-opend.mjs';
@@ -27,6 +30,21 @@ const quoteGateConfig = {
   optionSlippagePctOfSpread: 10,
   optionMinOpenInterest: 50,
   optionMinDayVolume: 1,
+};
+
+const incyWideSpreadSnapshot = {
+  basic: {
+    bidPrice: 2.7,
+    askPrice: 3.5,
+    curPrice: 3.3,
+    priceSpread: 0.1,
+    askVol: 2,
+    bidVol: 3,
+    volume: 1133,
+  },
+  optionExData: {
+    openInterest: 786,
+  },
 };
 
 test('fixed absolute spread gate blocks high-premium options when enabled', () => {
@@ -67,4 +85,39 @@ test('policy null and zero option override disable the fixed absolute spread gat
       process.env.MOOMOO_OPTION_MAX_SPREAD_ABS = original;
     }
   }
+});
+
+test('entry quote is blocked when immediate sell estimate is already beyond option stop loss', () => {
+  const quote = buildOptionExecutionQuote(incyWideSpreadSnapshot, {
+    ...quoteGateConfig,
+    optionMaxSpreadPctOfMid: 35,
+    optionMaxRoundTripLossPct: 50,
+    optionExitStopLossPct: 25,
+  });
+
+  assert.equal(quote.tradeable, false);
+  assert.equal(quote.buy_limit_price, 3.6);
+  assert.equal(quote.sell_estimate_price, 2.6);
+  assert.equal(quote.immediate_round_trip_loss_pct, 27.78);
+  assert.equal(quote.immediate_stop_loss_guard_pct, 25);
+  assert.equal(quote.immediate_stop_loss_line, 2.7);
+  assert.ok(quote.reasons.includes('immediate_round_trip_loss_pct_above_stop_loss:27.78>25'));
+});
+
+test('market stock order request uses market order type and whole-share quantity', () => {
+  const request = buildMarketBuyOrderRequest({
+    trdEnv: 1,
+    trdMarket: 2,
+    accId: '123456',
+  }, {
+    code: 'AAPL',
+    qty: 7,
+    remark: 'rebalance:test',
+  });
+
+  assert.equal(request.c2s.trdSide, TRD_SIDE_BUY);
+  assert.equal(request.c2s.orderType, ORDER_TYPE_MARKET);
+  assert.equal(request.c2s.code, 'AAPL');
+  assert.equal(request.c2s.qty, 7);
+  assert.equal(request.c2s.price, undefined);
 });

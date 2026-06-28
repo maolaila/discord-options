@@ -46,6 +46,14 @@ function numeric(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function firstPositiveNumber(...values) {
+  for (const value of values) {
+    const parsed = numeric(value);
+    if (parsed !== null && parsed > 0) return parsed;
+  }
+  return null;
+}
+
 function readNdjson(filePath) {
   if (!fs.existsSync(filePath)) return [];
   return fs.readFileSync(filePath, 'utf8')
@@ -137,6 +145,9 @@ export function nyParts(date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/New_York',
     weekday: 'short',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
@@ -146,6 +157,9 @@ export function nyParts(date = new Date()) {
   for (const part of parts) out[part.type] = part.value;
   return {
     weekday: out.weekday,
+    year: Number(out.year),
+    month: Number(out.month),
+    day: Number(out.day),
     hour: Number(out.hour === '24' ? '0' : out.hour),
     minute: Number(out.minute),
     second: Number(out.second),
@@ -177,6 +191,11 @@ function formatEtMinutes(minutes) {
 function nySessionMinutes(date = new Date()) {
   const p = nyParts(date);
   return { parts: p, minutes: p.hour * 60 + p.minute };
+}
+
+function nyDateKey(date = new Date()) {
+  const p = nyParts(date);
+  return `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
 }
 
 export function isRegularSessionNow(date = new Date()) {
@@ -240,7 +259,7 @@ function mergeExitRules(plan, config) {
 export function exitTrigger(plan, underlyingPrice, opts = {}) {
   const now = opts.now || new Date();
   const rules = mergeExitRules(plan, opts.config);
-  const closeTrigger = closeExitTrigger(rules, now);
+  const closeTrigger = opts.skipCloseExit ? null : closeExitTrigger(rules, now);
   if (!isRegularSessionNow(now)) return null;
 
   const optionTrigger = optionPriceExitTrigger(plan, opts.optionQuote, opts.entryOptionPrice, opts);
@@ -293,7 +312,7 @@ export function optionPriceExitTrigger(plan, optionQuote, entryOptionPrice, opts
   const takeLine = entry * (1 + takePct / 100);
   if (current <= stopLine) {
     return {
-      reason: 'option_20pct_stop_loss',
+      reason: `option_${pctToken(stopPct)}pct_stop_loss`,
       line: Number(stopLine.toFixed(4)),
       option_price: current,
       entry_option_price: entry,
@@ -302,7 +321,7 @@ export function optionPriceExitTrigger(plan, optionQuote, entryOptionPrice, opts
   }
   if (current >= takeLine) {
     return {
-      reason: 'option_50pct_take_profit',
+      reason: `option_${pctToken(takePct)}pct_take_profit`,
       line: Number(takeLine.toFixed(4)),
       option_price: current,
       entry_option_price: entry,
@@ -310,6 +329,12 @@ export function optionPriceExitTrigger(plan, optionQuote, entryOptionPrice, opts
     };
   }
   return null;
+}
+
+function pctToken(value) {
+  const parsed = numeric(value);
+  if (parsed === null) return 'unknown';
+  return String(parsed).replace('.', 'p');
 }
 
 function decimalPlaces(value) {
@@ -350,6 +375,130 @@ function isTerminalUnfilledOrderStatus(status) {
   return [3, 15, 21, 22, 23].includes(Number(status));
 }
 
+function isTerminalExitOrderStatus(status) {
+  return [3, 14, 15, 21, 22, 23, 24].includes(Number(status));
+}
+
+export function carryoverCloseExitTrigger(stateRow, now = new Date()) {
+  if (stateRow?.status === 'controlled_overnight_hold') {
+    const holdDate = stateRow.controlled_overnight_trade_date;
+    if (holdDate && holdDate === nyDateKey(now)) return null;
+    const closeTrigger = closeExitTrigger({
+      exit_before_regular_session_close: true,
+      no_overnight_holding: true,
+      close_exit_start_time_et: stateRow.close_exit_start_time_et
+        ?? stateRow.controlled_overnight?.close_exit_start_time_et
+        ?? '15:45',
+      force_close_exit_start_time_et: stateRow.force_close_exit_start_time_et
+        ?? stateRow.controlled_overnight?.force_close_exit_start_time_et
+        ?? '15:55',
+    }, now);
+    if (!closeTrigger) return null;
+    return {
+      ...closeTrigger,
+      reason: 'controlled_overnight_next_day_exit',
+      original_reason: closeTrigger.reason,
+      controlled_overnight_trade_date: holdDate ?? null,
+    };
+  }
+
+  const previousTrigger = stateRow?.exit_trigger || stateRow?.last_trigger;
+  if (previousTrigger?.reason !== 'exit_before_regular_session_close') return null;
+  if (!isRegularSessionNow(now)) return null;
+  return {
+    reason: 'carryover_close_exit_retry',
+    original_reason: previousTrigger.reason,
+    line: null,
+    underlying_price: null,
+    close_exit_phase: 'force',
+    close_exit_start_time_et: previousTrigger.close_exit_start_time_et ?? null,
+    force_close_exit_start_time_et: previousTrigger.force_close_exit_start_time_et ?? null,
+  };
+}
+
+function activeControlledOvernightCount(state) {
+  return Object.values(state?.orders || {}).filter((row) => {
+    if (row?.status !== 'controlled_overnight_hold') return false;
+    const remaining = numeric(row.remaining_qty) ?? numeric(row.can_sell_qty) ?? 0;
+    return remaining > 0;
+  }).length;
+}
+
+function expirationDte(plan, now = new Date()) {
+  const expiration = String(plan?.signal?.expiration || plan?.contract?.strike_time || '').slice(0, 10);
+  const match = expiration.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const expiryUtc = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  const p = nyParts(now);
+  const todayUtc = Date.UTC(p.year, p.month - 1, p.day);
+  return Math.round((expiryUtc - todayUtc) / 86400000);
+}
+
+function controlledOvernightSettings(rules) {
+  const settings = rules.controlled_overnight || {};
+  return {
+    enabled: settings.enabled === true || rules.controlled_overnight_enabled === true,
+    maxPositions: Math.max(0, numeric(settings.max_positions ?? rules.controlled_overnight_max_positions) ?? 0),
+    minDte: numeric(settings.min_dte ?? rules.controlled_overnight_min_dte) ?? 5,
+    maxLossPct: numeric(settings.max_loss_pct ?? rules.controlled_overnight_max_loss_pct) ?? 10,
+    nextDayForceExit: settings.next_day_force_exit !== false,
+    nextDayExitTiming: settings.next_day_exit_timing || 'close_window',
+  };
+}
+
+export function controlledOvernightHoldDecision({
+  plan,
+  stateRow = {},
+  trigger,
+  optionQuote,
+  entryOptionPrice,
+  config,
+  overnightHeldCount = 0,
+  now = new Date(),
+} = {}) {
+  if (trigger?.reason !== 'exit_before_regular_session_close') return null;
+  if (stateRow.status === 'controlled_overnight_hold') return null;
+
+  const rules = mergeExitRules(plan || {}, config);
+  const settings = controlledOvernightSettings(rules);
+  if (!settings.enabled) return null;
+  if (settings.nextDayForceExit !== true) return null;
+  if (overnightHeldCount >= settings.maxPositions) return null;
+
+  const dte = expirationDte(plan, now);
+  if (dte === null || dte < settings.minDte) return null;
+
+  const current = numeric(optionQuote?.sell_estimate_price ?? optionQuote?.bid);
+  const optionReturn = optionReturnPct(entryOptionPrice, current);
+  if (optionReturn === null) return null;
+  if (optionReturn < -settings.maxLossPct) return null;
+
+  return {
+    reason: 'controlled_overnight_hold',
+    original_reason: trigger.reason,
+    line: null,
+    underlying_price: trigger.underlying_price ?? null,
+    close_exit_phase: trigger.close_exit_phase ?? null,
+    controlled_overnight_trade_date: nyDateKey(now),
+    controlled_overnight_max_positions: settings.maxPositions,
+    controlled_overnight_min_dte: settings.minDte,
+    controlled_overnight_max_loss_pct: settings.maxLossPct,
+    close_exit_start_time_et: rules.close_exit_start_time_et ?? null,
+    force_close_exit_start_time_et: rules.force_close_exit_start_time_et ?? null,
+    next_day_exit_timing: settings.nextDayExitTiming,
+    dte,
+    option_price: current,
+    entry_option_price: numeric(entryOptionPrice),
+    option_return_pct: optionReturn,
+    next_day_force_exit: true,
+  };
+}
+
+function isSameDayControlledOvernightHold(stateRow, now = new Date()) {
+  return stateRow?.status === 'controlled_overnight_hold'
+    && stateRow.controlled_overnight_trade_date === nyDateKey(now);
+}
+
 function transientPollError(error) {
   const message = error?.message || String(error);
   if (message.includes('频率太高')) return { kind: 'rate_limited', cooldownSeconds: 30, message };
@@ -373,14 +522,7 @@ async function ensureSimAccount(client, config) {
 
 function getMode(config) {
   if (args['execute-real']) {
-    if (!config.allowRealTrading) {
-      throw new Error('Real exit monitoring is blocked. Set MOOMOO_ALLOW_REAL_TRADING=true and pass --execute-real only after confirming account and risk controls.');
-    }
-    if (String(process.env.MOOMOO_REAL_TRADING_CONFIRM || '') !== 'I_UNDERSTAND') {
-      throw new Error('Real exit monitoring is blocked. Set MOOMOO_REAL_TRADING_CONFIRM=I_UNDERSTAND to remove the last real-trading guard.');
-    }
-    config.trdEnv = TRD_ENV_REAL;
-    return 'execute_real';
+    throw new Error('Options exit monitor is simulation-only. Use ATR stop for real-account stock exits.');
   }
   config.trdEnv = TRD_ENV_SIMULATE;
   return 'execute_simulate';
@@ -419,6 +561,7 @@ async function processOnce(client, config, state, quoteFeed, mode) {
   const fillsById = fillSummaryByOrderIDEx(fillList);
   let submittedExits = 0;
   let watched = 0;
+  let controlledOvernightHeld = activeControlledOvernightCount(state);
 
   for (const { orderIDEx, plan } of plans) {
     const stateRow = state.orders[orderIDEx] || {};
@@ -426,16 +569,28 @@ async function processOnce(client, config, state, quoteFeed, mode) {
 
     const order = ordersById.get(orderIDEx);
     const fills = fillsById.get(orderIDEx);
-    const filledQty = numeric(order?.fillQty) ?? numeric(fills?.buyQty) ?? 0;
-    const fillAvgPrice = numeric(order?.fillAvgPrice)
-      ?? (fills?.buyQty ? fills.buyValue / fills.buyQty : null);
+    const code = plan.order?.code;
+    const position = positionList.find((item) => String(item.code || '') === String(code));
+    const filledQty = firstPositiveNumber(
+      order?.fillQty,
+      fills?.buyQty,
+      position?.qty,
+      position?.canSellQty,
+      stateRow.filled_qty,
+    ) ?? 0;
+    const fillAvgPrice = firstPositiveNumber(
+      order?.fillAvgPrice,
+      fills?.buyQty ? fills.buyValue / fills.buyQty : null,
+      stateRow.fill_avg_price,
+      position?.averageCostPrice,
+      position?.dilutedCostPrice,
+      position?.costPrice,
+    );
 
     if (stateRow.status === 'exit_submitted' || stateRow.status === 'exit_waiting_fill') {
       const exitOrder = ordersById.get(String(stateRow.exit_order_id_ex || ''));
       const exitFilledQty = numeric(exitOrder?.fillQty) ?? 0;
       const exitFillAvgPrice = numeric(exitOrder?.fillAvgPrice) ?? numeric(stateRow.exit_price);
-      const code = plan.order?.code;
-      const position = positionList.find((item) => String(item.code || '') === String(code));
       const canSellQty = numeric(position?.canSellQty) ?? 0;
       const expectedExitQty = numeric(stateRow.exit_qty) ?? 0;
       let nextState = {
@@ -513,6 +668,42 @@ async function processOnce(client, config, state, quoteFeed, mode) {
           );
           nextState.closed_logged = true;
         }
+      } else if (isTerminalExitOrderStatus(exitOrder?.orderStatus)) {
+        nextState = {
+          ...nextState,
+          status: 'monitoring',
+          exit_terminal_status: exitOrder?.orderStatus ?? null,
+          exit_retry_after_terminal: true,
+          updated_at: new Date().toISOString(),
+        };
+        await appendTradeJournalEvent(
+          'exit_order_terminal_retry_pending',
+          buildExitJournalPayload({
+            plan,
+            config,
+            sourceBuyOrderIDEx: orderIDEx,
+            lifecycleStatus: 'exit_retry_pending',
+            brokerOrder: normalizeForJson(order || null),
+            fills: normalizeForJson(fills || null),
+            position: normalizeForJson(position || null),
+            filledQty,
+            fillAvgPrice,
+            remainingQty: Math.max(0, Math.floor(filledQty - exitFilledQty)),
+            canSellQty,
+            exitOrder: {
+              side: 'SELL_TO_CLOSE',
+              code,
+              qty: expectedExitQty,
+              price: numeric(stateRow.exit_price),
+              price_basis: 'terminal_unfilled_submitted_limit',
+              order_id_ex: stateRow.exit_order_id_ex,
+            },
+            state: nextState,
+            extra: {
+              exit_broker_order: normalizeForJson(exitOrder || null),
+            },
+          }),
+        );
       } else {
         nextState = { ...nextState, status: 'exit_waiting_fill', updated_at: new Date().toISOString() };
         const changed = stateRow.exit_order_status !== nextState.exit_order_status
@@ -585,8 +776,6 @@ async function processOnce(client, config, state, quoteFeed, mode) {
       continue;
     }
 
-    const code = plan.order?.code;
-    const position = positionList.find((item) => String(item.code || '') === String(code));
     const canSellQty = numeric(position?.canSellQty) ?? 0;
     const sellFilledQty = fills?.sellQty || 0;
     const remainingQty = Math.max(0, Math.floor(filledQty - sellFilledQty));
@@ -703,24 +892,46 @@ async function processOnce(client, config, state, quoteFeed, mode) {
     const underlyingSnapshot = underlyingSnapshots.find((item) => item?.basic?.security?.code === underlyingSecurity.code) || null;
     const quoteModel = buildOptionExecutionQuote(optionSnapshot, config);
     const underlyingPrice = numeric(underlyingSnapshot?.basic?.curPrice);
-    const trigger = exitTrigger(plan, underlyingPrice, {
+    const now = new Date();
+    const skipCloseExit = isSameDayControlledOvernightHold(stateRow, now);
+    const trigger = carryoverCloseExitTrigger(stateRow, now) || exitTrigger(plan, underlyingPrice, {
       config,
+      now,
+      skipCloseExit,
       optionQuote: quoteModel,
       entryOptionPrice: fillAvgPrice,
     });
     const optionExitPrice = sellLimitPriceFromQuote(quoteModel, trigger);
+    const overnightDecision = controlledOvernightHoldDecision({
+      plan,
+      stateRow,
+      trigger,
+      optionQuote: quoteModel,
+      entryOptionPrice: fillAvgPrice,
+      config,
+      overnightHeldCount: controlledOvernightHeld,
+      now,
+    });
 
     nextState = {
       ...nextState,
-      status: trigger ? 'exit_triggered' : 'monitoring',
+      status: overnightDecision ? 'controlled_overnight_hold' : (trigger ? 'exit_triggered' : (skipCloseExit ? 'controlled_overnight_hold' : 'monitoring')),
       underlying_price: underlyingPrice,
       underlying_quote_error: underlyingQuoteError,
       option_entry_price: fillAvgPrice,
       option_exit_price: optionExitPrice,
       option_return_pct: optionReturnPct(fillAvgPrice, optionExitPrice),
-      last_trigger: trigger,
+      last_trigger: overnightDecision || trigger,
       updated_at: new Date().toISOString(),
     };
+    if (overnightDecision) {
+      nextState = {
+        ...nextState,
+        controlled_overnight: overnightDecision,
+        controlled_overnight_started_at: new Date().toISOString(),
+        controlled_overnight_trade_date: overnightDecision.controlled_overnight_trade_date,
+      };
+    }
     state.orders[orderIDEx] = nextState;
     await appendTradeJournalEvent(
       'position_monitor_snapshot',
@@ -742,10 +953,41 @@ async function processOnce(client, config, state, quoteFeed, mode) {
         underlyingPrice,
         quoteFeed: normalizeForJson(quoteResult.feed_status || null),
         quoteSubscription: normalizeForJson(quoteResult.subscription || null),
-        trigger,
+        trigger: overnightDecision || trigger,
         state: nextState,
       }),
     );
+    if (overnightDecision) {
+      controlledOvernightHeld += 1;
+      await appendTradeJournalEvent(
+        'controlled_overnight_hold',
+        buildExitJournalPayload({
+          plan,
+          config,
+          sourceBuyOrderIDEx: orderIDEx,
+          lifecycleStatus: 'controlled_overnight_hold',
+          brokerOrder: normalizeForJson(order || null),
+          fills: normalizeForJson(fills || null),
+          position: normalizeForJson(position || null),
+          filledQty,
+          fillAvgPrice,
+          remainingQty,
+          canSellQty,
+          optionQuote: quoteModel,
+          optionSnapshotBasic: normalizeForJson(optionSnapshot?.basic || null),
+          underlyingSnapshotBasic: normalizeForJson(underlyingSnapshot?.basic || null),
+          underlyingPrice,
+          quoteFeed: normalizeForJson(quoteResult.feed_status || null),
+          quoteSubscription: normalizeForJson(quoteResult.subscription || null),
+          trigger: overnightDecision,
+          state: nextState,
+          extra: {
+            skipped_close_exit_trigger: normalizeForJson(trigger || null),
+          },
+        }),
+      );
+      continue;
+    }
     if (!trigger) continue;
 
     await appendTradeJournalEvent(

@@ -92,6 +92,10 @@ function startProcess(name, label, command, args, options = {}) {
   const child = spawn(command, args, {
     cwd: ROOT,
     windowsHide: true,
+    env: {
+      ...process.env,
+      ...(options.env || {}),
+    },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   entry.child = child;
@@ -124,6 +128,10 @@ function stopProcess(name) {
 function envArgs(envFile) {
   const file = String(envFile || DEFAULT_ENV_FILE).trim();
   return file ? ['--env', file] : [];
+}
+
+function realConfirmEnv() {
+  return { MOOMOO_REAL_TRADING_CONFIRM: 'I_UNDERSTAND' };
 }
 
 function startBrowser() {
@@ -176,6 +184,32 @@ function runMoomooCheck(envFile) {
     path.join(ROOT, 'moomoo-check.mjs'),
     ...envArgs(envFile),
   ], { oneShot: true });
+}
+
+function startStockRebalancePlan(envFile) {
+  return startProcess('stockPlan', '股票调仓计划', nodeBin(), [
+    path.join(ROOT, 'stock-rebalance-live.mjs'),
+    '--plan-only',
+    ...envArgs(envFile),
+  ], { oneShot: true });
+}
+
+function startStockRebalance(envFile) {
+  return startProcess('stockRebalance', '股票实盘调仓', nodeBin(), [
+    path.join(ROOT, 'stock-rebalance-live.mjs'),
+    '--wait-open',
+    '--execute-real',
+    ...envArgs(envFile),
+  ], { oneShot: true, env: realConfirmEnv() });
+}
+
+function startAtrStop(envFile) {
+  return startProcess('atrStop', 'ATR 实盘止损', nodeBin(), [
+    path.join(ROOT, 'atr-trailing-stop.mjs'),
+    '--watch',
+    '--execute-real',
+    ...envArgs(envFile),
+  ], { env: realConfirmEnv() });
 }
 
 function startAll(mode, envFile) {
@@ -275,6 +309,10 @@ function statusPayload() {
   const latestTradeJournal = readJson(path.join(logsDir, 'trade-journal-latest.json'));
   const moomooCheck = redactMoomooCheck(readJson(path.join(logsDir, 'moomoo-check.json')));
   const exitStatus = readJson(path.join(logsDir, 'moomoo-exit-status.json'));
+  const stockRebalanceStatus = readJson(path.join(logsDir, 'stock-rebalance-status.json'));
+  const stockRebalancePlan = readJson(path.join(logsDir, 'stock-rebalance-plan-latest.json'));
+  const atrStopStatus = readJson(path.join(logsDir, 'atr-stop-status.json'));
+  const atrStopState = readJson(path.join(logsDir, 'atr-stop-state.json'));
   return {
     server: {
       startedAt: serverStartedAt,
@@ -294,15 +332,27 @@ function statusPayload() {
       fileInfo('logs/moomoo-exit-orders.ndjson'),
       fileInfo('logs/trade-journal.ndjson'),
       fileInfo('logs/trade-journal-latest.json'),
+      fileInfo('logs/stock-rebalance-status.json'),
+      fileInfo('logs/stock-rebalance-plan-latest.json'),
+      fileInfo('logs/stock-rebalance-orders.ndjson'),
+      fileInfo('logs/atr-stop-status.json'),
+      fileInfo('logs/atr-stop-state.json'),
+      fileInfo('logs/atr-stop-orders.ndjson'),
     ],
     captureStatus,
     latestPlan,
     latestTradeJournal,
     moomooCheck,
     exitStatus,
+    stockRebalanceStatus,
+    stockRebalancePlan,
+    atrStopStatus,
+    atrStopState,
     latestSignals: tailNdjson('logs/option-signals.ndjson', 8).reverse(),
     latestPlans: tailNdjson('logs/moomoo-order-plans.ndjson', 8).reverse(),
     latestExits: tailNdjson('logs/moomoo-exit-orders.ndjson', 8).reverse(),
+    latestStockRebalanceOrders: tailNdjson('logs/stock-rebalance-orders.ndjson', 8).reverse(),
+    latestAtrStopOrders: tailNdjson('logs/atr-stop-orders.ndjson', 8).reverse(),
     latestTradeJournalRows: tailNdjson('logs/trade-journal.ndjson', 8).reverse(),
   };
 }
@@ -348,17 +398,28 @@ async function routePost(req, res, pathname) {
   else if (pathname === '/api/start-watch-plan') startWatchPlan(envFile);
   else if (pathname === '/api/start-exit-monitor') startExitMonitor(envFile);
   else if (pathname === '/api/moomoo-check') runMoomooCheck(envFile);
+  else if (pathname === '/api/stock-rebalance-plan') startStockRebalancePlan(envFile);
+  else if (pathname === '/api/start-stock-rebalance') startStockRebalance(envFile);
+  else if (pathname === '/api/start-atr-stop') startAtrStop(envFile);
   else if (pathname === '/api/stop-capture') stopProcess('capture');
   else if (pathname === '/api/stop-watch') {
     stopProcess('watchPlan');
     stopProcess('watchSim');
     stopProcess('exitMonitor');
+  } else if (pathname === '/api/stop-stock-rebalance') {
+    stopProcess('stockPlan');
+    stopProcess('stockRebalance');
+  } else if (pathname === '/api/stop-atr-stop') {
+    stopProcess('atrStop');
   } else if (pathname === '/api/stop-all') {
     stopProcess('capture');
     stopProcess('watchPlan');
     stopProcess('watchSim');
     stopProcess('exitMonitor');
     stopProcess('moomooCheck');
+    stopProcess('stockPlan');
+    stopProcess('stockRebalance');
+    stopProcess('atrStop');
   } else {
     sendJson(res, { error: 'unknown endpoint' }, 404);
     return;
@@ -428,7 +489,7 @@ function htmlPage() {
     }
     .status-grid {
       display: grid;
-      grid-template-columns: repeat(5, minmax(150px, 1fr));
+      grid-template-columns: repeat(7, minmax(150px, 1fr));
       gap: 10px;
     }
     .stat, .panel {
@@ -457,7 +518,7 @@ function htmlPage() {
     .toolbar {
       display: grid;
       gap: 10px;
-      grid-template-columns: 1.4fr repeat(9, minmax(116px, auto));
+      grid-template-columns: 1.4fr repeat(14, minmax(116px, auto));
       align-items: end;
     }
     label {
@@ -576,6 +637,8 @@ function htmlPage() {
       <div class="stat"><div class="label">OpenD</div><div class="value" id="statOpenD">-</div></div>
       <div class="stat"><div class="label">最新信号</div><div class="value" id="statSignal">-</div></div>
       <div class="stat"><div class="label">最新计划</div><div class="value" id="statPlan">-</div></div>
+      <div class="stat"><div class="label">股票调仓</div><div class="value" id="statStock">-</div></div>
+      <div class="stat"><div class="label">ATR 止损</div><div class="value" id="statAtr">-</div></div>
     </section>
 
     <section class="toolbar">
@@ -590,6 +653,11 @@ function htmlPage() {
       <button data-action="start-exit-monitor">卖出监控</button>
       <button data-action="start-watch-plan">干跑监听</button>
       <button data-action="moomoo-check">OpenD 检查</button>
+      <button data-action="stock-rebalance-plan">股票计划</button>
+      <button class="primary" data-action="start-stock-rebalance">启动股票调仓</button>
+      <button data-action="start-atr-stop">启动 ATR</button>
+      <button class="danger" data-action="stop-stock-rebalance">停股票</button>
+      <button class="danger" data-action="stop-atr-stop">停 ATR</button>
       <button class="danger" data-action="stop-all">停止</button>
     </section>
     <div class="hint">启动或重启抓包后，等抓包进程日志出现 Attached，再刷新 Discord 页面一次。</div>
@@ -679,7 +747,7 @@ function htmlPage() {
       }
     }
     function renderProcesses(processes) {
-      const names = ['browser', 'capture', 'watchSim', 'exitMonitor', 'watchPlan', 'moomooCheck'];
+      const names = ['browser', 'capture', 'watchSim', 'exitMonitor', 'watchPlan', 'stockPlan', 'stockRebalance', 'atrStop', 'moomooCheck'];
       $('processRows').innerHTML = names.map((name) => {
         const p = processes[name] || { label: name, running: false, lastLog: [] };
         let state = '<span class="warn">未启动</span>';
@@ -737,6 +805,15 @@ function htmlPage() {
       if (!parts.length && processes.watchPlan?.lastLog?.length) {
         parts.push('[干跑监听]\\n' + processes.watchPlan.lastLog.join('\\n'));
       }
+      if (processes.stockPlan?.lastLog?.length) {
+        parts.push('[Stock rebalance plan]\\n' + processes.stockPlan.lastLog.join('\\n'));
+      }
+      if (processes.stockRebalance?.lastLog?.length) {
+        parts.push('[Stock rebalance live]\\n' + processes.stockRebalance.lastLog.join('\\n'));
+      }
+      if (processes.atrStop?.lastLog?.length) {
+        parts.push('[ATR trailing stop]\\n' + processes.atrStop.lastLog.join('\\n'));
+      }
       $('watchLog').textContent = parts.join('\\n\\n');
     }
     async function refresh() {
@@ -747,6 +824,9 @@ function htmlPage() {
       const watchSim = data.processes.watchSim;
       const watchPlan = data.processes.watchPlan;
       const exitMonitor = data.processes.exitMonitor;
+      const stockRebalance = data.processes.stockRebalance;
+      const stockPlan = data.processes.stockPlan;
+      const atrStop = data.processes.atrStop;
       $('statCapture').innerHTML = capture?.running ? '<span class="ok">运行中</span>' : '<span class="warn">未运行</span>';
       $('statWatch').innerHTML = watchSim?.running && exitMonitor?.running
         ? '<span class="ok">模拟+卖出监控</span>'
@@ -755,6 +835,12 @@ function htmlPage() {
       $('statOpenD').innerHTML = gs?.qotLogined && gs?.trdLogined ? '<span class="ok">已连接</span>' : '<span class="warn">待检查</span>';
       $('statSignal').textContent = shortContract((data.latestSignals || [])[0]);
       $('statPlan').textContent = data.latestPlan ? text(data.latestPlan.order_status) : '-';
+      $('statStock').innerHTML = stockRebalance?.running
+        ? '<span class="ok">live</span>'
+        : (stockPlan?.running ? '<span class="info">planning</span>' : '<span class="warn">' + text(data.stockRebalanceStatus?.phase || 'stopped') + '</span>');
+      $('statAtr').innerHTML = atrStop?.running
+        ? '<span class="ok">watching</span>'
+        : '<span class="warn">' + text(data.atrStopStatus?.phase || 'stopped') + '</span>';
       renderProcesses(data.processes || {});
       renderLatestPlan(data.latestPlan);
       renderSignals(data.latestSignals || []);

@@ -230,13 +230,13 @@ npm run moomoo:watch-plan
 
 模拟交易策略默认读取 `sim-trading-policy.json`。这是纯本地确定性程序规则，不调用 AI、LLM、OpenAI 或外部模型接口。
 
-当前自动交易门槛分两类：PA 信号要求 `胜率 >= 75`、`置信 >= 4`、`风险 <= 2`、必须有股票入场/目标/止损，且 `bull` 只买 Call、`bear` 只买 Put；Nightwatch 0DTE Flow Alert 不要求股票入场/目标/止损，只处理 ask 侧买入流，按消息里的 0DTE 合约生成买入意图。可以在 `.env` 里改：
+当前期权模拟跟单只处理 PA 信号：`执行观点` 必须是交易，`胜率 >= 60`，必须能解析到执行观点里的股票止损价，且 `bull` 只买 Call、`bear` 只买 Put。置信度和风险分数不再作为买入 gate。下单前还会读取 OpenD 正股报价，当前正股价格低于信号止损价时直接拒绝交易。可以在 `.env` 里改：
 
 ```text
 MOOMOO_REQUIRED_ADVICE_FORMAT=pa
-MOOMOO_MIN_WIN_RATE=75
-MOOMOO_MIN_CONFIDENCE=4
-MOOMOO_MAX_RISK_SCORE=2
+MOOMOO_MIN_WIN_RATE=60
+MOOMOO_MIN_CONFIDENCE=
+MOOMOO_MAX_RISK_SCORE=
 MOOMOO_PAPER_EQUITY_USD=10000
 MOOMOO_POSITION_TARGET_PCT=25
 MOOMOO_POSITION_MIN_PCT=20
@@ -257,9 +257,9 @@ MOOMOO_OPTION_CAP_QTY_BY_VISIBLE_ASK=true
 MOOMOO_OPTION_MAX_QTY_TO_ASK_VOLUME_RATIO=10
 ```
 
-仓位按期权买入限价和合约乘数计算，目标约为模拟本金的 `25%`，不超过 `30%`。如果因为期权价格导致整数张数不能精确落在 `20%-30%`，计划文件会写明原因。期权成交后默认按期权成交均价执行 `-20%` 止损和 `+50%` 止盈；如果信号里的股票入场/目标/止损线仍和当前正股价格处于同一有效区间，卖出监控也会参考这些股票线。如果下单时正股现价已经越过信号目标或止损区间，程序会把股票线标记为 stale，并忽略这些股票入场/目标/止损，只保留期权 `20%/50%` 和收盘前退出纪律。
+仓位按期权买入限价和合约乘数计算，目标约为模拟本金的 `25%`，不超过 `30%`。如果因为期权价格导致整数张数不能精确落在 `20%-30%`，计划文件会写明原因。期权成交后默认按期权成交均价执行 `-20%` 止损和 `+50%` 止盈。当前模拟策略允许最多隔日一天：符合受控隔夜条件的仓位可跳过当天收盘卖出，但下一常规交易日 `15:45 ET` 后必须触发收盘退出，`15:55 ET` 后进入强制退出阶段。
 
-期权下单前会先向 OpenD 订阅行情推送：正股使用 `Basic` 推送拿最新价，期权使用 `OrderBook` 推送拿最新 bid/ask；同时会读取一次 `GetSecuritySnapshot` 作为初始快照和兜底，用于 open interest、合约乘数、成交量等字段。SPX 会用 moomoo 的 `.SPX` 查合约链，但不会把 `.SPX` 行情作为下单硬门槛。买入限价不再直接用 `ask`，而是按 `ask + max(1 tick, 10% 点差)` 的保守价格计算；计划文件同时记录 `bid - 滑点` 的卖出估算价和立即往返磨损比例。当前模拟跟单策略不使用固定美元绝对点差拦截高权利金期权，相对点差和即时往返磨损门槛也已放宽，只保留 bid/ask 缺失、明显过宽相对点差、明显过高往返损耗、open interest 和当日成交量等基础拦截。目标张数如果明显超过可见 ask 挂单量，会按 `askVol * 10` 限制张数，并在 `position_sizing.reasons` 写明。
+期权下单前会先向 OpenD 订阅行情推送：正股使用 `Basic` 推送拿最新价，期权使用 `OrderBook` 推送拿最新 bid/ask；同时会读取一次 `GetSecuritySnapshot` 作为初始快照和兜底，用于 open interest、合约乘数、成交量等字段。SPX 会用 moomoo 的 `.SPX` 查合约链，但不会把 `.SPX` 行情作为下单硬门槛。买入限价不再直接用 `ask`，而是按 `ask + max(1 tick, 10% 点差)` 的保守价格计算；计划文件同时记录 `bid - 滑点` 的卖出估算价和立即往返磨损比例。当前模拟跟单策略不使用固定美元绝对点差拦截高权利金期权，相对点差和即时往返磨损门槛也已放宽，但如果买入限价到可卖估算价的即时损耗已经超过期权止损百分比，会直接跳过，避免买入后第一轮监控立刻止损。基础拦截还包括 bid/ask 缺失、明显过宽相对点差、明显过高往返损耗、open interest 和当日成交量。目标张数如果明显超过可见 ask 挂单量，会按 `askVol * 10` 限制张数，并在 `position_sizing.reasons` 写明。
 
 模拟执行需要显式传参：
 
@@ -279,14 +279,14 @@ npm run moomoo:watch-sim
 npm run moomoo:exit-watch
 ```
 
-控制台里的 `启动全套模拟` 会同时启动买入监听和卖出监控。卖出监控只处理本程序提交且已经成交的同环境买入单；触发有效股票目标价/股票止损价、期权成交价 `-20%/+50%`、或收盘前退出时，按当前期权 `bid - 滑点` 的保守限价提交 `SELL_TO_CLOSE` 单。收盘退出使用纽约时间：`15:45 ET` 开始主动退出，`15:55 ET` 后进入强制退出阶段并使用更积极但仍受最小 tick 保护的限价；这个时间风控不要求正股快照成功返回。行情触发采用 OpenD 推送缓存优先，订单/持仓状态默认每 `5` 秒向 OpenD 校验一次，避免触发未完成订单查询限频。卖出记录写入 `logs/moomoo-exit-orders.ndjson`，状态写入 `logs/moomoo-exit-status.json`。
+控制台里的 `启动全套模拟` 会同时启动买入监听和卖出监控。卖出监控只处理本程序提交且已经成交的同环境买入单；触发有效股票目标价/股票止损价、期权成交价 `-20%/+50%`、或收盘前退出时，按当前期权 `bid - 滑点` 的保守限价提交 `SELL_TO_CLOSE` 单。收盘退出使用纽约时间：`15:45 ET` 开始主动退出，`15:55 ET` 后进入强制退出阶段并使用更积极但仍受最小 tick 保护的限价；如果持仓符合受控隔夜条件，监控会记录 `controlled_overnight_hold` 并跳过当日收盘卖出，下一常规交易日收盘窗口触发 `controlled_overnight_next_day_exit`。行情触发采用 OpenD 推送缓存优先，订单/持仓状态默认每 `5` 秒向 OpenD 校验一次，避免触发未完成订单查询限频。卖出记录写入 `logs/moomoo-exit-orders.ndjson`，状态写入 `logs/moomoo-exit-status.json`。
 
 每个交易生命周期都会额外写入 `logs/trade-journal.ndjson`，用于后续人工复盘或本地整理后给 AI 参考。该文件是追加式 JSONL，每行包含：
 
 - Discord 信号：消息 ID、频道、发送时间、收到时间、ticker、到期日、行权价、方向、胜率、置信、风险。
 - 策略快照：当前筛选门槛、仓位比例、止盈止损百分比、点差/滑点/流动性阈值。
 - 入场决策：期权合约、bid/ask/mid、买入限价、卖出估算价、即时往返磨损、open interest、当日成交量、仓位张数和金额。
-- 风控线：期权成交价 `20%/50%` 出场纪律、股票线是否有效、信号自带股票目标价/止损价，以及收盘前退出窗口。
+- 风控线：期权成交价 `20%/50%` 出场纪律、股票线是否有效、信号自带股票目标价/止损价、收盘前退出窗口，以及受控隔夜豁免参数。
 - 执行过程：买入订单 ID、成交状态、成交均价、可卖数量、持仓快照、监控时的标的价和期权报价。
 - 退出过程：触发原因、卖出限价、卖出订单 ID、预估期权 PnL。
 
@@ -294,19 +294,85 @@ npm run moomoo:exit-watch
 
 `--execute-simulate` 会自动从 OpenD 账户列表中选择 `trdEnv=0`、支持美股市场、且模拟账户类型支持期权的账户；不会使用 `.env` 里的真实账户 ID。
 
-实盘执行还有额外三重开关：`.env` 里 `MOOMOO_ALLOW_REAL_TRADING=true`，当前环境变量 `MOOMOO_REAL_TRADING_CONFIRM=I_UNDERSTAND`，并且命令行传 `--execute-real`。不满足这些条件时，买入监听和卖出监控都会直接拒绝实盘下单。
-
-完整实盘链路需要同时启动买入监听和卖出监控：
-
-```powershell
-$env:MOOMOO_REAL_TRADING_CONFIRM="I_UNDERSTAND"
-npm run moomoo:watch-real
-npm run moomoo:exit-real-watch
-```
-
-实盘命令不会自动选择模拟账户；会使用 `.env` 里的 `MOOMOO_ACC_ID`，并在 OpenD 账户列表中验证它是支持美股市场的实盘账户。
+期权业务线现在只允许模拟账户执行。`moomoo-signal-trader.mjs` 和 `moomoo-exit-monitor.mjs` 遇到 `--execute-real` 会直接拒绝；真实账户操作只放在股票调仓和 ATR 止损两条独立业务线。
 
 当前点差、滑点、可见 ask 流动性和立即往返磨损模型用于模拟盘和交易计划的保守估算。真实盘不会把这些估算当成真实成交价；真实成交必须以真实市场和券商实际成交回报为准。bid、ask 和 mid 只作为开仓/平仓限价和成交质量的参考。
+
+## 三条独立业务线
+
+控制台仍用同一个入口：
+
+```powershell
+.\start-console.ps1
+```
+
+页面里可以分别启动和停止：
+
+- 期权模拟：`启动全套模拟` / `停止`
+- 股票实盘调仓：`股票计划`、`启动股票调仓` / `停股票`
+- ATR 实盘止损：`启动 ATR` / `停 ATR`
+
+三条线除了 OpenD 连接封装以外，不共用交易状态文件。期权线只走模拟账户；股票调仓和 ATR 是实盘业务线，仍要求 `.env` 里 `MOOMOO_ALLOW_REAL_TRADING=true`，否则按钮启动后也会拒绝下单。
+
+### 股票仓位调仓
+
+本地表格是项目根目录下的 `stock-rebalance-targets.csv`，不要提交。格式参考 `stock-rebalance-targets.example.csv`：
+
+```csv
+symbol,target_pct
+AAPL,20
+MSFT,20
+NVDA,20
+GOOGL,20
+AMZN,20
+```
+
+规则：
+
+- 必须正好 5 个美股股票标的，默认每个 `20%`。
+- 只按整股配平，不买碎股。
+- 如果目标表格和当前持仓一致，只做配平买卖。
+- 如果当前持仓里有目标表格之外的股票，先生成清仓卖单，再生成目标股票买入/配平买卖。
+- `启动股票调仓` 会先生成计划，然后等待美股常规盘开盘，开盘后重算一次最新计划并提交市价单，提交完成后程序退出。
+
+命令行：
+
+```powershell
+npm run stock:rebalance-plan
+npm run stock:rebalance-live
+```
+
+输出：
+
+- `logs/stock-rebalance-status.json`
+- `logs/stock-rebalance-plan-latest.json`
+- `logs/stock-rebalance-orders.ndjson`
+
+### ATR 实盘移动止损
+
+ATR 业务线只负责当前实盘美股持仓的止损，不负责选股，也不读取股票调仓表。
+
+规则：
+
+- 日线 ATR(21)，Wilder 平滑。
+- ATR 倍数 `3.5`。
+- 使用买入后最高日线收盘价作为跟踪基准。
+- 止损线 `highest_close_since_entry - 3.5 * ATR(21)`，只能上移，不能下移。
+- 只用确认后的日线 close 更新最高收盘价，不使用盘中最高价。
+- 实时价格 `<= current_stop_price` 时，卖出该股票全部可卖持仓。
+- 已触发 `PENDING_SELL` 或 `SOLD` 的股票不会重复发卖单。
+
+命令行：
+
+```powershell
+npm run atr:stop-watch
+```
+
+输出：
+
+- `logs/atr-stop-status.json`
+- `logs/atr-stop-state.json`
+- `logs/atr-stop-orders.ndjson`
 
 ## 说明
 

@@ -11,13 +11,13 @@
     "moomoo:watch-plan": "node ./moomoo-signal-trader.mjs --watch --dry-run",
     "moomoo:simulate": "node ./moomoo-signal-trader.mjs --execute-simulate",
     "moomoo:watch-sim": "node ./moomoo-signal-trader.mjs --watch --execute-simulate",
-    "moomoo:real": "node ./moomoo-signal-trader.mjs --execute-real",
-    "moomoo:watch-real": "node ./moomoo-signal-trader.mjs --watch --execute-real",
     "moomoo:exit-once": "node ./moomoo-exit-monitor.mjs",
     "moomoo:exit-watch": "node ./moomoo-exit-monitor.mjs --watch",
-    "moomoo:exit-real-watch": "node ./moomoo-exit-monitor.mjs --watch --execute-real",
+    "stock:rebalance-plan": "node ./stock-rebalance-live.mjs --plan-only",
+    "stock:rebalance-live": "node ./stock-rebalance-live.mjs --wait-open --execute-real",
+    "atr:stop-watch": "node ./atr-trailing-stop.mjs --watch --execute-real",
     "console": "node ./control-console.mjs",
-    "test": "node --test ./tests"
+    "test": "node --test \"./tests/*.mjs\" \"./tests/*.cjs\""
   },
   "dependencies": {
     "dotenv": "^17.4.2",

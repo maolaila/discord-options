@@ -13,10 +13,12 @@
     "advice_format": "pa",
     "action": "trade",
     "full_plan_required": true,
-    "min_win_rate_pct": 75,
-    "min_confidence": 4,
-    "max_risk_score": 2,
-    "require_entry_target_stop": true,
+    "min_win_rate_pct": 60,
+    "min_confidence": null,
+    "max_risk_score": null,
+    "require_entry_target_stop": false,
+    "require_stock_stop": true,
+    "require_current_price_at_or_above_stop": true,
     "direction_contract_match": {
       "bull": "C",
       "bear": "P"
@@ -61,6 +63,14 @@
     "exit_before_regular_session_close": true,
     "close_exit_start_time_et": "15:45",
     "force_close_exit_start_time_et": "15:55",
-    "no_overnight_holding": true
+    "no_overnight_holding": true,
+    "controlled_overnight": {
+      "enabled": true,
+      "max_positions": 1,
+      "min_dte": 5,
+      "max_loss_pct": 10,
+      "next_day_force_exit": true,
+      "next_day_exit_timing": "close_window"
+    }
   }
 }

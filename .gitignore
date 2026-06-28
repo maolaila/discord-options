@@ -13,6 +13,9 @@ profile/
 analysis/
 signal-docs/
 
+# Local live-stock target sheet.
+stock-rebalance-targets.csv
+
 # Misc local output.
 *.log
 *.ndjson

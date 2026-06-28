@@ -19,10 +19,13 @@ export const TRD_SEC_MARKET_US = 2;
 export const TRD_SIDE_BUY = 1;
 export const TRD_SIDE_SELL = 2;
 export const ORDER_TYPE_LIMIT = 1;
+export const ORDER_TYPE_MARKET = 2;
 export const TIME_IN_FORCE_DAY = 0;
 export const SESSION_RTH = 1;
 export const QOT_SUBTYPE_BASIC = 1;
 export const QOT_SUBTYPE_ORDER_BOOK = 2;
+export const KL_TYPE_DAY = 2;
+export const REHAB_TYPE_FORWARD = 1;
 const CMD_QOT_UPDATE_BASIC_QOT = 3005;
 const CMD_QOT_UPDATE_ORDER_BOOK = 3013;
 export const DEFAULT_POLICY_PATH = path.join(PROJECT_ROOT, 'sim-trading-policy.json');
@@ -328,6 +331,18 @@ export async function fetchGlobalState(client) {
   return response;
 }
 
+export async function fetchFunds(client, config, opts = {}) {
+  const c2s = {
+    header: buildTradeHeader(config),
+    refreshCache: opts.refreshCache ?? true,
+  };
+  if (opts.currency !== undefined) c2s.currency = opts.currency;
+  if (opts.assetCategory !== undefined) c2s.assetCategory = opts.assetCategory;
+  const response = await client.GetFunds({ c2s });
+  assertMoomooSuccess(response, 'GetFunds');
+  return response;
+}
+
 export function summarizeAccounts(response) {
   const accounts = response?.s2c?.accList || [];
   return accounts.map((account, index) => ({
@@ -447,6 +462,25 @@ export async function getSecuritySnapshots(client, securities) {
     },
   });
   assertMoomooSuccess(response, 'GetSecuritySnapshot');
+  return response;
+}
+
+export async function requestHistoryKL(client, security, opts = {}) {
+  const response = await client.RequestHistoryKL({
+    c2s: {
+      rehabType: opts.rehabType ?? REHAB_TYPE_FORWARD,
+      klType: opts.klType ?? KL_TYPE_DAY,
+      security,
+      beginTime: opts.beginTime,
+      endTime: opts.endTime,
+      maxAckKLNum: opts.maxAckKLNum ?? 1000,
+      needKLFieldsFlag: opts.needKLFieldsFlag,
+      nextReqKey: opts.nextReqKey,
+      extendedTime: opts.extendedTime,
+      session: opts.session,
+    },
+  });
+  assertMoomooSuccess(response, 'RequestHistoryKL');
   return response;
 }
 
@@ -861,9 +895,21 @@ export function buildOptionExecutionQuote(snapshot, config) {
   const roundTripLossPct = buyLimitPrice && sellEstimatePrice !== null
     ? Number(((buyLimitPrice - sellEstimatePrice) / buyLimitPrice * 100).toFixed(2))
     : null;
+  const immediateStopLossGuardPct = numericOrNull(config.optionExitStopLossPct ?? config.optionStopLossPct);
+  const immediateStopLossLine = buyLimitPrice && immediateStopLossGuardPct !== null
+    ? roundDownToTick(buyLimitPrice * (1 - immediateStopLossGuardPct / 100), tick)
+    : null;
 
   if (roundTripLossPct !== null && roundTripLossPct > Number(config.optionMaxRoundTripLossPct ?? 40)) {
     reasons.push(`round_trip_loss_pct_above_gate:${roundTripLossPct}`);
+  }
+  if (
+    roundTripLossPct !== null
+    && immediateStopLossGuardPct !== null
+    && immediateStopLossGuardPct > 0
+    && roundTripLossPct > immediateStopLossGuardPct
+  ) {
+    reasons.push(`immediate_round_trip_loss_pct_above_stop_loss:${roundTripLossPct}>${immediateStopLossGuardPct}`);
   }
 
   return {
@@ -890,6 +936,8 @@ export function buildOptionExecutionQuote(snapshot, config) {
     sell_estimate_price: sellEstimatePrice,
     sell_estimate_basis: 'bid_minus_slippage_buffer',
     immediate_round_trip_loss_pct: roundTripLossPct,
+    immediate_stop_loss_guard_pct: immediateStopLossGuardPct,
+    immediate_stop_loss_line: immediateStopLossLine,
   };
 }
 
@@ -953,6 +1001,37 @@ export function buildLimitSellOrderRequest(config, { code, qty, price, remark, p
   };
 }
 
+export function buildMarketOrderRequest(config, { code, qty, side, remark, positionID }, opts = {}) {
+  const c2s = {
+    header: buildTradeHeader(config, opts),
+    trdSide: side,
+    orderType: ORDER_TYPE_MARKET,
+    code,
+    qty,
+    secMarket: TRD_SEC_MARKET_US,
+    remark: String(remark || '').slice(0, 60),
+    timeInForce: TIME_IN_FORCE_DAY,
+    session: SESSION_RTH,
+  };
+  if (positionID !== undefined && positionID !== null && positionID !== '') {
+    c2s.positionID = positionID;
+  }
+  if (opts.packetID) {
+    c2s.packetID = opts.packetID;
+  }
+  return {
+    c2s,
+  };
+}
+
+export function buildMarketBuyOrderRequest(config, order, opts = {}) {
+  return buildMarketOrderRequest(config, { ...order, side: TRD_SIDE_BUY }, opts);
+}
+
+export function buildMarketSellOrderRequest(config, order, opts = {}) {
+  return buildMarketOrderRequest(config, { ...order, side: TRD_SIDE_SELL }, opts);
+}
+
 export async function placeLimitBuyOrder(client, config, order) {
   const packetID = {
     connID: client.getConnID(),
@@ -971,6 +1050,28 @@ export async function placeLimitSellOrder(client, config, order) {
   };
   tradeSerialNo += 1;
   const response = await client.PlaceOrder(buildLimitSellOrderRequest(config, order, { packetID }));
+  assertMoomooSuccess(response, 'PlaceOrder');
+  return response;
+}
+
+export async function placeMarketBuyOrder(client, config, order) {
+  const packetID = {
+    connID: client.getConnID(),
+    serialNo: tradeSerialNo,
+  };
+  tradeSerialNo += 1;
+  const response = await client.PlaceOrder(buildMarketBuyOrderRequest(config, order, { packetID }));
+  assertMoomooSuccess(response, 'PlaceOrder');
+  return response;
+}
+
+export async function placeMarketSellOrder(client, config, order) {
+  const packetID = {
+    connID: client.getConnID(),
+    serialNo: tradeSerialNo,
+  };
+  tradeSerialNo += 1;
+  const response = await client.PlaceOrder(buildMarketSellOrderRequest(config, order, { packetID }));
   assertMoomooSuccess(response, 'PlaceOrder');
   return response;
 }

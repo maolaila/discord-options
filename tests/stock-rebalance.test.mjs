@@ -58,3 +58,40 @@ AMZN,20
     'BUY:AMZN:24:rebalance_underweight',
   ]);
 });
+
+test('stock rebalance never sells protected symbols such as SPCX', () => {
+  const targets = parseTargetsCsv(`symbol,target_pct
+AAPL,20
+MSFT,20
+NVDA,20
+GOOGL,20
+AMZN,20
+`);
+  const positions = [
+    { symbol: 'AAPL', qty: 6, can_sell_qty: 6, market_value: 600, price: 100, position_id: 'p1' },
+    { symbol: 'SPCX', qty: 4, can_sell_qty: 4, market_value: 600, price: 150, position_id: 'spcx1' },
+  ];
+  const quotes = new Map([
+    ['AAPL', { price: 100 }],
+    ['MSFT', { price: 200 }],
+    ['NVDA', { price: 50 }],
+    ['GOOGL', { price: 100 }],
+    ['AMZN', { price: 25 }],
+    ['SPCX', { price: 150 }],
+  ]);
+
+  const plan = buildRebalancePlan({
+    targets,
+    positions,
+    funds: { cash: 0 },
+    quotes,
+    protectedSymbols: ['SPCX'],
+    generatedAt: '2026-06-28T00:00:00.000Z',
+  });
+
+  assert.equal(plan.orders.some((order) => order.symbol === 'SPCX'), false);
+  assert.deepEqual(plan.protected_positions.map((row) => `${row.symbol}:${row.qty}:${row.reason}`), [
+    'SPCX:4:protected_stock_symbol',
+  ]);
+  assert.equal(plan.off_sheet_positions.some((row) => row.symbol === 'SPCX'), false);
+});

@@ -168,31 +168,43 @@ function quoteForSymbol(quoteMap, symbol) {
   return quoteMap.get(normalizeSymbol(symbol)) || {};
 }
 
-export function buildRebalancePlan({ targets, positions, funds, quotes, generatedAt = new Date().toISOString() }) {
+export function buildRebalancePlan({
+  targets,
+  positions,
+  funds,
+  quotes,
+  protectedSymbols = [],
+  generatedAt = new Date().toISOString(),
+}) {
   const targetSymbols = new Set(targets.map((row) => row.symbol));
   const quoteMap = quotes instanceof Map ? quotes : new Map(Object.entries(quotes || {}));
+  const protectedSet = new Set(protectedSymbols.map((symbol) => normalizeSymbol(symbol)).filter(Boolean));
+  const activePositions = positions.filter((position) => !protectedSet.has(position.symbol));
   const currentBySymbol = new Map();
   for (const position of positions) currentBySymbol.set(position.symbol, position);
 
   const cash = fundsCash(funds);
-  const stockValue = positions.reduce((sum, position) => {
+  const stockValue = activePositions.reduce((sum, position) => {
     const quote = quoteForSymbol(quoteMap, position.symbol);
     return sum + positionValue(position, quote.price);
   }, 0);
   const portfolioValue = cash + stockValue;
   const targetRows = targets.map((target) => {
+    const protectedTarget = protectedSet.has(target.symbol);
     const current = currentBySymbol.get(target.symbol) || { symbol: target.symbol, qty: 0, can_sell_qty: 0 };
     const quote = quoteForSymbol(quoteMap, target.symbol);
     const price = numeric(quote.price) ?? numeric(current.price);
     const targetValue = portfolioValue * target.target_pct / 100;
-    const desiredQty = price && price > 0 ? Math.floor(targetValue / price) : 0;
-    const deltaQty = desiredQty - Math.floor(current.qty || 0);
+    const currentQty = Math.floor(current.qty || 0);
+    const desiredQty = protectedTarget ? currentQty : (price && price > 0 ? Math.floor(targetValue / price) : 0);
+    const deltaQty = protectedTarget ? 0 : desiredQty - currentQty;
     return {
       symbol: target.symbol,
       target_pct: target.target_pct,
-      target_value: Number(targetValue.toFixed(2)),
+      protected: protectedTarget,
+      target_value: protectedTarget ? Number(positionValue(current, price).toFixed(2)) : Number(targetValue.toFixed(2)),
       price,
-      current_qty: Math.floor(current.qty || 0),
+      current_qty: currentQty,
       desired_qty: desiredQty,
       delta_qty: deltaQty,
       current_value: Number(positionValue(current, price).toFixed(2)),
@@ -202,7 +214,7 @@ export function buildRebalancePlan({ targets, positions, funds, quotes, generate
   });
 
   const orders = [];
-  for (const position of positions) {
+  for (const position of activePositions) {
     if (!targetSymbols.has(position.symbol)) {
       const qty = Math.min(Math.floor(position.qty), Math.floor(position.can_sell_qty));
       if (qty > 0) {
@@ -252,7 +264,18 @@ export function buildRebalancePlan({ targets, positions, funds, quotes, generate
     portfolio_value: Number(portfolioValue.toFixed(2)),
     target_count: targets.length,
     targets: targetRows,
-    off_sheet_positions: positions
+    protected_symbols: [...protectedSet],
+    protected_positions: positions
+      .filter((position) => protectedSet.has(position.symbol))
+      .map((position) => ({
+        symbol: position.symbol,
+        qty: position.qty,
+        can_sell_qty: position.can_sell_qty,
+        market_value: position.market_value,
+        position_id: position.position_id,
+        reason: 'protected_stock_symbol',
+      })),
+    off_sheet_positions: activePositions
       .filter((position) => !targetSymbols.has(position.symbol))
       .map((position) => ({
         symbol: position.symbol,
@@ -379,6 +402,7 @@ async function createPlan({ client, quoteFeed, config, targets }) {
     positions,
     funds: normalizeForJson(fundsResponse).s2c?.funds || {},
     quotes,
+    protectedSymbols: config.protectedStockSymbols,
   });
   plan.account = { accID: maskId(config.accId), trdEnv: config.trdEnv };
   return plan;

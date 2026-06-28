@@ -7,7 +7,9 @@ import {
   buildCancelOrderRequest,
   buildMarketBuyOrderRequest,
   buildOptionExecutionQuote,
+  isProtectedStockSymbol,
   loadMoomooConfig,
+  parseProtectedStockSymbols,
 } from '../packages/moomoo-opend/moomoo-opend.mjs';
 
 const smhLikeSnapshot = {
@@ -88,6 +90,26 @@ test('policy null and zero option override disable the fixed absolute spread gat
     }
   }
 });
+
+test('protected stock symbols default to SPCX and can be overridden', () => {
+  const original = process.env.PROTECTED_STOCK_SYMBOLS;
+  delete process.env.PROTECTED_STOCK_SYMBOLS;
+
+  try {
+    const config = loadMoomooConfig({ envFile: './__missing_test_env__' });
+    assert.deepEqual(config.protectedStockSymbols, ['SPCX']);
+    assert.equal(isProtectedStockSymbol('spcx', config.protectedStockSymbols), true);
+    assert.deepEqual(parseProtectedStockSymbols('SPCX, WEN;intc'), ['SPCX', 'WEN', 'INTC']);
+    assert.deepEqual(parseProtectedStockSymbols('disabled'), []);
+  } finally {
+    if (original === undefined) {
+      delete process.env.PROTECTED_STOCK_SYMBOLS;
+    } else {
+      process.env.PROTECTED_STOCK_SYMBOLS = original;
+    }
+  }
+});
+
 
 test('entry quote is blocked when immediate sell estimate is already beyond option stop loss', () => {
   const quote = buildOptionExecutionQuote(incyWideSpreadSnapshot, {

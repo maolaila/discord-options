@@ -27,6 +27,7 @@ export const QOT_SUBTYPE_BASIC = 1;
 export const QOT_SUBTYPE_ORDER_BOOK = 2;
 export const KL_TYPE_DAY = 2;
 export const REHAB_TYPE_FORWARD = 1;
+export const DEFAULT_PROTECTED_STOCK_SYMBOLS = ['SPCX'];
 const CMD_QOT_UPDATE_BASIC_QOT = 3005;
 const CMD_QOT_UPDATE_ORDER_BOOK = 3013;
 export const DEFAULT_POLICY_PATH = path.join(PROJECT_ROOT, 'config', 'sim-trading-policy.json');
@@ -80,6 +81,26 @@ function optionalMaxGateNumberValue(value, name, defaultValue = undefined) {
   if (!Number.isFinite(parsed)) throw new Error(`${name} must be a number or disabled.`);
   if (parsed <= 0) return null;
   return parsed;
+}
+
+export function parseProtectedStockSymbols(value, defaultSymbols = DEFAULT_PROTECTED_STOCK_SYMBOLS) {
+  if (value === undefined || value === null || value === '') {
+    return [...defaultSymbols];
+  }
+  if (Array.isArray(value)) {
+    return [...new Set(value.map((item) => String(item || '').trim().toUpperCase()).filter(Boolean))];
+  }
+  const normalized = String(value).trim().toLowerCase();
+  if (['0', 'false', 'no', 'n', 'off', 'none', 'null', 'disabled', 'disable'].includes(normalized)) return [];
+  return [...new Set(String(value)
+    .split(/[,\s;]+/)
+    .map((item) => item.trim().toUpperCase())
+    .filter(Boolean))];
+}
+
+export function isProtectedStockSymbol(symbol, protectedSymbols = DEFAULT_PROTECTED_STOCK_SYMBOLS) {
+  const normalized = String(symbol || '').trim().toUpperCase();
+  return normalized ? new Set(parseProtectedStockSymbols(protectedSymbols, [])).has(normalized) : false;
 }
 
 function firstPresent(...values) {
@@ -232,6 +253,7 @@ export function loadMoomooConfig(opts = {}) {
     closeExitStartTimeEt: String(opts.closeExitStartTimeEt || process.env.MOOMOO_CLOSE_EXIT_START_TIME_ET || exits.close_exit_start_time_et || '15:45').trim(),
     forceCloseExitStartTimeEt: String(opts.forceCloseExitStartTimeEt || process.env.MOOMOO_FORCE_CLOSE_EXIT_START_TIME_ET || exits.force_close_exit_start_time_et || '15:55').trim(),
     allowRealTrading: boolValue(opts.allowRealTrading ?? process.env.MOOMOO_ALLOW_REAL_TRADING, false),
+    protectedStockSymbols: parseProtectedStockSymbols(opts.protectedStockSymbols ?? process.env.PROTECTED_STOCK_SYMBOLS),
     policy,
   };
 }

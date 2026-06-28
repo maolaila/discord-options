@@ -941,13 +941,19 @@ function dashboardHtmlPage() {
         '<td>' + signedNumber(row.delta_qty) + '</td>' +
         '<td>' + money(row.current_value) + '</td>' +
         '<td>' + money(row.target_value) + '</td>' +
-        '<td>' + text((orderMap.get(row.symbol) || []).join('; ')) + '</td>' +
+        '<td>' + (row.protected ? '<span class="badge warn">保护标的</span>' : text((orderMap.get(row.symbol) || []).join('; '))) + '</td>' +
         '</tr>'
       )).join('') : '<tr><td colspan="9" class="hint">暂无股票调仓计划</td></tr>';
       const off = plan.off_sheet_positions || [];
-      $('stockOffSheet').innerHTML = off.length
+      const protectedRows = plan.protected_positions || [];
+      const notes = [];
+      notes.push(off.length
         ? '当前不在目标表内的持仓：' + off.map((row) => text(row.symbol) + ' x ' + text(row.qty)).join('，')
-        : '当前没有发现目标表外持仓。';
+        : '当前没有发现目标表外持仓。');
+      if (protectedRows.length) {
+        notes.push('保护标的不会被调仓或卖出：' + protectedRows.map((row) => text(row.symbol) + ' x ' + text(row.qty)).join('，'));
+      }
+      $('stockOffSheet').innerHTML = notes.join('<br>');
     }
     function renderMessages(messages) {
       $('messageRows').innerHTML = (messages || []).length ? messages.map((row) => {

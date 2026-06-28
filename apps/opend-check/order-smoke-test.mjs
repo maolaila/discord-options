@@ -12,6 +12,7 @@ import {
   fetchMoomooAccounts,
   fetchOrderList,
   fetchPositionList,
+  isProtectedStockSymbol,
   loadMoomooConfig,
   maskId,
   normalizeForJson,
@@ -220,6 +221,9 @@ async function main() {
   if (!/^[A-Z][A-Z0-9.-]{0,12}$/.test(symbol)) throw new Error(`Invalid smoke order symbol: ${symbol}`);
 
   const config = loadMoomooConfig({ envFile: args.env });
+  if (isProtectedStockSymbol(symbol, config.protectedStockSymbols)) {
+    throw new Error(`Smoke order refuses to touch protected stock symbol ${symbol}.`);
+  }
   assertRealSmokeAllowed(config);
 
   const connection = await connectMoomoo(config);

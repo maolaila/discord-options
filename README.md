@@ -234,6 +234,8 @@ npm run moomoo:order-smoke -- --symbol AAPL --qty 1 --max-notional 100 --price-r
 - `logs/order-smoke-test-latest.json`
 - `logs/order-smoke-test.ndjson`
 
+smoke test 会拒绝触碰 `PROTECTED_STOCK_SYMBOLS` 里的股票，例如默认的 `SPCX`。
+
 用某条 Discord 信号生成一份 dry-run 交易计划：
 
 ```powershell
@@ -341,6 +343,8 @@ npm run moomoo:exit-watch
 
 三条线除了 OpenD 连接封装以外，不共用交易状态文件。期权线只走模拟账户；股票调仓和 ATR 是实盘业务线，仍要求 `.env` 里 `MOOMOO_ALLOW_REAL_TRADING=true`，否则按钮启动后也会拒绝下单。
 
+默认保护标的是 `SPCX`：`PROTECTED_STOCK_SYMBOLS=SPCX`。保护标的不会被股票调仓卖出/买入、不会被 ATR 止损线监控卖出，也不会被真实挂单 smoke test 使用。这个仓位按长期持有处理。
+
 ### 股票仓位调仓
 
 本地表格是项目根目录下的 `stock-rebalance-targets.csv`，不要提交。格式参考 `stock-rebalance-targets.example.csv`：
@@ -360,6 +364,7 @@ AMZN,20
 - 只按整股配平，不买碎股。
 - 如果目标表格和当前持仓一致，只做配平买卖。
 - 如果当前持仓里有目标表格之外的股票，先生成清仓卖单，再生成目标股票买入/配平买卖。
+- `PROTECTED_STOCK_SYMBOLS` 里的股票不参与调仓；即使不在目标表里，也不会生成卖单。
 - `启动股票调仓` 会先生成计划，然后等待美股常规盘开盘，开盘后重算一次最新计划并提交市价单，提交完成后程序退出。
 
 命令行：
@@ -389,6 +394,7 @@ ATR 业务线只负责当前实盘美股持仓的止损，不负责选股，也�
 - 实时价格 `<= current_stop_price` 时，卖出该股票全部可卖持仓。
 - 触发后先提交可成交限价卖单，默认按实时价下方 `0.35%` 做保护限价；`30-60s` 内未成交时，按剩余可卖股数提交市价兜底单。
 - 已触发 `PENDING_SELL` 或 `SOLD` 的股票不会重复发首单；成交或仓位消失后状态落到 `SOLD`。
+- `PROTECTED_STOCK_SYMBOLS` 里的股票会显示为 `PROTECTED`，不会计算/触发 ATR 卖出。
 - `logs/atr-stop-state.json` 会记录当前持仓、ATR 点数、止损价、离止损百分比、当前盈亏和盈亏比例，控制台直接读取这些字段。
 
 命令行：

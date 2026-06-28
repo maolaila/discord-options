@@ -13,6 +13,7 @@ import {
   fetchOrderFillList,
   fetchOrderList,
   fetchPositionList,
+  isProtectedStockSymbol,
   loadMoomooConfig,
   maskId,
   normalizeForJson,
@@ -278,6 +279,7 @@ function initializePosition(row, previous, bars) {
 async function refreshAtrState(client, config, state, settings) {
   const response = await fetchPositionList(client, config);
   const positions = normalizeStockPositions(normalizeForJson(response).s2c?.positionList || []);
+  const protectedSymbols = settings.protectedSymbols || [];
   const currentSymbols = new Set(positions.map((position) => position.symbol));
 
   for (const [symbol, previous] of Object.entries(state.positions || {})) {
@@ -296,6 +298,23 @@ async function refreshAtrState(client, config, state, settings) {
 
   for (const row of positions) {
     const previous = state.positions[row.symbol] || null;
+    if (isProtectedStockSymbol(row.symbol, protectedSymbols)) {
+      const protectedPosition = attachRiskMetrics({
+        ...initializePosition(row, previous, []),
+        status: 'PROTECTED',
+        current_atr: null,
+        atr_points: null,
+        current_stop_price: null,
+        error: null,
+        protection_reason: 'protected_stock_symbol',
+        shares: Math.floor(row.qty),
+        can_sell_qty: Math.floor(row.can_sell_qty),
+        position_id: row.position_id,
+        updated_at: new Date().toISOString(),
+      }, row.price);
+      state.positions[row.symbol] = protectedPosition;
+      continue;
+    }
     let bars = [];
     let next = null;
     try {
@@ -454,6 +473,16 @@ async function refreshPendingSells(client, config, state, livePositions, setting
   let fallbackSubmitted = 0;
 
   for (const position of pending) {
+    if (isProtectedStockSymbol(position.symbol, settings.protectedSymbols || [])) {
+      state.positions[position.symbol] = {
+        ...position,
+        status: 'PROTECTED',
+        error: null,
+        protection_reason: 'protected_stock_symbol',
+        updated_at: new Date().toISOString(),
+      };
+      continue;
+    }
     const ids = pendingOrderIds(position);
     const orders = ids.map((id) => ordersById.get(id)).filter(Boolean);
     const fillRows = ids.map((id) => fillsById.get(id)).filter(Boolean);
@@ -543,7 +572,12 @@ async function refreshPendingSells(client, config, state, livePositions, setting
 
 async function monitorStops(client, config, quoteFeed, state, execute, settings) {
   const held = Object.values(state.positions || {})
-    .filter((position) => position.status === 'HELD' && numeric(position.current_stop_price) !== null && position.shares > 0);
+    .filter((position) => (
+      position.status === 'HELD'
+      && !isProtectedStockSymbol(position.symbol, settings.protectedSymbols || [])
+      && numeric(position.current_stop_price) !== null
+      && position.shares > 0
+    ));
   if (held.length === 0) return { watched: 0, triggered: 0, submitted: 0 };
 
   const result = await quoteFeed.getSnapshots(held.map((position) => stockSecurity(position.symbol)), {
@@ -684,6 +718,7 @@ async function runCycle(client, config, quoteFeed, settings, execute) {
     atr_multiplier: settings.multiplier,
     marketable_limit_buffer_pct: settings.limitBufferPct,
     fallback_seconds: settings.fallbackSeconds,
+    protected_symbols: settings.protectedSymbols,
     positions: positions.length,
     pending_sells: pending.pending,
     sold_this_cycle: pending.sold,
@@ -710,6 +745,7 @@ async function main() {
     lookbackDays: Math.max(60, Number(args['lookback-days'] || process.env.ATR_STOP_LOOKBACK_DAYS || 180)),
     limitBufferPct: Number(args['limit-buffer-pct'] || process.env.ATR_STOP_LIMIT_BUFFER_PCT || defaultLimitBufferPct),
     fallbackSeconds: Math.max(30, Number(args['fallback-seconds'] || process.env.ATR_STOP_FALLBACK_SECONDS || defaultFallbackSeconds)),
+    protectedSymbols: config.protectedStockSymbols,
   };
   if (!Number.isFinite(settings.multiplier) || settings.multiplier <= 0) {
     throw new Error('ATR multiplier must be a positive number.');

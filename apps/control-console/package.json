@@ -1,0 +1,6 @@
+{
+  "name": "@discord-options/control-console",
+  "private": true,
+  "type": "module",
+  "main": "control-console.mjs"
+}

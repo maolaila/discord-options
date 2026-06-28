@@ -6,7 +6,7 @@ import { config as loadDotenv } from 'dotenv';
 import WebSocketModule from 'ws';
 import MoomooWebsocket from 'moomoo-api';
 
-export const PROJECT_ROOT = path.dirname(fileURLToPath(import.meta.url));
+export const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
 export const RET_SUCCEED = 0;
 export const QOT_MARKET_US_SECURITY = 11;
@@ -20,6 +20,7 @@ export const TRD_SIDE_BUY = 1;
 export const TRD_SIDE_SELL = 2;
 export const ORDER_TYPE_LIMIT = 1;
 export const ORDER_TYPE_MARKET = 2;
+export const MODIFY_ORDER_OP_CANCEL = 2;
 export const TIME_IN_FORCE_DAY = 0;
 export const SESSION_RTH = 1;
 export const QOT_SUBTYPE_BASIC = 1;
@@ -28,7 +29,7 @@ export const KL_TYPE_DAY = 2;
 export const REHAB_TYPE_FORWARD = 1;
 const CMD_QOT_UPDATE_BASIC_QOT = 3005;
 const CMD_QOT_UPDATE_ORDER_BOOK = 3013;
-export const DEFAULT_POLICY_PATH = path.join(PROJECT_ROOT, 'sim-trading-policy.json');
+export const DEFAULT_POLICY_PATH = path.join(PROJECT_ROOT, 'config', 'sim-trading-policy.json');
 
 let tradeSerialNo = 1;
 
@@ -1032,6 +1033,24 @@ export function buildMarketSellOrderRequest(config, order, opts = {}) {
   return buildMarketOrderRequest(config, { ...order, side: TRD_SIDE_SELL }, opts);
 }
 
+export function buildCancelOrderRequest(config, { orderID, orderIDEx }, opts = {}) {
+  const c2s = {
+    header: buildTradeHeader(config, opts),
+    orderID: orderID !== undefined && orderID !== null && orderID !== '' ? orderID : 0,
+    modifyOrderOp: MODIFY_ORDER_OP_CANCEL,
+    forAll: false,
+  };
+  if (orderIDEx !== undefined && orderIDEx !== null && orderIDEx !== '') {
+    c2s.orderIDEx = String(orderIDEx);
+  }
+  if (opts.packetID) {
+    c2s.packetID = opts.packetID;
+  }
+  return {
+    c2s,
+  };
+}
+
 export async function placeLimitBuyOrder(client, config, order) {
   const packetID = {
     connID: client.getConnID(),
@@ -1073,6 +1092,17 @@ export async function placeMarketSellOrder(client, config, order) {
   tradeSerialNo += 1;
   const response = await client.PlaceOrder(buildMarketSellOrderRequest(config, order, { packetID }));
   assertMoomooSuccess(response, 'PlaceOrder');
+  return response;
+}
+
+export async function cancelOrder(client, config, order) {
+  const packetID = {
+    connID: client.getConnID(),
+    serialNo: tradeSerialNo,
+  };
+  tradeSerialNo += 1;
+  const response = await client.ModifyOrder(buildCancelOrderRequest(config, order, { packetID }));
+  assertMoomooSuccess(response, 'ModifyOrder:cancel');
   return response;
 }
 

@@ -8,7 +8,7 @@ import {
   exitTrigger,
   isRegularSessionNow,
   sellLimitPriceFromQuote,
-} from '../moomoo-exit-monitor.mjs';
+} from '../apps/options-sim/moomoo-exit-monitor.mjs';
 
 const closeRules = {
   exit_before_regular_session_close: true,

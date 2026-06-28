@@ -1,0 +1,6 @@
+{
+  "name": "@discord-options/atr-stop",
+  "private": true,
+  "type": "module",
+  "main": "atr-trailing-stop.mjs"
+}

@@ -21,11 +21,11 @@ import {
   placeLimitBuyOrder,
   selectConfiguredUsRealAccount,
   selectSimulatedUsOptionAccount,
-} from './moomoo-opend.mjs';
+} from '../../packages/moomoo-opend/moomoo-opend.mjs';
 import {
   appendTradeJournalEvent,
   buildPlanJournalPayload,
-} from './trade-journal.mjs';
+} from '../../packages/trade-journal/trade-journal.mjs';
 
 const args = parseCliArgs();
 const logsDir = path.join(PROJECT_ROOT, 'logs');

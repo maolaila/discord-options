@@ -1,0 +1,6 @@
+{
+  "name": "@discord-options/moomoo-opend",
+  "private": true,
+  "type": "module",
+  "main": "moomoo-opend.mjs"
+}

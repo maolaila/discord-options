@@ -1,0 +1,6 @@
+{
+  "name": "@discord-options/trade-journal",
+  "private": true,
+  "type": "module",
+  "main": "trade-journal.mjs"
+}

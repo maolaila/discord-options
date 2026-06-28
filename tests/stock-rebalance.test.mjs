@@ -3,7 +3,7 @@ import test from 'node:test';
 import {
   buildRebalancePlan,
   parseTargetsCsv,
-} from '../stock-rebalance-live.mjs';
+} from '../apps/stock-rebalance/stock-rebalance-live.mjs';
 
 test('stock target CSV requires exactly five symbols and defaults to equal weights', () => {
   const targets = parseTargetsCsv(`symbol,target_pct

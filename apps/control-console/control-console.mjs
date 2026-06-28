@@ -5,7 +5,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-const ROOT = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const HOST = process.env.CONTROL_CONSOLE_HOST || '127.0.0.1';
 const PORT = Number(process.env.CONTROL_CONSOLE_PORT || 18766);
 const DEFAULT_ENV_FILE = process.env.MOOMOO_CONTROL_ENV_FILE || path.join(ROOT, '.env');
@@ -147,14 +147,14 @@ function startBrowser() {
 
 function startCapture() {
   return startProcess('capture', 'Discord 抓包', nodeBin(), [
-    path.join(ROOT, 'capture-discord.js'),
+    path.join(ROOT, 'apps', 'discord-capture', 'capture-discord.js'),
   ]);
 }
 
 function startWatchPlan(envFile) {
   stopProcess('watchSim');
   return startProcess('watchPlan', 'Moomoo 干跑监听', nodeBin(), [
-    path.join(ROOT, 'moomoo-signal-trader.mjs'),
+    path.join(ROOT, 'apps', 'options-sim', 'moomoo-signal-trader.mjs'),
     '--watch',
     '--dry-run',
     ...envArgs(envFile),
@@ -164,7 +164,7 @@ function startWatchPlan(envFile) {
 function startWatchSim(envFile) {
   stopProcess('watchPlan');
   return startProcess('watchSim', 'Moomoo 模拟监听', nodeBin(), [
-    path.join(ROOT, 'moomoo-signal-trader.mjs'),
+    path.join(ROOT, 'apps', 'options-sim', 'moomoo-signal-trader.mjs'),
     '--watch',
     '--execute-simulate',
     ...envArgs(envFile),
@@ -173,7 +173,7 @@ function startWatchSim(envFile) {
 
 function startExitMonitor(envFile) {
   return startProcess('exitMonitor', 'Moomoo 卖出监控', nodeBin(), [
-    path.join(ROOT, 'moomoo-exit-monitor.mjs'),
+    path.join(ROOT, 'apps', 'options-sim', 'moomoo-exit-monitor.mjs'),
     '--watch',
     ...envArgs(envFile),
   ]);
@@ -181,14 +181,14 @@ function startExitMonitor(envFile) {
 
 function runMoomooCheck(envFile) {
   return startProcess('moomooCheck', 'OpenD 检查', nodeBin(), [
-    path.join(ROOT, 'moomoo-check.mjs'),
+    path.join(ROOT, 'apps', 'opend-check', 'moomoo-check.mjs'),
     ...envArgs(envFile),
   ], { oneShot: true });
 }
 
 function startStockRebalancePlan(envFile) {
   return startProcess('stockPlan', '股票调仓计划', nodeBin(), [
-    path.join(ROOT, 'stock-rebalance-live.mjs'),
+    path.join(ROOT, 'apps', 'stock-rebalance', 'stock-rebalance-live.mjs'),
     '--plan-only',
     ...envArgs(envFile),
   ], { oneShot: true });
@@ -196,7 +196,7 @@ function startStockRebalancePlan(envFile) {
 
 function startStockRebalance(envFile) {
   return startProcess('stockRebalance', '股票实盘调仓', nodeBin(), [
-    path.join(ROOT, 'stock-rebalance-live.mjs'),
+    path.join(ROOT, 'apps', 'stock-rebalance', 'stock-rebalance-live.mjs'),
     '--wait-open',
     '--execute-real',
     ...envArgs(envFile),
@@ -205,7 +205,7 @@ function startStockRebalance(envFile) {
 
 function startAtrStop(envFile) {
   return startProcess('atrStop', 'ATR 实盘止损', nodeBin(), [
-    path.join(ROOT, 'atr-trailing-stop.mjs'),
+    path.join(ROOT, 'apps', 'atr-stop', 'atr-trailing-stop.mjs'),
     '--watch',
     '--execute-real',
     ...envArgs(envFile),
@@ -348,6 +348,7 @@ function statusPayload() {
     stockRebalancePlan,
     atrStopStatus,
     atrStopState,
+    latestMessages: tailNdjson('logs/messages.ndjson', 8).reverse(),
     latestSignals: tailNdjson('logs/option-signals.ndjson', 8).reverse(),
     latestPlans: tailNdjson('logs/moomoo-order-plans.ndjson', 8).reverse(),
     latestExits: tailNdjson('logs/moomoo-exit-orders.ndjson', 8).reverse(),
@@ -367,7 +368,7 @@ function sendJson(res, payload, status = 200) {
 }
 
 function sendHtml(res) {
-  const body = htmlPage();
+  const body = dashboardHtmlPage();
   res.writeHead(200, {
     'Content-Type': 'text/html; charset=utf-8',
     'Content-Length': Buffer.byteLength(body),
@@ -430,9 +431,602 @@ async function routePost(req, res, pathname) {
 async function handler(req, res) {
   const url = new URL(req.url || '/', `http://${HOST}:${PORT}`);
   if (req.method === 'GET' && url.pathname === '/') return sendHtml(res);
+  if (req.method === 'GET' && url.pathname === '/favicon.ico') {
+    res.writeHead(204);
+    res.end();
+    return undefined;
+  }
   if (req.method === 'GET' && url.pathname === '/api/status') return sendJson(res, statusPayload());
   if (req.method === 'POST' && url.pathname.startsWith('/api/')) return routePost(req, res, url.pathname);
   sendJson(res, { error: 'not found' }, 404);
+}
+
+function dashboardHtmlPage() {
+  const defaultEnvFile = DEFAULT_ENV_FILE
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  return `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>交易业务线控制台</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0f1216;
+      --top: #151a20;
+      --panel: #1b2229;
+      --panel-soft: #202932;
+      --line: #34414d;
+      --line-soft: #29333d;
+      --text: #edf2f7;
+      --muted: #9ba8b6;
+      --green: #37c97f;
+      --red: #ff6b6b;
+      --yellow: #e6bd4a;
+      --blue: #71a7ff;
+      --cyan: #54d1c7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.45 "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+    }
+    header {
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 0 24px;
+      background: var(--top);
+      border-bottom: 1px solid var(--line);
+    }
+    h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 650;
+      letter-spacing: 0;
+    }
+    main {
+      max-width: 1660px;
+      margin: 0 auto;
+      padding: 18px 24px 28px;
+      display: grid;
+      gap: 16px;
+    }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(140px, 1fr));
+      gap: 10px;
+    }
+    .metric, .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    .metric {
+      min-height: 78px;
+      padding: 12px 14px;
+    }
+    .metric .label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+    .metric .value {
+      font-size: 17px;
+      font-weight: 650;
+      overflow-wrap: anywhere;
+    }
+    .toolbar {
+      display: grid;
+      grid-template-columns: minmax(280px, 1.4fr) repeat(11, minmax(104px, auto));
+      gap: 10px;
+      align-items: end;
+    }
+    label {
+      color: var(--muted);
+      font-size: 12px;
+      display: grid;
+      gap: 6px;
+    }
+    input {
+      width: 100%;
+      height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #0c1014;
+      color: var(--text);
+      padding: 0 10px;
+      font: inherit;
+    }
+    button {
+      height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel-soft);
+      color: var(--text);
+      font: inherit;
+      font-weight: 650;
+      cursor: pointer;
+      padding: 0 12px;
+      white-space: nowrap;
+    }
+    button.primary { background: #1f6d4a; border-color: #2b8a60; }
+    button.secondary { background: #204e76; border-color: #2c6798; }
+    button.danger { background: #6a2c2c; border-color: #8c4141; }
+    button:disabled { opacity: .55; cursor: wait; }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: minmax(430px, .9fr) minmax(720px, 1.45fr);
+      gap: 16px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(320px, 1fr));
+      gap: 16px;
+    }
+    .panel h2 {
+      margin: 0;
+      padding: 12px 14px;
+      font-size: 15px;
+      font-weight: 650;
+      border-bottom: 1px solid var(--line);
+    }
+    .panel-body { padding: 12px 14px; }
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    th, td {
+      padding: 8px 6px;
+      border-bottom: 1px solid var(--line-soft);
+      vertical-align: top;
+      text-align: left;
+      overflow-wrap: anywhere;
+    }
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+    }
+    .compact th, .compact td { padding: 6px; }
+    .mono {
+      font-family: Consolas, "Cascadia Mono", monospace;
+      font-size: 12px;
+    }
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 22px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #29333c;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+    }
+    .ok, .positive { color: var(--green); }
+    .bad, .negative { color: var(--red); }
+    .warn { color: var(--yellow); }
+    .info { color: var(--blue); }
+    .cyan { color: var(--cyan); }
+    .log {
+      height: 260px;
+      overflow: auto;
+      background: #0b0f13;
+      border: 1px solid var(--line-soft);
+      border-radius: 6px;
+      padding: 10px;
+      white-space: pre-wrap;
+    }
+    @media (max-width: 1280px) {
+      .summary { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
+      .toolbar { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>交易业务线控制台</h1>
+    <div class="mono" id="clock"></div>
+  </header>
+  <main>
+    <section class="summary">
+      <div class="metric"><div class="label">Discord 抓包</div><div class="value" id="statCapture">-</div></div>
+      <div class="metric"><div class="label">期权模拟</div><div class="value" id="statOptions">-</div></div>
+      <div class="metric"><div class="label">OpenD</div><div class="value" id="statOpenD">-</div></div>
+      <div class="metric"><div class="label">最新信号</div><div class="value" id="statSignal">-</div></div>
+      <div class="metric"><div class="label">最新计划</div><div class="value" id="statPlan">-</div></div>
+      <div class="metric"><div class="label">股票调仓</div><div class="value" id="statStock">-</div></div>
+      <div class="metric"><div class="label">ATR 止损</div><div class="value" id="statAtr">-</div></div>
+    </section>
+
+    <section class="toolbar">
+      <label>OpenD 配置文件
+        <input id="envFile" value="${defaultEnvFile}" />
+      </label>
+      <button class="primary" data-action="start-all-sim">全套模拟</button>
+      <button class="secondary" data-action="start-all-plan">全套干跑</button>
+      <button data-action="start-capture">抓包</button>
+      <button data-action="start-watch-sim">期权模拟</button>
+      <button data-action="start-exit-monitor">期权退出</button>
+      <button data-action="stock-rebalance-plan">调仓计划</button>
+      <button class="primary" data-action="start-stock-rebalance">执行调仓</button>
+      <button data-action="start-atr-stop">ATR 止损</button>
+      <button class="danger" data-action="stop-stock-rebalance">停调仓</button>
+      <button class="danger" data-action="stop-atr-stop">停 ATR</button>
+      <button class="danger" data-action="stop-all">停止全部</button>
+    </section>
+
+    <section class="grid-2">
+      <div class="panel">
+        <h2>进程</h2>
+        <div class="panel-body table-wrap">
+          <table class="compact">
+            <thead><tr><th style="width:26%">名称</th><th style="width:18%">状态</th><th style="width:16%">PID</th><th>最近日志</th></tr></thead>
+            <tbody id="processRows"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>最新期权计划</h2>
+        <div class="panel-body" id="latestPlan"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>ATR 止损线：当前持仓与止损距离</h2>
+      <div class="panel-body table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:8%">标的</th>
+              <th style="width:9%">状态</th>
+              <th style="width:8%">股数</th>
+              <th style="width:9%">现价</th>
+              <th style="width:9%">ATR 点数</th>
+              <th style="width:9%">止损价</th>
+              <th style="width:10%">离止损</th>
+              <th style="width:9%">入场价</th>
+              <th style="width:11%">当前盈亏</th>
+              <th style="width:10%">更新时间</th>
+              <th>备注</th>
+            </tr>
+          </thead>
+          <tbody id="atrRows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>股票调仓线：当前标的与目标标的</h2>
+      <div class="panel-body table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:9%">目标标的</th>
+              <th style="width:9%">目标比例</th>
+              <th style="width:9%">现价</th>
+              <th style="width:10%">当前股数</th>
+              <th style="width:10%">目标股数</th>
+              <th style="width:9%">差额</th>
+              <th style="width:11%">当前市值</th>
+              <th style="width:11%">目标市值</th>
+              <th>计划动作</th>
+            </tr>
+          </thead>
+          <tbody id="stockRows"></tbody>
+        </table>
+        <div class="hint" id="stockOffSheet"></div>
+      </div>
+    </section>
+
+    <section class="grid-2">
+      <div class="panel">
+        <h2>期权模拟：消息记录</h2>
+        <div class="panel-body table-wrap">
+          <table class="compact">
+            <thead><tr><th style="width:22%">时间</th><th style="width:20%">频道</th><th style="width:18%">作者</th><th>内容</th></tr></thead>
+            <tbody id="messageRows"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>期权模拟：信号记录</h2>
+        <div class="panel-body table-wrap">
+          <table class="compact">
+            <thead><tr><th>时间</th><th>合约</th><th>方向</th><th>门槛</th></tr></thead>
+            <tbody id="signalRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid-3">
+      <div class="panel">
+        <h2>期权模拟：操作记录</h2>
+        <div class="panel-body table-wrap">
+          <table class="compact">
+            <thead><tr><th>时间</th><th>事件</th><th>状态</th><th>摘要</th></tr></thead>
+            <tbody id="journalRows"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>OpenD 账户</h2>
+        <div class="panel-body table-wrap">
+          <table class="compact">
+            <thead><tr><th>账户</th><th>环境</th><th>市场</th><th>模拟类型</th></tr></thead>
+            <tbody id="accountRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid-2">
+      <div class="panel">
+        <h2>期权退出记录</h2>
+        <div class="panel-body table-wrap">
+          <table class="compact">
+            <thead><tr><th>时间</th><th>标的</th><th>状态</th><th>触发</th></tr></thead>
+            <tbody id="exitRows"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>进程日志</h2>
+        <div class="panel-body">
+          <div class="log mono" id="processLog"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let busy = false;
+    function escapeHtml(value) {
+      const raw = value === null || value === undefined || value === '' ? '-' : String(value);
+      return raw.replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    }
+    function text(value) { return escapeHtml(value); }
+    function number(value, digits) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return '-';
+      return n.toFixed(digits).replace(/\\.?0+$/, '');
+    }
+    function money(value) {
+      const n = Number(value);
+      return Number.isFinite(n) ? '$' + n.toFixed(2) : '-';
+    }
+    function pct(value) {
+      const n = Number(value);
+      return Number.isFinite(n) ? n.toFixed(2) + '%' : '-';
+    }
+    function signedMoney(value) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return '-';
+      const cls = n >= 0 ? 'positive' : 'negative';
+      return '<span class="' + cls + '">' + (n >= 0 ? '+' : '') + '$' + n.toFixed(2) + '</span>';
+    }
+    function signedNumber(value) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return '-';
+      const cls = n >= 0 ? 'positive' : 'negative';
+      return '<span class="' + cls + '">' + (n >= 0 ? '+' : '') + n + '</span>';
+    }
+    function fmtTime(value) {
+      if (!value) return '-';
+      const d = new Date(value);
+      return Number.isNaN(d.getTime()) ? escapeHtml(value) : escapeHtml(d.toLocaleString());
+    }
+    function statusClass(value) {
+      const s = String(value || '').toLowerCase();
+      if (['held', 'ok', 'complete', 'planned', 'closed', 'sold'].includes(s)) return 'ok';
+      if (s.includes('pending') || s.includes('waiting') || s.includes('plan')) return 'warn';
+      if (s.includes('error') || s.includes('failed') || s.includes('disabled')) return 'bad';
+      return 'info';
+    }
+    function badge(value) {
+      return '<span class="badge ' + statusClass(value) + '">' + text(value) + '</span>';
+    }
+    function shortContract(s) {
+      if (!s) return '-';
+      return [s.ticker, s.expiration, String(s.strike || '') + (s.option_type || '')].filter(Boolean).join(' ');
+    }
+    async function post(action) {
+      if (busy) return;
+      busy = true;
+      document.querySelectorAll('button').forEach((button) => { button.disabled = true; });
+      try {
+        await fetch('/api/' + action, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ envFile: $('envFile').value })
+        });
+        await refresh();
+      } finally {
+        busy = false;
+        document.querySelectorAll('button').forEach((button) => { button.disabled = false; });
+      }
+    }
+    function renderProcesses(processes) {
+      const names = ['browser', 'capture', 'watchSim', 'exitMonitor', 'watchPlan', 'stockPlan', 'stockRebalance', 'atrStop', 'moomooCheck'];
+      $('processRows').innerHTML = names.map((name) => {
+        const p = processes[name] || { label: name, running: false, lastLog: [] };
+        let state = '<span class="warn">未启动</span>';
+        if (p.running) state = '<span class="ok">运行中</span>';
+        else if (p.oneShot && p.exitCode === 0) state = '<span class="ok">已完成</span>';
+        else if (p.exitCode !== null && p.exitCode !== undefined) state = '<span class="bad">已退出</span>';
+        const last = (p.lastLog || []).slice(-3).join('\\n');
+        return '<tr><td>' + text(p.label) + '</td><td>' + state + '</td><td class="mono">' + text(p.pid) + '</td><td class="mono">' + text(last) + '</td></tr>';
+      }).join('');
+    }
+    function renderLatestPlan(plan) {
+      if (!plan) {
+        $('latestPlan').innerHTML = '<div class="hint">暂无期权交易计划</div>';
+        return;
+      }
+      const signal = plan.signal || {};
+      const order = plan.order || {};
+      const quote = plan.quote?.basic || {};
+      const gate = plan.gate || {};
+      $('latestPlan').innerHTML =
+        '<table><tbody>' +
+        '<tr><th style="width:22%">状态</th><td>' + badge(plan.order_status) + ' <span class="badge">' + text(plan.mode) + '</span></td></tr>' +
+        '<tr><th>信号</th><td>' + text(shortContract(signal)) + ' ' + text(signal.direction) + ' win=' + text(signal.win_rate_pct) + ' conf=' + text(signal.confidence) + ' risk=' + text(signal.risk_score) + '</td></tr>' +
+        '<tr><th>合约</th><td class="mono">' + text(order.code || plan.contract?.security?.code) + '</td></tr>' +
+        '<tr><th>报价</th><td>bid=' + text(quote.bidPrice) + ' ask=' + text(quote.askPrice) + ' cur=' + text(quote.curPrice) + ' update=' + text(quote.updateTime) + '</td></tr>' +
+        '<tr><th>订单</th><td>' + text(order.side) + ' ' + text(order.qty) + ' @ ' + text(order.price) + '</td></tr>' +
+        '<tr><th>拦截</th><td>' + text((gate.reasons || []).join(', ')) + '</td></tr>' +
+        '</tbody></table>';
+    }
+    function renderAtr(data) {
+      const rows = Object.values(data.atrStopState?.positions || {}).sort((a, b) => String(a.symbol).localeCompare(String(b.symbol)));
+      $('atrRows').innerHTML = rows.length ? rows.map((row) => {
+        const distance = Number(row.distance_to_stop_pct);
+        const distanceCell = Number.isFinite(distance)
+          ? '<span class="' + (distance <= 2 ? 'warn' : 'ok') + '">' + pct(distance) + '</span>'
+          : '-';
+        const pnl = signedMoney(row.unrealized_pnl) + ' / ' + pct(row.unrealized_pnl_pct);
+        return '<tr>' +
+          '<td class="mono">' + text(row.symbol) + '</td>' +
+          '<td>' + badge(row.status) + '</td>' +
+          '<td>' + text(row.shares) + '</td>' +
+          '<td>' + number(row.current_price, 2) + '</td>' +
+          '<td>' + number(row.atr_points ?? row.current_atr, 4) + '</td>' +
+          '<td>' + number(row.current_stop_price, 2) + '</td>' +
+          '<td>' + distanceCell + '</td>' +
+          '<td>' + number(row.entry_price, 2) + '</td>' +
+          '<td>' + pnl + '</td>' +
+          '<td class="mono">' + fmtTime(row.price_updated_at || row.updated_at || row.last_update_date) + '</td>' +
+          '<td>' + text(row.error || row.sold_reason || row.pending_order_status || '') + '</td>' +
+          '</tr>';
+      }).join('') : '<tr><td colspan="11" class="hint">暂无 ATR 持仓状态</td></tr>';
+    }
+    function renderStock(data) {
+      const plan = data.stockRebalancePlan || {};
+      const orders = plan.orders || [];
+      const orderMap = new Map();
+      for (const order of orders) {
+        const arr = orderMap.get(order.symbol) || [];
+        arr.push(order.side + ' ' + order.qty + ' ' + order.reason);
+        orderMap.set(order.symbol, arr);
+      }
+      const rows = plan.targets || [];
+      $('stockRows').innerHTML = rows.length ? rows.map((row) => (
+        '<tr>' +
+        '<td class="mono">' + text(row.symbol) + '</td>' +
+        '<td>' + pct(row.target_pct) + '</td>' +
+        '<td>' + number(row.price, 2) + '</td>' +
+        '<td>' + text(row.current_qty) + '</td>' +
+        '<td>' + text(row.desired_qty) + '</td>' +
+        '<td>' + signedNumber(row.delta_qty) + '</td>' +
+        '<td>' + money(row.current_value) + '</td>' +
+        '<td>' + money(row.target_value) + '</td>' +
+        '<td>' + text((orderMap.get(row.symbol) || []).join('; ')) + '</td>' +
+        '</tr>'
+      )).join('') : '<tr><td colspan="9" class="hint">暂无股票调仓计划</td></tr>';
+      const off = plan.off_sheet_positions || [];
+      $('stockOffSheet').innerHTML = off.length
+        ? '当前不在目标表内的持仓：' + off.map((row) => text(row.symbol) + ' x ' + text(row.qty)).join('，')
+        : '当前没有发现目标表外持仓。';
+    }
+    function renderMessages(messages) {
+      $('messageRows').innerHTML = (messages || []).length ? messages.map((row) => {
+        const author = row.author?.global_name || row.author?.username || row.author?.id || '';
+        const embedTitle = Array.isArray(row.embeds) && row.embeds[0] ? row.embeds[0].title || '' : '';
+        const body = row.content || embedTitle || '[空消息]';
+        return '<tr><td class="mono">' + fmtTime(row.captured_at || row.timestamp) + '</td><td class="mono">' + text(row.channel_id) + '</td><td>' + text(author) + '</td><td>' + text(body) + '</td></tr>';
+      }).join('') : '<tr><td colspan="4" class="hint">暂无消息记录</td></tr>';
+    }
+    function renderSignals(signals) {
+      $('signalRows').innerHTML = (signals || []).length ? signals.map((s) =>
+        '<tr><td class="mono">' + fmtTime(s.received_at || s.captured_at || s.observed_at) + '</td><td>' + text(shortContract(s)) + '</td><td>' + text(s.direction) + '</td><td>win=' + text(s.win_rate_pct) + ' conf=' + text(s.confidence) + ' risk=' + text(s.risk_score) + '</td></tr>'
+      ).join('') : '<tr><td colspan="4" class="hint">暂无信号</td></tr>';
+    }
+    function renderJournal(rows) {
+      $('journalRows').innerHTML = (rows || []).length ? rows.map((row) => {
+        const summary = row.signal ? shortContract(row.signal) : (row.source_buy_order_id_ex || row.trade_key || '');
+        return '<tr><td class="mono">' + fmtTime(row.recorded_at || row.updated_at) + '</td><td>' + text(row.event_type || row.source) + '</td><td>' + badge(row.lifecycle_status || row.mode || '-') + '</td><td>' + text(summary) + '</td></tr>';
+      }).join('') : '<tr><td colspan="4" class="hint">暂无操作记录</td></tr>';
+    }
+    function renderExits(rows) {
+      $('exitRows').innerHTML = (rows || []).length ? rows.map((row) => {
+        const trigger = row.trigger || row.exit_trigger || row.last_trigger || {};
+        return '<tr><td class="mono">' + fmtTime(row.submitted_at || row.updated_at || row.triggered_at) + '</td><td class="mono">' + text(row.symbol || row.code || row.exit_order?.code) + '</td><td>' + badge(row.status || row.order_status || row.reason || '-') + '</td><td>' + text(trigger.reason || row.reason || '') + '</td></tr>';
+      }).join('') : '<tr><td colspan="4" class="hint">暂无退出记录</td></tr>';
+    }
+    function renderAccounts(check) {
+      const rows = check?.account_summary || [];
+      $('accountRows').innerHTML = rows.length ? rows.map((a) =>
+        '<tr><td class="mono">' + text(a.accID) + '</td><td>' + (Number(a.trdEnv) === 0 ? '<span class="ok">模拟</span>' : '<span class="warn">真实</span>') + '</td><td>' + text((a.trdMarketAuthList || []).join(',')) + '</td><td>' + text(a.simAccType) + '</td></tr>'
+      ).join('') : '<tr><td colspan="4" class="hint">暂无账户检查结果</td></tr>';
+    }
+    function renderLogs(processes) {
+      const names = ['capture', 'watchSim', 'exitMonitor', 'watchPlan', 'stockPlan', 'stockRebalance', 'atrStop', 'moomooCheck'];
+      const parts = [];
+      for (const name of names) {
+        const p = processes[name];
+        if (p?.lastLog?.length) parts.push('[' + p.label + ']\\n' + p.lastLog.join('\\n'));
+      }
+      $('processLog').textContent = parts.join('\\n\\n');
+    }
+    async function refresh() {
+      $('clock').textContent = new Date().toLocaleString();
+      const res = await fetch('/api/status');
+      const data = await res.json();
+      const p = data.processes || {};
+      $('statCapture').innerHTML = p.capture?.running ? '<span class="ok">运行中</span>' : '<span class="warn">未运行</span>';
+      $('statOptions').innerHTML = p.watchSim?.running && p.exitMonitor?.running
+        ? '<span class="ok">模拟+退出</span>'
+        : (p.watchSim?.running ? '<span class="ok">模拟监听</span>' : (p.watchPlan?.running ? '<span class="info">干跑监听</span>' : '<span class="warn">未运行</span>'));
+      const gs = data.moomooCheck?.global_state;
+      $('statOpenD').innerHTML = gs?.qotLogined && gs?.trdLogined ? '<span class="ok">已连接</span>' : '<span class="warn">待检查</span>';
+      $('statSignal').textContent = shortContract((data.latestSignals || [])[0]);
+      $('statPlan').textContent = data.latestPlan ? String(data.latestPlan.order_status || '-') : '-';
+      $('statStock').innerHTML = p.stockRebalance?.running
+        ? '<span class="ok">执行中</span>'
+        : (p.stockPlan?.running ? '<span class="info">计划中</span>' : '<span class="warn">' + text(data.stockRebalanceStatus?.phase || '未运行') + '</span>');
+      $('statAtr').innerHTML = p.atrStop?.running
+        ? '<span class="ok">监控中</span>'
+        : '<span class="warn">' + text(data.atrStopStatus?.phase || '未运行') + '</span>';
+      renderProcesses(p);
+      renderLatestPlan(data.latestPlan);
+      renderAtr(data);
+      renderStock(data);
+      renderMessages(data.latestMessages || []);
+      renderSignals(data.latestSignals || []);
+      renderJournal(data.latestTradeJournalRows || []);
+      renderExits(data.latestExits || []);
+      renderAccounts(data.moomooCheck);
+      renderLogs(p);
+    }
+    document.querySelectorAll('button[data-action]').forEach((button) => {
+      button.addEventListener('click', () => post(button.dataset.action));
+    });
+    refresh();
+    setInterval(refresh, 2000);
+  </script>
+</body>
+</html>`;
 }
 
 function htmlPage() {

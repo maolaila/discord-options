@@ -4,6 +4,19 @@
 
 它不会控制页面，不会点击、输入、滚动、爬取历史消息，也不会注入脚本。只用于你自己的账号、你有权限查看的服务器或频道。不要记录、转发或共享别人的隐私内容。本工具不会读取浏览器请求头，也不会输出 token、cookie 或 Authorization。
 
+## 项目结构
+
+这是一个 npm workspaces monorepo。根目录保留统一脚本和运行日志，业务入口放在 `apps/`，公共能力放在 `packages/`：
+
+- `apps/discord-capture`: Discord 消息抓包和期权信号识别入口。
+- `apps/options-sim`: 期权模拟买入监听和退出监控，只允许模拟账户。
+- `apps/stock-rebalance`: 股票月度调仓线，读取目标 CSV 后生成/执行调仓计划。
+- `apps/atr-stop`: 股票 ATR 动态止损线，使用确认日线维护本地止损并用实时价触发卖出。
+- `apps/control-console`: 本地网页控制台，按业务线展示核心状态。
+- `packages/moomoo-opend`: OpenD 连接、行情、账户、下单和日志共享能力。
+- `packages/option-signals`: Discord 期权信号解析和信号文档写入。
+- `packages/trade-journal`: 期权模拟交易复盘事件日志。
+
 ## 安装
 
 ```powershell
@@ -133,11 +146,11 @@ Get-Content .\logs\messages.ndjson -Encoding UTF8 -Wait
 ## 常用选项
 
 ```powershell
-node .\capture-discord.js --all-events
-node .\capture-discord.js --rest
-node .\capture-discord.js --channel-id 1467498779497201716
-node .\capture-discord.js --cdp http://127.0.0.1:9222
-node .\capture-discord.js --signal-doc-tz Asia/Tokyo
+node .\apps\discord-capture\capture-discord.js --all-events
+node .\apps\discord-capture\capture-discord.js --rest
+node .\apps\discord-capture\capture-discord.js --channel-id 1467498779497201716
+node .\apps\discord-capture\capture-discord.js --cdp http://127.0.0.1:9222
+node .\apps\discord-capture\capture-discord.js --signal-doc-tz Asia/Tokyo
 .\start-discord-cdp.ps1 -BrowserPath "C:\Program Files\Google\Chrome\Application\chrome.exe"
 .\start-discord-cdp.ps1 -OpenDiscord
 ```
@@ -207,6 +220,20 @@ npm run moomoo:check
 npm run moomoo:check -- --env D:\path\to\old-project\.env
 ```
 
+如果需要验证真实账户“下单后撤单”链路，可以用单独的 smoke test。它只会提交一笔低于参考价的 1 股美股限价 BUY 探针订单，然后立即撤单；脚本默认拒绝在美股常规盘内运行，并要求真实交易三重显式确认：
+
+```powershell
+$env:MOOMOO_ALLOW_REAL_TRADING="true"
+$env:MOOMOO_REAL_TRADING_CONFIRM="I_UNDERSTAND"
+$env:MOOMOO_ORDER_SMOKE_CONFIRM="I_UNDERSTAND"
+npm run moomoo:order-smoke -- --symbol AAPL --qty 1 --max-notional 100 --price-ratio 0.35
+```
+
+输出会写入：
+
+- `logs/order-smoke-test-latest.json`
+- `logs/order-smoke-test.ndjson`
+
 用某条 Discord 信号生成一份 dry-run 交易计划：
 
 ```powershell
@@ -228,7 +255,7 @@ npm run moomoo:watch-plan
 - `logs/trade-journal.ndjson`: 交易复盘事件流，记录候选计划、买入提交、成交状态、持仓监控快照、退出触发和卖出提交
 - `logs/trade-journal-latest.json`: 最近一条复盘事件，便于控制台和人工检查
 
-模拟交易策略默认读取 `sim-trading-policy.json`。这是纯本地确定性程序规则，不调用 AI、LLM、OpenAI 或外部模型接口。
+模拟交易策略默认读取 `config/sim-trading-policy.json`。这是纯本地确定性程序规则，不调用 AI、LLM、OpenAI 或外部模型接口。
 
 当前期权模拟跟单只处理 PA 信号：`执行观点` 必须是交易，`胜率 >= 60`，必须能解析到执行观点里的股票止损价，且 `bull` 只买 Call、`bear` 只买 Put。置信度和风险分数不再作为买入 gate。下单前还会读取 OpenD 正股报价，当前正股价格低于信号止损价时直接拒绝交易。可以在 `.env` 里改：
 
@@ -294,7 +321,7 @@ npm run moomoo:exit-watch
 
 `--execute-simulate` 会自动从 OpenD 账户列表中选择 `trdEnv=0`、支持美股市场、且模拟账户类型支持期权的账户；不会使用 `.env` 里的真实账户 ID。
 
-期权业务线现在只允许模拟账户执行。`moomoo-signal-trader.mjs` 和 `moomoo-exit-monitor.mjs` 遇到 `--execute-real` 会直接拒绝；真实账户操作只放在股票调仓和 ATR 止损两条独立业务线。
+期权业务线现在只允许模拟账户执行。`apps/options-sim/moomoo-signal-trader.mjs` 和 `apps/options-sim/moomoo-exit-monitor.mjs` 遇到 `--execute-real` 会直接拒绝；真实账户操作只放在股票调仓和 ATR 止损两条独立业务线。
 
 当前点差、滑点、可见 ask 流动性和立即往返磨损模型用于模拟盘和交易计划的保守估算。真实盘不会把这些估算当成真实成交价；真实成交必须以真实市场和券商实际成交回报为准。bid、ask 和 mid 只作为开仓/平仓限价和成交质量的参考。
 
@@ -308,8 +335,8 @@ npm run moomoo:exit-watch
 
 页面里可以分别启动和停止：
 
-- 期权模拟：`启动全套模拟` / `停止`
-- 股票实盘调仓：`股票计划`、`启动股票调仓` / `停股票`
+- 期权模拟：`全套模拟` / `停止全部`
+- 股票实盘调仓：`调仓计划`、`执行调仓` / `停调仓`
 - ATR 实盘止损：`启动 ATR` / `停 ATR`
 
 三条线除了 OpenD 连接封装以外，不共用交易状态文件。期权线只走模拟账户；股票调仓和 ATR 是实盘业务线，仍要求 `.env` 里 `MOOMOO_ALLOW_REAL_TRADING=true`，否则按钮启动后也会拒绝下单。
@@ -360,7 +387,9 @@ ATR 业务线只负责当前实盘美股持仓的止损，不负责选股，也�
 - 止损线 `highest_close_since_entry - 3.5 * ATR(21)`，只能上移，不能下移。
 - 只用确认后的日线 close 更新最高收盘价，不使用盘中最高价。
 - 实时价格 `<= current_stop_price` 时，卖出该股票全部可卖持仓。
-- 已触发 `PENDING_SELL` 或 `SOLD` 的股票不会重复发卖单。
+- 触发后先提交可成交限价卖单，默认按实时价下方 `0.35%` 做保护限价；`30-60s` 内未成交时，按剩余可卖股数提交市价兜底单。
+- 已触发 `PENDING_SELL` 或 `SOLD` 的股票不会重复发首单；成交或仓位消失后状态落到 `SOLD`。
+- `logs/atr-stop-state.json` 会记录当前持仓、ATR 点数、止损价、离止损百分比、当前盈亏和盈亏比例，控制台直接读取这些字段。
 
 命令行：
 
@@ -383,7 +412,7 @@ npm run atr:stop-watch
 可以提交到 GitHub 的内容：
 
 - 程序源码、PowerShell 启动脚本、`package.json`、`package-lock.json`
-- `.env.example`、`sim-trading-policy.json`
+- `.env.example`、`config/sim-trading-policy.json`
 - `vendor/MMAPI4JS_10.6.6608/`，这是本项目运行 moomoo OpenD 所需的本地 JS SDK
 - `NEW_DEVICE_SETUP.md` 和其他说明文档
 

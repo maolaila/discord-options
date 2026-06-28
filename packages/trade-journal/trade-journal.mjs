@@ -5,7 +5,7 @@ import {
   ensureDir,
   maskId,
   normalizeForJson,
-} from './moomoo-opend.mjs';
+} from '../moomoo-opend/moomoo-opend.mjs';
 
 export const tradeJournalPath = path.join(PROJECT_ROOT, 'logs', 'trade-journal.ndjson');
 export const latestTradeJournalPath = path.join(PROJECT_ROOT, 'logs', 'trade-journal-latest.json');

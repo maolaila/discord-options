@@ -4,7 +4,7 @@ const {
   FIELD,
   buildOrderIntent,
   parseOptionSignal,
-} = require('../option-signal-utils.js');
+} = require('../packages/option-signals/option-signal-utils.js');
 
 test('PA option signal becomes actionable at 60 percent win rate without confidence or risk gates', () => {
   const signal = parseOptionSignal({

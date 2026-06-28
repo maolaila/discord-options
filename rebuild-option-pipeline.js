@@ -8,12 +8,12 @@ const {
   buildOrderIntent,
   formatSignalLine,
   parseOptionSignal,
-} = require('./option-signal-utils');
+} = require('./packages/option-signals/option-signal-utils');
 const {
   appendSignalDocument,
   resolveTimeZone,
   stampSignalLogTimes,
-} = require('./signal-document-writer');
+} = require('./packages/option-signals/signal-document-writer');
 
 const ROOT = __dirname;
 const LOG_DIR = path.join(ROOT, 'logs');

@@ -1,0 +1,5 @@
+{
+  "name": "@discord-options/discord-capture",
+  "private": true,
+  "main": "capture-discord.js"
+}

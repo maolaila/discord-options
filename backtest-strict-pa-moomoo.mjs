@@ -7,7 +7,7 @@ import {
   connectMoomoo,
   loadMoomooConfig,
   normalizeForJson,
-} from './moomoo-opend.mjs';
+} from './packages/moomoo-opend/moomoo-opend.mjs';
 
 const args = parseArgs(process.argv.slice(2));
 const logsDir = path.join(PROJECT_ROOT, 'logs');

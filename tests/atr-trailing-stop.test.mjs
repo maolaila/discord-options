@@ -3,8 +3,9 @@ import test from 'node:test';
 import {
   calculateAtrWilder,
   confirmedDailyBars,
+  marketableStopLimitPrice,
   updateDailyAtrStop,
-} from '../atr-trailing-stop.mjs';
+} from '../apps/atr-stop/atr-trailing-stop.mjs';
 
 function steadyBars(count) {
   return Array.from({ length: count }, (_, index) => {
@@ -44,6 +45,19 @@ test('daily ATR stop updates highest close and never lowers the stop', () => {
   assert.equal(notLowered.current_stop_price, 116);
 });
 
+test('daily ATR stop can initialize highest close from entry date bars', () => {
+  const bars = steadyBars(25);
+  const initialized = updateDailyAtrStop({
+    symbol: 'AAPL',
+    entry_date: '2026-05-10',
+    entry_price: 100,
+    status: 'HELD',
+  }, bars, { period: 21, multiplier: 3.5 });
+
+  assert.equal(initialized.highest_close_since_entry, 124);
+  assert.equal(initialized.current_stop_price, 117);
+});
+
 test('ATR daily update ignores same-day bar before confirmed New York close', () => {
   const bars = [
     { date: '2026-06-26', high: 101, low: 99, close: 100 },
@@ -58,4 +72,9 @@ test('ATR daily update ignores same-day bar before confirmed New York close', ()
     confirmedDailyBars(bars, new Date('2026-06-29T20:05:00Z')).map((bar) => bar.date),
     ['2026-06-26', '2026-06-29'],
   );
+});
+
+test('marketable ATR stop sell limit is below realtime price and rounded to tick', () => {
+  assert.equal(marketableStopLimitPrice(100, { bufferPct: 0.35, tick: 0.05 }), 99.65);
+  assert.equal(marketableStopLimitPrice(10.03, { bufferPct: 0.5, tick: 0.01 }), 9.97);
 });

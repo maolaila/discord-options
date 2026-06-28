@@ -1,0 +1,6 @@
+{
+  "name": "@discord-options/stock-rebalance",
+  "private": true,
+  "type": "module",
+  "main": "stock-rebalance-live.mjs"
+}

@@ -21,7 +21,7 @@ if (-not $listening) {
   $err = Join-Path $PSScriptRoot "logs\control-console.err.log"
   New-Item -ItemType Directory -Force -Path (Join-Path $PSScriptRoot "logs") | Out-Null
   Start-Process -FilePath $node `
-    -ArgumentList @("control-console.mjs") `
+    -ArgumentList @("apps\control-console\control-console.mjs") `
     -WorkingDirectory $PSScriptRoot `
     -WindowStyle Hidden `
     -RedirectStandardOutput $out `

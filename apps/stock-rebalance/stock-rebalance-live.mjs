@@ -19,7 +19,7 @@ import {
   placeMarketBuyOrder,
   placeMarketSellOrder,
   selectConfiguredUsRealAccount,
-} from './moomoo-opend.mjs';
+} from '../../packages/moomoo-opend/moomoo-opend.mjs';
 
 const args = parseCliArgs();
 const logsDir = path.join(PROJECT_ROOT, 'logs');

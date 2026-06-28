@@ -9,12 +9,12 @@ const {
   buildOrderIntent,
   formatSignalLine,
   parseOptionSignal,
-} = require('./option-signal-utils');
+} = require('../../packages/option-signals/option-signal-utils');
 const {
   appendSignalDocument,
   resolveTimeZone,
   stampSignalLogTimes,
-} = require('./signal-document-writer');
+} = require('../../packages/option-signals/signal-document-writer');
 
 let chromium;
 try {
@@ -24,7 +24,7 @@ try {
   process.exit(1);
 }
 
-const ROOT = __dirname;
+const ROOT = path.resolve(__dirname, '../..');
 const LOG_DIR = path.join(ROOT, 'logs');
 const MESSAGE_LOG = path.join(LOG_DIR, 'messages.ndjson');
 const LIVE_SIGNAL_LOG = path.join(LOG_DIR, 'live-signals.ndjson');
@@ -89,7 +89,7 @@ function printHelp() {
   console.log(`
 Usage:
   npm run capture
-  node .\\capture-discord.js [options]
+  node .\\apps\\discord-capture\\capture-discord.js [options]
 
 Options:
   --all-events      Log all Discord gateway dispatch events, not only MESSAGE_CREATE

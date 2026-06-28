@@ -11,7 +11,7 @@ import {
   normalizeForJson,
   parseCliArgs,
   summarizeAccounts,
-} from './moomoo-opend.mjs';
+} from '../../packages/moomoo-opend/moomoo-opend.mjs';
 
 const args = parseCliArgs();
 const config = loadMoomooConfig({ envFile: args.env });

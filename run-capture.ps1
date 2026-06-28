@@ -11,4 +11,4 @@ $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 [Console]::OutputEncoding = $utf8NoBom
 $global:OutputEncoding = $utf8NoBom
 
-node "$PSScriptRoot\capture-discord.js" @CaptureArgs
+node "$PSScriptRoot\apps\discord-capture\capture-discord.js" @CaptureArgs

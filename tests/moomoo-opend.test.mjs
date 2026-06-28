@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  MODIFY_ORDER_OP_CANCEL,
   ORDER_TYPE_MARKET,
   TRD_SIDE_BUY,
+  buildCancelOrderRequest,
   buildMarketBuyOrderRequest,
   buildOptionExecutionQuote,
   loadMoomooConfig,
-} from '../moomoo-opend.mjs';
+} from '../packages/moomoo-opend/moomoo-opend.mjs';
 
 const smhLikeSnapshot = {
   basic: {
@@ -120,4 +122,19 @@ test('market stock order request uses market order type and whole-share quantity
   assert.equal(request.c2s.code, 'AAPL');
   assert.equal(request.c2s.qty, 7);
   assert.equal(request.c2s.price, undefined);
+});
+
+test('cancel order request uses ModifyOrder cancel operation and orderIDEx', () => {
+  const request = buildCancelOrderRequest({
+    trdEnv: 1,
+    trdMarket: 2,
+    accId: '123456',
+  }, {
+    orderIDEx: 'ABC123',
+  });
+
+  assert.equal(request.c2s.modifyOrderOp, MODIFY_ORDER_OP_CANCEL);
+  assert.equal(request.c2s.orderID, 0);
+  assert.equal(request.c2s.orderIDEx, 'ABC123');
+  assert.equal(request.c2s.header.accID, '123456');
 });

@@ -339,9 +339,9 @@ npm run moomoo:exit-watch
 
 - 期权模拟：`全套模拟` / `停止全部`
 - 股票实盘调仓：`调仓计划`、`执行调仓` / `停调仓`
-- ATR 实盘止损：`启动 ATR` / `停 ATR`
+- ATR 实盘止损：`刷新 ATR`、`确认监控` / `停 ATR`
 
-三条线除了 OpenD 连接封装以外，不共用交易状态文件。期权线只走模拟账户；股票调仓和 ATR 是实盘业务线，仍要求 `.env` 里 `MOOMOO_ALLOW_REAL_TRADING=true`，否则按钮启动后也会拒绝下单。
+三条线除了 OpenD 连接封装以外，不共用交易状态文件。期权线只走模拟账户；股票调仓和 ATR 监控是实盘业务线，仍要求 `.env` 里 `MOOMOO_ALLOW_REAL_TRADING=true`，否则确认执行/确认监控后会拒绝下单。`刷新 ATR` 只读取实盘持仓和行情计算点位，不提交订单。
 
 默认保护标的是 `SPCX`：`PROTECTED_STOCK_SYMBOLS=SPCX`。保护标的不会被股票调仓卖出/买入、不会被 ATR 止损线监控卖出，也不会被真实挂单 smoke test 使用。这个仓位按长期持有处理。
 
@@ -400,10 +400,12 @@ ATR 业务线只负责当前实盘美股持仓的止损，不负责选股，也�
 - 已触发 `PENDING_SELL` 或 `SOLD` 的股票不会重复发首单；成交或仓位消失后状态落到 `SOLD`。
 - `PROTECTED_STOCK_SYMBOLS` 里的股票会显示为 `PROTECTED`，不会计算/触发 ATR 卖出。
 - `logs/atr-stop-state.json` 会记录当前持仓、ATR 点数、止损价、离止损百分比、当前盈亏和盈亏比例，控制台直接读取这些字段。
+- dashboard 里先点 `刷新 ATR`，控制台会按当前实盘持仓标的、最近一个已确认日线收盘重新计算 ATR 点位并显示；检查无误后，再点 `确认监控` 启动实盘止损监听。
 
 命令行：
 
 ```powershell
+npm run atr:stop-refresh
 npm run atr:stop-watch
 ```
 

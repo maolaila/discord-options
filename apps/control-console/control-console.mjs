@@ -212,6 +212,14 @@ function startAtrStop(envFile) {
   ], { env: realConfirmEnv() });
 }
 
+function refreshAtrStop(envFile) {
+  return startProcess('atrRefresh', 'ATR 点位刷新', nodeBin(), [
+    path.join(ROOT, 'apps', 'atr-stop', 'atr-trailing-stop.mjs'),
+    '--refresh-only',
+    ...envArgs(envFile),
+  ], { oneShot: true });
+}
+
 function startAll(mode, envFile) {
   startBrowser();
   startCapture();
@@ -401,6 +409,7 @@ async function routePost(req, res, pathname) {
   else if (pathname === '/api/moomoo-check') runMoomooCheck(envFile);
   else if (pathname === '/api/stock-rebalance-plan') startStockRebalancePlan(envFile);
   else if (pathname === '/api/start-stock-rebalance') startStockRebalance(envFile);
+  else if (pathname === '/api/atr-stop-refresh') refreshAtrStop(envFile);
   else if (pathname === '/api/start-atr-stop') startAtrStop(envFile);
   else if (pathname === '/api/stop-capture') stopProcess('capture');
   else if (pathname === '/api/stop-watch') {
@@ -411,6 +420,7 @@ async function routePost(req, res, pathname) {
     stopProcess('stockPlan');
     stopProcess('stockRebalance');
   } else if (pathname === '/api/stop-atr-stop') {
+    stopProcess('atrRefresh');
     stopProcess('atrStop');
   } else if (pathname === '/api/stop-all') {
     stopProcess('capture');
@@ -420,6 +430,7 @@ async function routePost(req, res, pathname) {
     stopProcess('moomooCheck');
     stopProcess('stockPlan');
     stopProcess('stockRebalance');
+    stopProcess('atrRefresh');
     stopProcess('atrStop');
   } else {
     sendJson(res, { error: 'unknown endpoint' }, 404);
@@ -746,7 +757,8 @@ function dashboardHtmlPage() {
       </div>
       <div class="toolbar-group">
         <div class="group-title">ATR 止损</div>
-        <button data-action="start-atr-stop">启动 ATR</button>
+        <button data-action="atr-stop-refresh">刷新 ATR</button>
+        <button class="confirm" data-action="start-atr-stop" data-confirm="确认已经检查最新 ATR 点位，并启动实盘止损监控？">确认监控</button>
         <button class="danger" data-action="stop-atr-stop">停 ATR</button>
       </div>
     </section>
@@ -794,19 +806,20 @@ function dashboardHtmlPage() {
     <section class="panel">
       <h2>ATR 止损线：当前持仓与止损距离</h2>
       <div class="panel-body table-wrap">
+        <div id="atrSummary"></div>
         <table>
           <thead>
             <tr>
               <th style="width:8%">标的</th>
               <th style="width:9%">状态</th>
               <th style="width:8%">股数</th>
-              <th style="width:9%">现价</th>
+              <th style="width:10%">确认日</th>
+              <th style="width:9%">确认收盘</th>
+              <th style="width:9%">最高收盘</th>
               <th style="width:9%">ATR 点数</th>
               <th style="width:9%">止损价</th>
+              <th style="width:9%">现价</th>
               <th style="width:10%">离止损</th>
-              <th style="width:9%">入场价</th>
-              <th style="width:11%">当前盈亏</th>
-              <th style="width:10%">更新时间</th>
               <th>备注</th>
             </tr>
           </thead>
@@ -917,8 +930,8 @@ function dashboardHtmlPage() {
     }
     function statusClass(value) {
       const s = String(value || '').toLowerCase();
-      if (['held', 'ok', 'complete', 'planned', 'closed', 'sold'].includes(s)) return 'ok';
-      if (s.includes('pending') || s.includes('waiting') || s.includes('plan')) return 'warn';
+      if (['held', 'ok', 'complete', 'planned', 'closed', 'sold', 'refreshed'].includes(s)) return 'ok';
+      if (s.includes('pending') || s.includes('waiting') || s.includes('plan') || s.includes('protected')) return 'warn';
       if (s.includes('error') || s.includes('failed') || s.includes('disabled')) return 'bad';
       return 'info';
     }
@@ -951,8 +964,27 @@ function dashboardHtmlPage() {
       }
       return lastStatus;
     }
+    async function waitForAtrRefresh(previousUpdatedAt) {
+      const deadline = Date.now() + 25000;
+      while (Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        lastStatus = data;
+        const status = data.atrStopStatus || {};
+        const process = data.processes?.atrRefresh || {};
+        const updatedAt = status.updated_at || '';
+        if (!process.running && updatedAt && updatedAt !== previousUpdatedAt) return data;
+        if (!process.running && process.exitCode !== null && process.exitCode !== undefined) return data;
+      }
+      return lastStatus;
+    }
     function scrollStockPlanIntoView() {
       const node = $('stockPlanSummary');
+      if (node) node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    function scrollAtrIntoView() {
+      const node = $('atrSummary');
       if (node) node.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
     async function post(action) {
@@ -961,6 +993,7 @@ function dashboardHtmlPage() {
       const confirmMessage = button?.dataset?.confirm || '';
       if (confirmMessage && !window.confirm(confirmMessage)) return;
       const previousStockPlanAt = lastStatus?.stockRebalancePlan?.generated_at || '';
+      const previousAtrUpdatedAt = lastStatus?.atrStopStatus?.updated_at || '';
       busy = true;
       document.querySelectorAll('button').forEach((button) => { button.disabled = true; });
       try {
@@ -970,15 +1003,17 @@ function dashboardHtmlPage() {
           body: JSON.stringify({ envFile: $('envFile').value })
         });
         if (action === 'stock-rebalance-plan') await waitForStockPlanRefresh(previousStockPlanAt);
+        if (action === 'atr-stop-refresh') await waitForAtrRefresh(previousAtrUpdatedAt);
         await refresh();
         if (action === 'stock-rebalance-plan') scrollStockPlanIntoView();
+        if (action === 'atr-stop-refresh') scrollAtrIntoView();
       } finally {
         busy = false;
         document.querySelectorAll('button').forEach((button) => { button.disabled = false; });
       }
     }
     function renderProcesses(processes) {
-      const names = ['browser', 'capture', 'watchSim', 'exitMonitor', 'watchPlan', 'stockPlan', 'stockRebalance', 'atrStop', 'moomooCheck'];
+      const names = ['browser', 'capture', 'watchSim', 'exitMonitor', 'watchPlan', 'stockPlan', 'stockRebalance', 'atrRefresh', 'atrStop', 'moomooCheck'];
       $('processRows').innerHTML = names.map((name) => {
         const p = processes[name] || { label: name, running: false, lastLog: [] };
         let state = '<span class="warn">未启动</span>';
@@ -1008,26 +1043,52 @@ function dashboardHtmlPage() {
         '<tr><th>拦截</th><td>' + text((gate.reasons || []).join(', ')) + '</td></tr>' +
         '</tbody></table>';
     }
+    function renderAtrSummary(data, rows) {
+      const status = data.atrStopStatus || {};
+      if (!rows.length) {
+        $('atrSummary').innerHTML = '<div class="hint">暂无 ATR 点位，点击“刷新 ATR”从当前持仓计算。</div>';
+        return;
+      }
+      const calculated = rows.filter((row) => Number.isFinite(Number(row.current_stop_price))).length;
+      const protectedCount = rows.filter((row) => String(row.status || '').toUpperCase() === 'PROTECTED').length;
+      const disabledCount = rows.filter((row) => String(row.status || '').toUpperCase() === 'DISABLED').length;
+      const latestConfirmed = rows.map((row) => row.confirmed_bar_date || '').filter(Boolean).sort().slice(-1)[0] || '-';
+      const latestRowUpdated = rows.map((row) => row.updated_at || row.price_updated_at || '').filter(Boolean).sort().slice(-1)[0] || '';
+      const protectedSymbols = Array.isArray(status.protected_symbols) ? status.protected_symbols.join(', ') : '';
+      $('atrSummary').innerHTML =
+        '<div class="rebalance-summary">' +
+          '<div class="item"><div class="k">刷新阶段</div><div class="v">' + badge(status.phase || '未刷新') + '</div></div>' +
+          '<div class="item"><div class="k">ATR 参数</div><div class="v">ATR(' + text(status.atr_period || rows[0]?.atr_period || 21) + ') x ' + text(status.atr_multiplier || rows[0]?.atr_multiplier || 3.5) + '</div></div>' +
+          '<div class="item"><div class="k">最近确认日</div><div class="v mono">' + text(latestConfirmed) + '</div></div>' +
+          '<div class="item"><div class="k">更新时间</div><div class="v mono">' + fmtTime(status.updated_at || latestRowUpdated) + '</div></div>' +
+          '<div class="item"><div class="k">持仓数量</div><div class="v">' + text(status.positions ?? rows.length) + ' <span class="hint">展示 ' + text(status.displayed_positions ?? rows.length) + '</span></div></div>' +
+          '<div class="item"><div class="k">已计算点位</div><div class="v ok">' + text(status.calculated_positions ?? calculated) + '</div></div>' +
+          '<div class="item"><div class="k">保护标的</div><div class="v warn">' + text(status.protected_positions ?? protectedCount) + (protectedSymbols ? ' <span class="hint">' + text(protectedSymbols) + '</span>' : '') + '</div></div>' +
+          '<div class="item"><div class="k">异常/跳过</div><div class="v">' + text(status.disabled_positions ?? disabledCount) + '</div></div>' +
+        '</div>';
+    }
     function renderAtr(data) {
       const rows = Object.values(data.atrStopState?.positions || {}).sort((a, b) => String(a.symbol).localeCompare(String(b.symbol)));
+      renderAtrSummary(data, rows);
       $('atrRows').innerHTML = rows.length ? rows.map((row) => {
         const distance = Number(row.distance_to_stop_pct);
+        const distanceCls = distance <= 0 ? 'bad' : (distance <= 2 ? 'warn' : 'ok');
         const distanceCell = Number.isFinite(distance)
-          ? '<span class="' + (distance <= 2 ? 'warn' : 'ok') + '">' + pct(distance) + '</span>'
+          ? '<span class="' + distanceCls + '">' + pct(distance) + '</span>'
           : '-';
-        const pnl = signedMoney(row.unrealized_pnl) + ' / ' + pct(row.unrealized_pnl_pct);
+        const note = row.error || row.protection_reason || row.sold_reason || row.pending_order_status || row.stop_basis || '';
         return '<tr>' +
           '<td class="mono">' + text(row.symbol) + '</td>' +
           '<td>' + badge(row.status) + '</td>' +
           '<td>' + text(row.shares) + '</td>' +
-          '<td>' + number(row.current_price, 2) + '</td>' +
+          '<td class="mono">' + text(row.confirmed_bar_date || row.last_update_date || '-') + '</td>' +
+          '<td>' + number(row.confirmed_close_price, 2) + '</td>' +
+          '<td>' + number(row.highest_close_since_entry, 2) + '</td>' +
           '<td>' + number(row.atr_points ?? row.current_atr, 4) + '</td>' +
           '<td>' + number(row.current_stop_price, 2) + '</td>' +
+          '<td>' + number(row.current_price, 2) + '</td>' +
           '<td>' + distanceCell + '</td>' +
-          '<td>' + number(row.entry_price, 2) + '</td>' +
-          '<td>' + pnl + '</td>' +
-          '<td class="mono">' + fmtTime(row.price_updated_at || row.updated_at || row.last_update_date) + '</td>' +
-          '<td>' + text(row.error || row.sold_reason || row.pending_order_status || '') + '</td>' +
+          '<td>' + text(note) + '</td>' +
           '</tr>';
       }).join('') : '<tr><td colspan="11" class="hint">暂无 ATR 持仓状态</td></tr>';
     }
@@ -1158,7 +1219,7 @@ function dashboardHtmlPage() {
       ).join('') : '<tr><td colspan="4" class="hint">暂无账户检查结果</td></tr>';
     }
     function renderLogs(processes) {
-      const names = ['capture', 'watchSim', 'exitMonitor', 'watchPlan', 'stockPlan', 'stockRebalance', 'atrStop', 'moomooCheck'];
+      const names = ['capture', 'watchSim', 'exitMonitor', 'watchPlan', 'stockPlan', 'stockRebalance', 'atrRefresh', 'atrStop', 'moomooCheck'];
       const parts = [];
       for (const name of names) {
         const p = processes[name];
@@ -1186,9 +1247,13 @@ function dashboardHtmlPage() {
         : (p.stockPlan?.running ? '<span class="info">计划中</span>' : (data.stockRebalancePlan?.targets?.length
           ? '<span class="warn">卖 ' + text(stockCounts.sell) + ' / 买 ' + text(stockCounts.buy) + '</span>'
           : '<span class="warn">' + text(data.stockRebalanceStatus?.phase || '未运行') + '</span>'));
+      const atrRows = Object.values(data.atrStopState?.positions || {});
+      const atrCalculated = atrRows.filter((row) => Number.isFinite(Number(row.current_stop_price))).length;
       $('statAtr').innerHTML = p.atrStop?.running
         ? '<span class="ok">监控中</span>'
-        : '<span class="warn">' + text(data.atrStopStatus?.phase || '未运行') + '</span>';
+        : (p.atrRefresh?.running ? '<span class="info">计算中</span>' : (atrCalculated > 0
+          ? '<span class="warn">点位 ' + text(atrCalculated) + '</span>'
+          : '<span class="warn">' + text(data.atrStopStatus?.phase || '未运行') + '</span>'));
       renderProcesses(p);
       renderLatestPlan(data.latestPlan);
       renderAtr(data);

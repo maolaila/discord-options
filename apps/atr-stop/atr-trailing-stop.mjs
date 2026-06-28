@@ -177,6 +177,11 @@ export function updateDailyAtrStop(position, bars, opts = {}) {
     current_atr: atr,
     atr_points: atr,
     current_stop_price: Number(currentStop.toFixed(4)),
+    confirmed_bar_date: latest.date,
+    confirmed_close_price: Number(latest.close.toFixed(4)),
+    stop_basis: 'highest_confirmed_close_minus_atr_multiple',
+    atr_period: period,
+    atr_multiplier: multiplier,
     last_update_date: latest.date,
     status: position.status === 'PENDING_SELL' || position.status === 'SOLD' ? position.status : 'HELD',
     error: null,
@@ -269,6 +274,11 @@ function initializePosition(row, previous, bars) {
     current_atr: numeric(previous?.current_atr),
     atr_points: numeric(previous?.atr_points) ?? numeric(previous?.current_atr),
     current_stop_price: numeric(previous?.current_stop_price),
+    confirmed_bar_date: previous?.confirmed_bar_date || '',
+    confirmed_close_price: numeric(previous?.confirmed_close_price),
+    stop_basis: previous?.stop_basis || '',
+    atr_period: numeric(previous?.atr_period),
+    atr_multiplier: numeric(previous?.atr_multiplier),
     last_update_date: previous?.last_update_date || '',
     status,
     error: previous?.error || null,
@@ -732,11 +742,38 @@ async function runCycle(client, config, quoteFeed, settings, execute) {
   return monitor;
 }
 
+async function refreshAtrPoints(client, config, settings) {
+  const state = loadState();
+  const positions = await refreshAtrState(client, config, state, settings);
+  await writeState(state);
+  const rows = Object.values(state.positions || {});
+  await writeStatus({
+    phase: 'refreshed',
+    execute: false,
+    mode: 'atr_refresh_only',
+    atr_period: settings.period,
+    atr_multiplier: settings.multiplier,
+    protected_symbols: settings.protectedSymbols,
+    positions: positions.length,
+    displayed_positions: rows.length,
+    calculated_positions: rows.filter((position) => numeric(position.current_stop_price) !== null).length,
+    protected_positions: rows.filter((position) => position.status === 'PROTECTED').length,
+    disabled_positions: rows.filter((position) => position.status === 'DISABLED').length,
+    state_path: path.relative(PROJECT_ROOT, statePath),
+  });
+  return {
+    positions: positions.length,
+    displayed: rows.length,
+    calculated: rows.filter((position) => numeric(position.current_stop_price) !== null).length,
+  };
+}
+
 async function main() {
   const config = loadMoomooConfig({ envFile: args.env });
   const execute = isTruthyFlag(args['execute-real']);
-  if (!execute) {
-    throw new Error('ATR stop requires --execute-real because this business line is an active real-account stop program.');
+  const refreshOnly = isTruthyFlag(args['refresh-only']) || isTruthyFlag(args.refresh) || isTruthyFlag(args['plan-only']);
+  if (!execute && !refreshOnly) {
+    throw new Error('ATR stop requires --refresh-only for read-only point refresh, or --execute-real for active stop monitoring.');
   }
   assertRealExecutionAllowed(config, execute);
   const settings = {
@@ -758,7 +795,12 @@ async function main() {
   const quoteFeed = createMoomooQuoteFeed(connection.client, config);
   try {
     const account = await ensureRealAccount(connection.client, config);
-    await writeStatus({ phase: 'started', execute, account, poll_seconds: pollSeconds, ...settings });
+    await writeStatus({ phase: refreshOnly ? 'refreshing' : 'started', execute, account, poll_seconds: pollSeconds, ...settings });
+    if (refreshOnly) {
+      const result = await refreshAtrPoints(connection.client, config, settings);
+      console.log(`[${new Date().toISOString()}] ATR refreshed positions=${result.positions} calculated=${result.calculated}`);
+      return;
+    }
     for (;;) {
       const result = await runCycle(connection.client, config, quoteFeed, settings, execute);
       console.log(`[${new Date().toISOString()}] ATR stop watched=${result.watched} triggered=${result.triggered} submitted=${result.submitted}`);

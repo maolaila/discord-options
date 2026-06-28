@@ -36,6 +36,11 @@ test('daily ATR stop updates highest close and never lowers the stop', () => {
   assert.equal(raised.current_atr, 2);
   assert.equal(raised.highest_close_since_entry, 121);
   assert.equal(raised.current_stop_price, 114);
+  assert.equal(raised.confirmed_bar_date, '2026-05-22');
+  assert.equal(raised.confirmed_close_price, 121);
+  assert.equal(raised.stop_basis, 'highest_confirmed_close_minus_atr_multiple');
+  assert.equal(raised.atr_period, 21);
+  assert.equal(raised.atr_multiplier, 3.5);
 
   const notLowered = updateDailyAtrStop({
     ...raised,

@@ -5,12 +5,14 @@ import { fileURLToPath } from 'node:url';
 import {
   PROJECT_ROOT,
   QOT_MARKET_US_SECURITY,
+  TRD_CURRENCY_USD,
   TRD_ENV_REAL,
   connectMoomoo,
   createMoomooQuoteFeed,
   ensureDir,
   fetchFunds,
   fetchMoomooAccounts,
+  fetchOrderList,
   fetchPositionList,
   loadMoomooConfig,
   maskId,
@@ -27,6 +29,7 @@ export const defaultTargetsPath = path.join(PROJECT_ROOT, 'stock-rebalance-targe
 const statusPath = path.join(logsDir, 'stock-rebalance-status.json');
 const latestPlanPath = path.join(logsDir, 'stock-rebalance-plan-latest.json');
 const ordersPath = path.join(logsDir, 'stock-rebalance-orders.ndjson');
+const DEFAULT_SELL_PHASE_TIMEOUT_SECONDS = 120;
 
 function numeric(value) {
   if (value === null || value === undefined || value === '') return null;
@@ -303,6 +306,103 @@ async function appendOrder(payload) {
   await fsp.appendFile(ordersPath, `${JSON.stringify(payload)}\n`, 'utf8');
 }
 
+export function splitRebalanceOrders(orders = []) {
+  const sellOrders = [];
+  const buyOrders = [];
+  for (const order of orders || []) {
+    const side = String(order?.side || '').toUpperCase();
+    if (side === 'SELL') sellOrders.push(order);
+    else if (side === 'BUY') buyOrders.push(order);
+  }
+  return { sellOrders, buyOrders };
+}
+
+function brokerOrderIdEx(response) {
+  return String(response?.s2c?.orderIDEx || '');
+}
+
+function brokerOrderId(response) {
+  const id = response?.s2c?.orderID;
+  return id === undefined || id === null || id === '' ? null : id;
+}
+
+function findOrderByIdEx(orderList, orderIDEx) {
+  const id = String(orderIDEx || '');
+  if (!id) return null;
+  return (orderList || []).find((order) => String(order?.orderIDEx || '') === id) || null;
+}
+
+export function isFilledOrderStatus(status) {
+  return Number(status) === 11;
+}
+
+export function isTerminalUnfilledOrderStatus(status) {
+  return [3, 14, 15, 21, 22, 23, 24].includes(Number(status));
+}
+
+function shortBrokerOrder(row) {
+  if (!row) return null;
+  return {
+    order_id_ex: String(row.orderIDEx || ''),
+    order_status: row.orderStatus ?? null,
+    fill_qty: numeric(row.fillQty) ?? 0,
+    fill_avg_price: numeric(row.fillAvgPrice) ?? null,
+    last_error: row.lastErrMsg || '',
+  };
+}
+
+export function summarizeSellPhase(submittedSellOrders = [], brokerOrders = []) {
+  const orders = (submittedSellOrders || []).map((submitted) => {
+    const requiredQty = Math.max(0, Math.floor(numeric(submitted?.qty) ?? 0));
+    if (submitted?.status !== 'submitted') {
+      return {
+        order_id_ex: submitted?.order_id_ex || '',
+        symbol: submitted?.symbol || '',
+        qty: requiredQty,
+        submitted_status: submitted?.status || 'unknown',
+        broker_order: null,
+        fill_qty: 0,
+        complete: false,
+        terminal_unfilled: false,
+        open: false,
+        failure_reason: submitted?.error || 'submit_failed',
+      };
+    }
+    const brokerOrder = findOrderByIdEx(brokerOrders, submitted.order_id_ex);
+    const fillQty = Math.floor(numeric(brokerOrder?.fillQty) ?? 0);
+    const orderStatus = brokerOrder?.orderStatus ?? null;
+    const complete = requiredQty > 0 && (fillQty >= requiredQty || isFilledOrderStatus(orderStatus));
+    const terminalUnfilled = !complete && isTerminalUnfilledOrderStatus(orderStatus);
+    return {
+      order_id_ex: submitted.order_id_ex || '',
+      symbol: submitted.symbol || '',
+      qty: requiredQty,
+      submitted_status: submitted.status,
+      broker_order: shortBrokerOrder(brokerOrder),
+      fill_qty: fillQty,
+      complete,
+      terminal_unfilled: terminalUnfilled,
+      open: !complete && !terminalUnfilled,
+      failure_reason: terminalUnfilled ? 'sell_order_terminal_before_full_fill' : '',
+    };
+  });
+  const completeCount = orders.filter((order) => order.complete).length;
+  const failedCount = orders.filter((order) => order.failure_reason).length;
+  const openCount = orders.filter((order) => order.open).length;
+  return {
+    total: orders.length,
+    complete_count: completeCount,
+    failed_count: failedCount,
+    open_count: openCount,
+    all_complete: orders.length === completeCount,
+    orders,
+  };
+}
+
+export function shouldProceedToBuyPhase(sellPhase) {
+  return Boolean(sellPhase && sellPhase.all_complete);
+}
+
 function assertRealAccountAllowed(config, execute) {
   config.trdEnv = TRD_ENV_REAL;
   if (!execute) return;
@@ -390,7 +490,7 @@ async function quoteSymbols(quoteFeed, symbols, config) {
 
 async function createPlan({ client, quoteFeed, config, targets }) {
   const positionsResponse = await fetchPositionList(client, config);
-  const fundsResponse = await fetchFunds(client, config);
+  const fundsResponse = await fetchFunds(client, config, { currency: TRD_CURRENCY_USD });
   const positions = normalizeStockPositions(normalizeForJson(positionsResponse).s2c?.positionList || []);
   const symbols = [...new Set([
     ...targets.map((target) => target.symbol),
@@ -408,12 +508,13 @@ async function createPlan({ client, quoteFeed, config, targets }) {
   return plan;
 }
 
-async function executePlan(client, config, plan) {
+async function submitOrders(client, config, orders, executionPhase) {
   const submitted = [];
-  for (const order of plan.orders) {
+  for (const order of orders) {
     const payload = {
       submitted_at: new Date().toISOString(),
       business_line: 'stock_rebalance_live',
+      execution_phase: executionPhase,
       side: order.side,
       symbol: order.symbol,
       qty: order.qty,
@@ -431,6 +532,8 @@ async function executePlan(client, config, plan) {
         ? await placeMarketBuyOrder(client, config, request)
         : await placeMarketSellOrder(client, config, request);
       payload.status = 'submitted';
+      payload.order_id_ex = brokerOrderIdEx(response);
+      payload.order_id = brokerOrderId(response);
       payload.response = normalizeForJson(response);
     } catch (error) {
       payload.status = 'submit_failed';
@@ -440,6 +543,105 @@ async function executePlan(client, config, plan) {
     await appendOrder(payload);
   }
   return submitted;
+}
+
+async function fetchBrokerOrders(client, config) {
+  return normalizeForJson((await fetchOrderList(client, config)).s2c?.orderList || []);
+}
+
+async function waitForSellPhase(client, config, submittedSellOrders, opts = {}) {
+  const timeoutMs = Math.max(1, Number(opts.timeoutSeconds ?? DEFAULT_SELL_PHASE_TIMEOUT_SECONDS)) * 1000;
+  const pollSeconds = Math.max(1, Number(opts.pollSeconds ?? 2));
+  const startedAt = Date.now();
+  let summary = summarizeSellPhase(submittedSellOrders, []);
+  if (submittedSellOrders.length === 0 || !summary.open_count) return summary;
+
+  while (Date.now() - startedAt <= timeoutMs) {
+    const brokerOrders = await fetchBrokerOrders(client, config);
+    summary = summarizeSellPhase(submittedSellOrders, brokerOrders);
+    if (typeof opts.onPoll === 'function') await opts.onPoll(summary);
+    if (summary.all_complete || summary.failed_count > 0 || summary.open_count === 0) return summary;
+    await new Promise((resolve) => setTimeout(resolve, pollSeconds * 1000));
+  }
+
+  const brokerOrders = await fetchBrokerOrders(client, config);
+  summary = summarizeSellPhase(submittedSellOrders, brokerOrders);
+  return {
+    ...summary,
+    timed_out: summary.open_count > 0,
+  };
+}
+
+async function executeSellThenBuy({ client, quoteFeed, config, targets, executionPlan, targetFile, account, pollSeconds, sellPhaseTimeoutSeconds }) {
+  const { sellOrders } = splitRebalanceOrders(executionPlan.orders);
+  await writeStatus({
+    phase: 'sell_phase_submitting',
+    target_file: targetFile,
+    planned_sell_orders: sellOrders.length,
+    planned_buy_orders: splitRebalanceOrders(executionPlan.orders).buyOrders.length,
+    account,
+  });
+  const submittedSells = await submitOrders(client, config, sellOrders, 'sell_phase');
+  const sellPhase = await waitForSellPhase(client, config, submittedSells, {
+    timeoutSeconds: sellPhaseTimeoutSeconds,
+    pollSeconds,
+    onPoll: (summary) => writeStatus({
+      phase: 'sell_phase_waiting',
+      target_file: targetFile,
+      sell_phase: summary,
+      account,
+    }),
+  });
+
+  if (!shouldProceedToBuyPhase(sellPhase)) {
+    await writeStatus({
+      phase: 'sell_phase_incomplete_buy_phase_skipped',
+      target_file: targetFile,
+      sell_phase: sellPhase,
+      submitted_sell_orders: submittedSells.filter((row) => row.status === 'submitted').length,
+      failed_sell_orders: submittedSells.filter((row) => row.status !== 'submitted').length,
+      account,
+      orders_path: path.relative(PROJECT_ROOT, ordersPath),
+    });
+    return {
+      sellPlan: executionPlan,
+      buyPlan: null,
+      submittedSells,
+      submittedBuys: [],
+      sellPhase,
+      buyPhaseSkipped: true,
+    };
+  }
+
+  await writeStatus({
+    phase: 'buy_phase_planning',
+    target_file: targetFile,
+    sell_phase: sellPhase,
+    account,
+  });
+  const buyPlan = await createPlan({ client, quoteFeed, config, targets });
+  buyPlan.target_file = targetFile;
+  buyPlan.execution_phase = 'post_sell_buy_plan';
+  buyPlan.prior_sell_phase = sellPhase;
+  await writeLatestPlan(buyPlan);
+
+  const { buyOrders } = splitRebalanceOrders(buyPlan.orders);
+  await writeStatus({
+    phase: 'buy_phase_submitting',
+    target_file: targetFile,
+    sell_phase: sellPhase,
+    planned_buy_orders: buyOrders.length,
+    account,
+  });
+  const submittedBuys = await submitOrders(client, config, buyOrders, 'buy_phase');
+  return {
+    sellPlan: executionPlan,
+    buyPlan,
+    submittedSells,
+    submittedBuys,
+    sellPhase,
+    buyPhaseSkipped: false,
+  };
 }
 
 async function main() {
@@ -452,6 +654,7 @@ async function main() {
   }
   const waitOpen = isTruthyFlag(args['wait-open']);
   const pollSeconds = Math.max(1, Number(args['poll-seconds'] || 5));
+  const sellPhaseTimeoutSeconds = Math.max(1, Number(args['sell-phase-timeout-seconds'] || DEFAULT_SELL_PHASE_TIMEOUT_SECONDS));
   const config = loadMoomooConfig({ envFile: args.env });
   assertRealAccountAllowed(config, execute);
 
@@ -465,6 +668,7 @@ async function main() {
       target_count: targets.length,
       execute,
       wait_open: waitOpen,
+      sell_phase_timeout_seconds: sellPhaseTimeoutSeconds,
       account,
     });
     const prePlan = await createPlan({ client: connection.client, quoteFeed, config, targets });
@@ -481,20 +685,38 @@ async function main() {
 
     const executionPlan = await createPlan({ client: connection.client, quoteFeed, config, targets });
     executionPlan.target_file = file;
-    executionPlan.execution_phase = 'execution_plan';
+    executionPlan.execution_phase = 'open_sell_plan';
     await writeLatestPlan(executionPlan);
-    const submitted = await executePlan(connection.client, config, executionPlan);
+    const result = await executeSellThenBuy({
+      client: connection.client,
+      quoteFeed,
+      config,
+      targets,
+      executionPlan,
+      targetFile: file,
+      account,
+      pollSeconds,
+      sellPhaseTimeoutSeconds,
+    });
+    const submitted = [...result.submittedSells, ...result.submittedBuys];
+    const buyPlan = result.buyPlan || { orders: [] };
+    const { sellOrders } = splitRebalanceOrders(executionPlan.orders);
+    const { buyOrders } = splitRebalanceOrders(buyPlan.orders);
     await writeStatus({
-      phase: 'complete',
+      phase: result.buyPhaseSkipped ? 'complete_buy_phase_skipped' : 'complete',
       target_file: file,
       target_count: targets.length,
       planned_orders: executionPlan.orders.length,
+      planned_sell_orders: sellOrders.length,
+      planned_buy_orders: buyOrders.length,
+      sell_phase: result.sellPhase,
+      buy_phase_skipped: result.buyPhaseSkipped,
       submitted_orders: submitted.filter((row) => row.status === 'submitted').length,
       failed_orders: submitted.filter((row) => row.status !== 'submitted').length,
       account,
       orders_path: path.relative(PROJECT_ROOT, ordersPath),
     });
-    console.log(`Submitted ${submitted.filter((row) => row.status === 'submitted').length}/${submitted.length} stock rebalance orders.`);
+    console.log(`Submitted ${submitted.filter((row) => row.status === 'submitted').length}/${submitted.length} stock rebalance orders. Buy phase ${result.buyPhaseSkipped ? 'skipped' : 'submitted'}.`);
   } finally {
     await quoteFeed.close();
     connection.close();

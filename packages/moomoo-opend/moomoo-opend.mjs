@@ -16,6 +16,7 @@ export const TRD_ENV_SIMULATE = 0;
 export const TRD_ENV_REAL = 1;
 export const TRD_MARKET_US = 2;
 export const TRD_SEC_MARKET_US = 2;
+export const TRD_CURRENCY_USD = 2;
 export const TRD_SIDE_BUY = 1;
 export const TRD_SIDE_SELL = 2;
 export const ORDER_TYPE_LIMIT = 1;

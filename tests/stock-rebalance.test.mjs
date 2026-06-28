@@ -3,6 +3,9 @@ import test from 'node:test';
 import {
   buildRebalancePlan,
   parseTargetsCsv,
+  shouldProceedToBuyPhase,
+  splitRebalanceOrders,
+  summarizeSellPhase,
 } from '../apps/stock-rebalance/stock-rebalance-live.mjs';
 
 test('stock target CSV requires exactly five symbols and defaults to equal weights', () => {
@@ -94,4 +97,46 @@ AMZN,20
     'SPCX:4:protected_stock_symbol',
   ]);
   assert.equal(plan.off_sheet_positions.some((row) => row.symbol === 'SPCX'), false);
+});
+
+test('stock rebalance execution separates sell phase before buy phase', () => {
+  const orders = [
+    { side: 'SELL', symbol: 'TSLA', qty: 2 },
+    { side: 'BUY', symbol: 'AAPL', qty: 1 },
+    { side: 'SELL', symbol: 'MSFT', qty: 3 },
+    { side: 'BUY', symbol: 'NVDA', qty: 4 },
+  ];
+
+  const { sellOrders, buyOrders } = splitRebalanceOrders(orders);
+
+  assert.deepEqual(sellOrders.map((order) => `${order.side}:${order.symbol}:${order.qty}`), [
+    'SELL:TSLA:2',
+    'SELL:MSFT:3',
+  ]);
+  assert.deepEqual(buyOrders.map((order) => `${order.side}:${order.symbol}:${order.qty}`), [
+    'BUY:AAPL:1',
+    'BUY:NVDA:4',
+  ]);
+});
+
+test('stock rebalance only proceeds to buy phase after all submitted sells fully fill', () => {
+  const submittedSells = [
+    { status: 'submitted', order_id_ex: 'S1', symbol: 'AAPL', qty: 2 },
+    { status: 'submitted', order_id_ex: 'S2', symbol: 'MSFT', qty: 3 },
+  ];
+
+  const complete = summarizeSellPhase(submittedSells, [
+    { orderIDEx: 'S1', orderStatus: 11, fillQty: 2 },
+    { orderIDEx: 'S2', orderStatus: 11, fillQty: 3 },
+  ]);
+  assert.equal(complete.all_complete, true);
+  assert.equal(shouldProceedToBuyPhase(complete), true);
+
+  const partialCancelled = summarizeSellPhase(submittedSells, [
+    { orderIDEx: 'S1', orderStatus: 11, fillQty: 2 },
+    { orderIDEx: 'S2', orderStatus: 14, fillQty: 1 },
+  ]);
+  assert.equal(partialCancelled.all_complete, false);
+  assert.equal(partialCancelled.failed_count, 1);
+  assert.equal(shouldProceedToBuyPhase(partialCancelled), false);
 });

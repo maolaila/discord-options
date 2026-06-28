@@ -3,10 +3,15 @@ import test from 'node:test';
 import {
   MODIFY_ORDER_OP_CANCEL,
   ORDER_TYPE_MARKET,
+  ORDER_TYPE_STOP,
+  SESSION_RTH,
+  TIME_IN_FORCE_GTC,
   TRD_SIDE_BUY,
+  TRD_SIDE_SELL,
   buildCancelOrderRequest,
   buildMarketBuyOrderRequest,
   buildOptionExecutionQuote,
+  buildStopMarketSellOrderRequest,
   isProtectedStockSymbol,
   loadMoomooConfig,
   parseProtectedStockSymbols,
@@ -144,6 +149,30 @@ test('market stock order request uses market order type and whole-share quantity
   assert.equal(request.c2s.code, 'AAPL');
   assert.equal(request.c2s.qty, 7);
   assert.equal(request.c2s.price, undefined);
+});
+
+test('GTC stop-market sell order request uses auxPrice and RTH session', () => {
+  const request = buildStopMarketSellOrderRequest({
+    trdEnv: 1,
+    trdMarket: 2,
+    accId: '123456',
+  }, {
+    code: 'AAPL',
+    qty: 7,
+    stopPrice: 123.45,
+    remark: 'atr-stop:test',
+    positionID: 987,
+  });
+
+  assert.equal(request.c2s.trdSide, TRD_SIDE_SELL);
+  assert.equal(request.c2s.orderType, ORDER_TYPE_STOP);
+  assert.equal(request.c2s.code, 'AAPL');
+  assert.equal(request.c2s.qty, 7);
+  assert.equal(request.c2s.auxPrice, 123.45);
+  assert.equal(request.c2s.price, undefined);
+  assert.equal(request.c2s.timeInForce, TIME_IN_FORCE_GTC);
+  assert.equal(request.c2s.session, SESSION_RTH);
+  assert.equal(request.c2s.positionID, 987);
 });
 
 test('cancel order request uses ModifyOrder cancel operation and orderIDEx', () => {

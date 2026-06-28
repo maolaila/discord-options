@@ -932,6 +932,7 @@ function dashboardHtmlPage() {
       const s = String(value || '').toLowerCase();
       if (['held', 'ok', 'complete', 'planned', 'closed', 'sold', 'refreshed'].includes(s)) return 'ok';
       if (s.includes('pending') || s.includes('waiting') || s.includes('plan') || s.includes('protected')) return 'warn';
+      if (s.includes('triggered')) return 'bad';
       if (s.includes('error') || s.includes('failed') || s.includes('disabled')) return 'bad';
       return 'info';
     }
@@ -1058,7 +1059,7 @@ function dashboardHtmlPage() {
       $('atrSummary').innerHTML =
         '<div class="rebalance-summary">' +
           '<div class="item"><div class="k">刷新阶段</div><div class="v">' + badge(status.phase || '未刷新') + '</div></div>' +
-          '<div class="item"><div class="k">ATR 参数</div><div class="v">ATR(' + text(status.atr_period || rows[0]?.atr_period || 21) + ') x ' + text(status.atr_multiplier || rows[0]?.atr_multiplier || 3.5) + '</div></div>' +
+          '<div class="item"><div class="k">ATR 参数</div><div class="v">ATR(' + text(status.atr_period || rows[0]?.atr_period || 21) + ') x ' + text(status.atr_multiplier || rows[0]?.atr_multiplier || 2.5) + '</div></div>' +
           '<div class="item"><div class="k">最近确认日</div><div class="v mono">' + text(latestConfirmed) + '</div></div>' +
           '<div class="item"><div class="k">更新时间</div><div class="v mono">' + fmtTime(status.updated_at || latestRowUpdated) + '</div></div>' +
           '<div class="item"><div class="k">持仓数量</div><div class="v">' + text(status.positions ?? rows.length) + ' <span class="hint">展示 ' + text(status.displayed_positions ?? rows.length) + '</span></div></div>' +
@@ -1076,7 +1077,7 @@ function dashboardHtmlPage() {
         const distanceCell = Number.isFinite(distance)
           ? '<span class="' + distanceCls + '">' + pct(distance) + '</span>'
           : '-';
-        const note = row.error || row.protection_reason || row.sold_reason || row.pending_order_status || row.stop_basis || '';
+        const note = row.error || row.trigger_reason || row.protection_reason || row.sold_reason || row.pending_order_status || row.stop_order_status || row.stop_source || row.stop_basis || '';
         return '<tr>' +
           '<td class="mono">' + text(row.symbol) + '</td>' +
           '<td>' + badge(row.status) + '</td>' +

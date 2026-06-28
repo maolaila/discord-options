@@ -6,8 +6,8 @@ import {
   PROJECT_ROOT,
   QOT_MARKET_US_SECURITY,
   TRD_ENV_REAL,
+  cancelOrder,
   connectMoomoo,
-  createMoomooQuoteFeed,
   ensureDir,
   fetchMoomooAccounts,
   fetchOrderFillList,
@@ -18,8 +18,8 @@ import {
   maskId,
   normalizeForJson,
   parseCliArgs,
-  placeLimitSellOrder,
   placeMarketSellOrder,
+  placeStopMarketSellOrder,
   requestHistoryKL,
   selectConfiguredUsRealAccount,
 } from '../../packages/moomoo-opend/moomoo-opend.mjs';
@@ -30,9 +30,14 @@ const statusPath = path.join(logsDir, 'atr-stop-status.json');
 const statePath = path.join(logsDir, 'atr-stop-state.json');
 const ordersPath = path.join(logsDir, 'atr-stop-orders.ndjson');
 const defaultAtrPeriod = 21;
-const defaultAtrMultiplier = 3.5;
+const defaultAtrMultiplier = 2.5;
 const defaultLimitBufferPct = 0.35;
 const defaultFallbackSeconds = 45;
+const defaultMaxInitialLossPct = 0.12;
+const defaultBreakevenTriggerProfitPct = 0.08;
+const defaultBreakevenFloorProfitPct = 0.005;
+const defaultProfitProtectionTriggerPct = 0.15;
+const defaultProfitProtectionMaxDrawdownPct = 0.15;
 
 function numeric(value) {
   if (value === null || value === undefined || value === '') return null;
@@ -41,18 +46,27 @@ function numeric(value) {
 }
 
 function roundMoney(value) {
+  if (value === null || value === undefined || value === '') return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? Number(parsed.toFixed(2)) : null;
 }
 
 function roundPct(value) {
+  if (value === null || value === undefined || value === '') return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? Number(parsed.toFixed(4)) : null;
 }
 
 function roundPrice(value) {
+  if (value === null || value === undefined || value === '') return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? Number(parsed.toFixed(4)) : null;
+}
+
+function pctFraction(value, defaultValue) {
+  const parsed = numeric(value);
+  if (parsed === null) return defaultValue;
+  return parsed > 1 ? parsed / 100 : parsed;
 }
 
 function decimalPlaces(value) {
@@ -79,6 +93,17 @@ function isTruthyFlag(value) {
   if (value === undefined || value === null || value === false) return false;
   if (value === true) return true;
   return ['1', 'true', 'yes', 'y', 'on'].includes(String(value).trim().toLowerCase());
+}
+
+function booleanSetting(value, defaultValue) {
+  if (value === undefined || value === null || value === '') return defaultValue;
+  return isTruthyFlag(value);
+}
+
+function validatePctFraction(value, name) {
+  if (!Number.isFinite(value) || value < 0 || value >= 1) {
+    throw new Error(`${name} must be a fraction between 0 and 1, or a percent value between 0 and 100.`);
+  }
 }
 
 function normalizeSymbol(value) {
@@ -158,32 +183,90 @@ export function calculateAtrWilder(bars, period = defaultAtrPeriod) {
 export function updateDailyAtrStop(position, bars, opts = {}) {
   const period = opts.period ?? defaultAtrPeriod;
   const multiplier = opts.multiplier ?? defaultAtrMultiplier;
+  const maxInitialLossPct = pctFraction(opts.maxInitialLossPct, defaultMaxInitialLossPct);
+  const breakevenEnabled = opts.breakevenEnabled !== false;
+  const breakevenTriggerProfitPct = pctFraction(opts.breakevenTriggerProfitPct, defaultBreakevenTriggerProfitPct);
+  const breakevenFloorProfitPct = pctFraction(opts.breakevenFloorProfitPct, defaultBreakevenFloorProfitPct);
+  const profitProtectionEnabled = opts.profitProtectionEnabled !== false;
+  const profitProtectionTriggerPct = pctFraction(opts.profitProtectionTriggerPct, defaultProfitProtectionTriggerPct);
+  const profitProtectionMaxDrawdownPct = pctFraction(opts.profitProtectionMaxDrawdownPct, defaultProfitProtectionMaxDrawdownPct);
   const atr = calculateAtrWilder(bars, period);
   const latest = bars[bars.length - 1];
+  const entryPrice = numeric(position.entry_price) ?? numeric(latest.close);
   const closeSinceEntry = String(position.entry_date || '')
     ? bars.filter((bar) => bar.date >= String(position.entry_date)).map((bar) => numeric(bar.close)).filter((value) => value !== null)
     : [];
   const historicalHighestClose = closeSinceEntry.length > 0 ? Math.max(...closeSinceEntry) : null;
   const highestClose = Math.max(
-    numeric(position.highest_close_since_entry) ?? historicalHighestClose ?? numeric(position.entry_price) ?? latest.close,
+    numeric(position.highest_close_since_entry) ?? historicalHighestClose ?? entryPrice ?? latest.close,
     latest.close,
   );
-  const candidateStop = highestClose - multiplier * atr;
   const previousStop = numeric(position.current_stop_price);
-  const currentStop = previousStop === null ? candidateStop : Math.max(previousStop, candidateStop);
+  const atrStop = highestClose - multiplier * atr;
+  const initialLossFloor = entryPrice === null ? null : entryPrice * (1 - maxInitialLossPct);
+  const breakevenFloor = breakevenEnabled
+    && entryPrice !== null
+    && highestClose >= entryPrice * (1 + breakevenTriggerProfitPct)
+    ? entryPrice * (1 + breakevenFloorProfitPct)
+    : null;
+  const profitTrailingFloor = profitProtectionEnabled
+    && entryPrice !== null
+    && highestClose >= entryPrice * (1 + profitProtectionTriggerPct)
+    ? highestClose * (1 - profitProtectionMaxDrawdownPct)
+    : null;
+  const stopComponents = {
+    previous_stop: roundPrice(previousStop),
+    atr_stop: roundPrice(atrStop),
+    initial_loss_floor: roundPrice(initialLossFloor),
+    breakeven_floor: roundPrice(breakevenFloor),
+    profit_trailing_floor: roundPrice(profitTrailingFloor),
+  };
+  const candidateStops = Object.entries(stopComponents)
+    .filter(([, value]) => numeric(value) !== null)
+    .map(([source, value]) => ({ source, value: Number(value) }));
+  const currentStop = Math.max(...candidateStops.map((item) => item.value));
+  const currentStopRounded = roundPrice(currentStop);
+  const stopSource = candidateStops
+    .filter((item) => Math.abs(item.value - currentStopRounded) < 0.0001)
+    .map((item) => item.source)
+    .join(',');
+  const stopMovedUp = previousStop === null || currentStopRounded > previousStop + 0.0001;
+  const closeTriggeredAfterClose = numeric(latest.close) !== null && currentStopRounded !== null && latest.close <= currentStopRounded;
+  const nextStatus = position.status === 'PENDING_SELL' || position.status === 'SOLD'
+    ? position.status
+    : (closeTriggeredAfterClose ? 'STOP_TRIGGERED_AFTER_CLOSE' : 'HELD');
   return {
     ...position,
     highest_close_since_entry: Number(highestClose.toFixed(4)),
     current_atr: atr,
     atr_points: atr,
-    current_stop_price: Number(currentStop.toFixed(4)),
+    current_stop_price: currentStopRounded,
+    previous_stop_price: roundPrice(previousStop),
+    atr_stop_price: stopComponents.atr_stop,
+    initial_loss_floor: stopComponents.initial_loss_floor,
+    breakeven_floor: stopComponents.breakeven_floor,
+    profit_trailing_floor: stopComponents.profit_trailing_floor,
+    stop_components: stopComponents,
+    stop_source: stopSource,
+    stop_moved_up: stopMovedUp,
+    close_triggered_after_close: closeTriggeredAfterClose,
+    next_open_sell_required: closeTriggeredAfterClose,
     confirmed_bar_date: latest.date,
     confirmed_close_price: Number(latest.close.toFixed(4)),
-    stop_basis: 'highest_confirmed_close_minus_atr_multiple',
+    stop_basis: 'max_previous_atr_initial_breakeven_profit_floors',
     atr_period: period,
     atr_multiplier: multiplier,
+    atr_method: 'wilder',
+    price_basis: 'adjusted_ohlc',
+    max_initial_loss_pct: maxInitialLossPct,
+    breakeven_enabled: breakevenEnabled,
+    breakeven_trigger_profit_pct: breakevenTriggerProfitPct,
+    breakeven_floor_profit_pct: breakevenFloorProfitPct,
+    profit_protection_enabled: profitProtectionEnabled,
+    profit_protection_trigger_pct: profitProtectionTriggerPct,
+    profit_protection_max_drawdown_pct: profitProtectionMaxDrawdownPct,
     last_update_date: latest.date,
-    status: position.status === 'PENDING_SELL' || position.status === 'SOLD' ? position.status : 'HELD',
+    status: nextStatus,
     error: null,
   };
 }
@@ -243,6 +326,16 @@ export function confirmedDailyBars(bars, now = new Date()) {
   return (bars || []).filter((bar) => bar.date < ny.date || (bar.date === ny.date && todayConfirmed));
 }
 
+function isWeekday(parts) {
+  return !['Sat', 'Sun'].includes(parts.weekday);
+}
+
+export function isRegularSessionNow(date = new Date()) {
+  const parts = newYorkDateParts(date);
+  const minutes = parts.hour * 60 + parts.minute;
+  return isWeekday(parts) && minutes >= 9 * 60 + 30 && minutes <= 16 * 60;
+}
+
 function daysAgo(days) {
   const date = new Date();
   date.setUTCDate(date.getUTCDate() - days);
@@ -262,7 +355,8 @@ function initializePosition(row, previous, bars) {
   const latest = bars[bars.length - 1] || null;
   const entryPrice = numeric(previous?.entry_price) ?? numeric(row.entry_price) ?? numeric(row.price);
   const entryDate = previous?.entry_date || latest?.date || dateKey(new Date());
-  const status = previous?.status === 'PENDING_SELL' || previous?.status === 'SOLD' ? previous.status : 'HELD';
+  const carryStatuses = new Set(['PENDING_SELL', 'SOLD', 'STOP_TRIGGERED_AFTER_CLOSE', 'NEXT_OPEN_SELL_PENDING']);
+  const status = carryStatuses.has(previous?.status) ? previous.status : 'HELD';
   return {
     symbol: row.symbol,
     entry_date: entryDate,
@@ -274,11 +368,37 @@ function initializePosition(row, previous, bars) {
     current_atr: numeric(previous?.current_atr),
     atr_points: numeric(previous?.atr_points) ?? numeric(previous?.current_atr),
     current_stop_price: numeric(previous?.current_stop_price),
+    previous_stop_price: numeric(previous?.previous_stop_price),
+    atr_stop_price: numeric(previous?.atr_stop_price),
+    initial_loss_floor: numeric(previous?.initial_loss_floor),
+    breakeven_floor: numeric(previous?.breakeven_floor),
+    profit_trailing_floor: numeric(previous?.profit_trailing_floor),
+    stop_components: previous?.stop_components || null,
+    stop_source: previous?.stop_source || '',
+    stop_moved_up: Boolean(previous?.stop_moved_up),
+    close_triggered_after_close: Boolean(previous?.close_triggered_after_close),
+    next_open_sell_required: Boolean(previous?.next_open_sell_required),
     confirmed_bar_date: previous?.confirmed_bar_date || '',
     confirmed_close_price: numeric(previous?.confirmed_close_price),
     stop_basis: previous?.stop_basis || '',
     atr_period: numeric(previous?.atr_period),
     atr_multiplier: numeric(previous?.atr_multiplier),
+    atr_method: previous?.atr_method || '',
+    price_basis: previous?.price_basis || '',
+    max_initial_loss_pct: numeric(previous?.max_initial_loss_pct),
+    breakeven_enabled: previous?.breakeven_enabled ?? null,
+    breakeven_trigger_profit_pct: numeric(previous?.breakeven_trigger_profit_pct),
+    breakeven_floor_profit_pct: numeric(previous?.breakeven_floor_profit_pct),
+    profit_protection_enabled: previous?.profit_protection_enabled ?? null,
+    profit_protection_trigger_pct: numeric(previous?.profit_protection_trigger_pct),
+    profit_protection_max_drawdown_pct: numeric(previous?.profit_protection_max_drawdown_pct),
+    stop_order_id_ex: previous?.stop_order_id_ex || '',
+    stop_order_stop_price: numeric(previous?.stop_order_stop_price),
+    stop_order_status: previous?.stop_order_status || '',
+    stop_order_submitted_at: previous?.stop_order_submitted_at || '',
+    stop_order_replaced_at: previous?.stop_order_replaced_at || '',
+    next_open_sell_queued_at: previous?.next_open_sell_queued_at || '',
+    next_open_sell_order_id_ex: previous?.next_open_sell_order_id_ex || '',
     last_update_date: previous?.last_update_date || '',
     status,
     error: previous?.error || null,
@@ -294,13 +414,14 @@ async function refreshAtrState(client, config, state, settings) {
 
   for (const [symbol, previous] of Object.entries(state.positions || {})) {
     if (!currentSymbols.has(symbol) && previous.status !== 'SOLD') {
+      const soldByManagedOrder = previous.status === 'PENDING_SELL' || previous.stop_order_id_ex || previous.next_open_sell_order_id_ex;
       state.positions[symbol] = {
         ...previous,
-        status: previous.status === 'PENDING_SELL' ? 'SOLD' : previous.status,
+        status: soldByManagedOrder ? 'SOLD' : previous.status,
         shares: 0,
         can_sell_qty: 0,
-        sold_reason: previous.status === 'PENDING_SELL' ? 'POSITION_NOT_FOUND_AFTER_SELL' : previous.sold_reason,
-        sold_time: previous.status === 'PENDING_SELL' ? new Date().toISOString() : previous.sold_time,
+        sold_reason: soldByManagedOrder ? 'POSITION_NOT_FOUND_AFTER_MANAGED_SELL' : previous.sold_reason,
+        sold_time: soldByManagedOrder ? new Date().toISOString() : previous.sold_time,
         updated_at: new Date().toISOString(),
       };
     }
@@ -345,15 +466,6 @@ async function refreshAtrState(client, config, state, settings) {
     state.positions[row.symbol] = attachRiskMetrics(next, row.price);
   }
   return positions;
-}
-
-function quotePrice(snapshot) {
-  const basic = snapshot?.basic || {};
-  return numeric(basic.curPrice) ?? numeric(basic.lastClosePrice) ?? numeric(basic.openPrice);
-}
-
-function quoteTick(snapshot) {
-  return numeric(snapshot?.basic?.priceSpread) ?? 0.01;
 }
 
 function attachRiskMetrics(position, realtimePrice, snapshot = null) {
@@ -580,115 +692,322 @@ async function refreshPendingSells(client, config, state, livePositions, setting
   return { pending: pending.length, sold, fallback_submitted: fallbackSubmitted };
 }
 
-async function monitorStops(client, config, quoteFeed, state, execute, settings) {
-  const held = Object.values(state.positions || {})
-    .filter((position) => (
-      position.status === 'HELD'
-      && !isProtectedStockSymbol(position.symbol, settings.protectedSymbols || [])
-      && numeric(position.current_stop_price) !== null
-      && position.shares > 0
-    ));
-  if (held.length === 0) return { watched: 0, triggered: 0, submitted: 0 };
+function activeStopOrderPosition(position, settings) {
+  return position
+    && !['PENDING_SELL', 'SOLD', 'PROTECTED'].includes(String(position.status || '').toUpperCase())
+    && !isProtectedStockSymbol(position.symbol, settings.protectedSymbols || [])
+    && numeric(position.current_stop_price) !== null
+    && Math.floor(numeric(position.shares) ?? 0) > 0;
+}
 
-  const result = await quoteFeed.getSnapshots(held.map((position) => stockSecurity(position.symbol)), {
-    orderBookSecurities: [],
+function sellableQty(position) {
+  return Math.min(
+    Math.floor(numeric(position.shares) ?? 0),
+    Math.floor(numeric(position.can_sell_qty) ?? numeric(position.shares) ?? 0),
+  );
+}
+
+function closeAlreadyTriggered(position) {
+  const close = numeric(position.confirmed_close_price);
+  const stop = numeric(position.current_stop_price);
+  return Boolean(position.close_triggered_after_close) || (close !== null && stop !== null && close <= stop);
+}
+
+async function appendStopOrderEvent(deps, payload) {
+  if (typeof deps.appendOrder === 'function') {
+    await deps.appendOrder(payload);
+  }
+}
+
+export async function reconcileBrokerStopOrder(client, config, position, opts = {}) {
+  const execute = Boolean(opts.execute);
+  const nowIso = opts.nowIso || new Date().toISOString();
+  const deps = {
+    cancelOrder,
+    placeStopMarketSellOrder,
+    appendOrder,
+    ...(opts.deps || {}),
+  };
+  const stopPrice = numeric(position.current_stop_price);
+  const qty = sellableQty(position);
+  const existingOrderIDEx = String(position.stop_order_id_ex || '');
+  const existingStop = numeric(position.stop_order_stop_price);
+  const basePayload = {
+    submitted_at: nowIso,
+    business_line: 'atr_trailing_stop',
+    side: 'SELL',
+    symbol: position.symbol,
+    qty,
+    order_type: 'STOP_MARKET',
+    time_in_force: 'GTC',
+    session: 'RTH',
+    stop_price: stopPrice,
+    existing_stop_order_id_ex: existingOrderIDEx,
+    existing_stop_price: existingStop,
+  };
+
+  if (stopPrice === null || qty <= 0) {
+    return {
+      position: {
+        ...position,
+        stop_order_status: qty <= 0 ? 'NO_SELLABLE_SHARES' : 'NO_STOP_PRICE',
+        updated_at: nowIso,
+      },
+      placed: 0,
+      canceled: 0,
+      replaced: 0,
+      unchanged: 0,
+      queued_next_open: 0,
+    };
+  }
+
+  if (closeAlreadyTriggered(position)) {
+    const payload = {
+      ...basePayload,
+      reason: 'STOP_TRIGGERED_AFTER_CLOSE',
+      action: existingOrderIDEx ? 'cancel_existing_stop_and_queue_next_open_sell' : 'queue_next_open_sell',
+      confirmed_close_price: numeric(position.confirmed_close_price),
+    };
+    let canceled = 0;
+    let cancelResponse = null;
+    if (execute && existingOrderIDEx) {
+      cancelResponse = await deps.cancelOrder(client, config, { orderIDEx: existingOrderIDEx });
+      canceled = 1;
+    }
+    payload.status = execute ? 'queued_next_open_sell' : 'queue_required_execute_disabled';
+    if (cancelResponse) payload.cancel_response = normalizeForJson(cancelResponse);
+    await appendStopOrderEvent(deps, payload);
+    return {
+      position: {
+        ...position,
+        status: 'STOP_TRIGGERED_AFTER_CLOSE',
+        trigger_reason: 'STOP_TRIGGERED_AFTER_CLOSE',
+        next_open_sell_required: true,
+        next_open_sell_queued_at: position.next_open_sell_queued_at || nowIso,
+        stop_order_id_ex: execute ? '' : existingOrderIDEx,
+        stop_order_status: execute ? 'canceled_for_next_open_sell' : 'cancel_required_execute_disabled',
+        pending_order_status: execute ? 'queued_next_open_sell' : 'queue_required_execute_disabled',
+        updated_at: nowIso,
+      },
+      placed: 0,
+      canceled,
+      replaced: 0,
+      unchanged: 0,
+      queued_next_open: 1,
+    };
+  }
+
+  if (existingOrderIDEx && existingStop !== null && stopPrice <= existingStop + 0.0001) {
+    return {
+      position: {
+        ...position,
+        stop_order_status: 'unchanged',
+        updated_at: nowIso,
+      },
+      placed: 0,
+      canceled: 0,
+      replaced: 0,
+      unchanged: 1,
+      queued_next_open: 0,
+    };
+  }
+
+  const replacing = Boolean(existingOrderIDEx);
+  const payload = {
+    ...basePayload,
+    reason: replacing ? 'STOP_MOVED_UP_CANCEL_REPLACE' : 'INITIAL_GTC_STOP_MARKET',
+    action: replacing ? 'cancel_replace' : 'place_stop_market',
+  };
+
+  if (!execute) {
+    payload.status = replacing ? 'replace_required_execute_disabled' : 'submit_required_execute_disabled';
+    await appendStopOrderEvent(deps, payload);
+    return {
+      position: {
+        ...position,
+        stop_order_status: payload.status,
+        updated_at: nowIso,
+      },
+      placed: 0,
+      canceled: 0,
+      replaced: 0,
+      unchanged: 0,
+      queued_next_open: 0,
+    };
+  }
+
+  let cancelResponse = null;
+  if (replacing) {
+    cancelResponse = await deps.cancelOrder(client, config, { orderIDEx: existingOrderIDEx });
+  }
+  const response = await deps.placeStopMarketSellOrder(client, config, {
+    code: position.symbol,
+    qty,
+    stopPrice,
+    remark: 'ATR_GTC_STOP_MARKET',
+    positionID: position.position_id,
   });
-  let triggered = 0;
+  const orderIDEx = String(response.s2c?.orderIDEx || '');
+  payload.status = replacing ? 'replaced' : 'submitted';
+  if (cancelResponse) payload.cancel_response = normalizeForJson(cancelResponse);
+  payload.response = normalizeForJson(response);
+  await appendStopOrderEvent(deps, payload);
+
+  return {
+    position: {
+      ...position,
+      status: 'HELD',
+      stop_order_id_ex: orderIDEx,
+      stop_order_stop_price: stopPrice,
+      stop_order_type: 'STOP_MARKET',
+      stop_order_time_in_force: 'GTC',
+      stop_order_session: 'RTH',
+      stop_order_status: payload.status,
+      stop_order_submitted_at: nowIso,
+      stop_order_replaced_at: replacing ? nowIso : position.stop_order_replaced_at || '',
+      pending_order_status: '',
+      error: null,
+      updated_at: nowIso,
+    },
+    placed: 1,
+    canceled: replacing ? 1 : 0,
+    replaced: replacing ? 1 : 0,
+    unchanged: 0,
+    queued_next_open: 0,
+  };
+}
+
+async function submitNextOpenSells(client, config, state, settings, execute, now = new Date()) {
+  const queued = Object.values(state.positions || {})
+    .filter((position) => (
+      position.next_open_sell_required
+      && !['PENDING_SELL', 'SOLD', 'PROTECTED'].includes(String(position.status || '').toUpperCase())
+      && !isProtectedStockSymbol(position.symbol, settings.protectedSymbols || [])
+      && Math.floor(numeric(position.shares) ?? 0) > 0
+    ));
+  if (queued.length === 0) return { queued: 0, submitted: 0, waiting_regular_open: 0 };
+  if (!isRegularSessionNow(now)) {
+    for (const position of queued) {
+      state.positions[position.symbol] = {
+        ...position,
+        pending_order_status: 'waiting_next_regular_open',
+        updated_at: new Date().toISOString(),
+      };
+    }
+    return { queued: queued.length, submitted: 0, waiting_regular_open: queued.length };
+  }
+
   let submitted = 0;
-  for (const position of held) {
-    const snapshot = (result.snapshots || []).find((item) => normalizeSymbol(item?.basic?.security?.code) === position.symbol);
-    const price = quotePrice(snapshot);
-    const withRisk = attachRiskMetrics(position, price, snapshot);
-    state.positions[position.symbol] = withRisk;
-    if (price === null || price > Number(position.current_stop_price)) continue;
-    triggered += 1;
-    const qty = Math.min(Math.floor(withRisk.shares), Math.floor(withRisk.can_sell_qty));
-    const limitPrice = marketableStopLimitPrice(price, {
-      bufferPct: settings.limitBufferPct,
-      tick: quoteTick(snapshot),
-    });
-    const trigger = {
-      reason: 'ATR_TRAILING_STOP_TRIGGERED',
-      symbol: withRisk.symbol,
-      realtime_price: price,
-      stop_price: withRisk.current_stop_price,
-      shares: qty,
-      triggered_at: new Date().toISOString(),
-      distance_to_stop_pct: withRisk.distance_to_stop_pct,
-      quote: normalizeForJson(snapshot?.basic || null),
+  for (const position of queued) {
+    const qty = sellableQty(position);
+    const submittedAt = new Date().toISOString();
+    const payload = {
+      submitted_at: submittedAt,
+      business_line: 'atr_trailing_stop',
+      side: 'SELL',
+      symbol: position.symbol,
+      qty,
+      order_type: 'MARKET',
+      reason: 'STOP_TRIGGERED_AFTER_CLOSE_NEXT_OPEN',
     };
     if (qty <= 0) {
-      state.positions[withRisk.symbol] = {
-        ...withRisk,
+      state.positions[position.symbol] = {
+        ...position,
         status: 'PENDING_SELL',
-        last_trigger: trigger,
-        error: 'NO_SELLABLE_SHARES',
-        updated_at: new Date().toISOString(),
+        pending_order_status: 'NO_SELLABLE_SHARES',
+        updated_at: submittedAt,
       };
       continue;
     }
     if (!execute) {
-      state.positions[withRisk.symbol] = {
-        ...withRisk,
-        status: 'PENDING_SELL',
-        last_trigger: trigger,
-        pending_order_status: 'not_submitted_execute_disabled',
-        updated_at: new Date().toISOString(),
+      state.positions[position.symbol] = {
+        ...position,
+        status: 'STOP_TRIGGERED_AFTER_CLOSE',
+        pending_order_status: 'next_open_market_sell_not_submitted_execute_disabled',
+        updated_at: submittedAt,
       };
       continue;
     }
-
-    const payload = {
-      submitted_at: new Date().toISOString(),
-      business_line: 'atr_trailing_stop',
-      side: 'SELL',
-      symbol: withRisk.symbol,
-      qty,
-      order_type: 'MARKETABLE_LIMIT',
-      limit_price: limitPrice,
-      fallback_after_seconds: settings.fallbackSeconds,
-      trigger,
-    };
     try {
-      if (limitPrice === null) throw new Error('INVALID_MARKETABLE_LIMIT_PRICE');
-      const response = await placeLimitSellOrder(client, config, {
-        code: withRisk.symbol,
+      const response = await placeMarketSellOrder(client, config, {
+        code: position.symbol,
         qty,
-        price: limitPrice,
-        remark: 'ATR_TRAILING_STOP',
-        positionID: withRisk.position_id,
+        remark: 'ATR_NEXT_OPEN_MARKET',
+        positionID: position.position_id,
       });
       payload.status = 'submitted';
       payload.response = normalizeForJson(response);
       submitted += 1;
-      state.positions[withRisk.symbol] = {
-        ...withRisk,
+      state.positions[position.symbol] = {
+        ...position,
         status: 'PENDING_SELL',
-        last_trigger: trigger,
-        sell_order_type: 'MARKETABLE_LIMIT',
-        sell_limit_price: limitPrice,
+        sell_order_type: 'MARKET',
         sell_qty: qty,
         sell_order_id_ex: String(response.s2c?.orderIDEx || ''),
         sell_order_id_exes: [String(response.s2c?.orderIDEx || '')].filter(Boolean),
-        sell_submitted_at: payload.submitted_at,
-        pending_since: payload.submitted_at,
-        fallback_after_seconds: settings.fallbackSeconds,
-        updated_at: new Date().toISOString(),
+        sell_submitted_at: submittedAt,
+        pending_since: submittedAt,
+        next_open_sell_required: false,
+        next_open_sell_order_id_ex: String(response.s2c?.orderIDEx || ''),
+        pending_order_status: 'submitted_next_open_market_sell',
+        updated_at: submittedAt,
       };
     } catch (error) {
       payload.status = 'submit_failed';
       payload.error = error.message;
-      state.positions[withRisk.symbol] = {
-        ...withRisk,
-        status: 'HELD',
-        last_trigger: trigger,
+      state.positions[position.symbol] = {
+        ...position,
+        status: 'STOP_TRIGGERED_AFTER_CLOSE',
+        pending_order_status: 'next_open_market_sell_submit_failed',
         error: error.message,
-        updated_at: new Date().toISOString(),
+        updated_at: submittedAt,
       };
     }
     await appendOrder(payload);
   }
-  return { watched: held.length, triggered, submitted };
+  return { queued: queued.length, submitted, waiting_regular_open: 0 };
+}
+
+async function syncBrokerStopOrders(client, config, state, execute, settings) {
+  const held = Object.values(state.positions || {})
+    .filter((position) => activeStopOrderPosition(position, settings));
+  if (held.length === 0) return { watched: 0, placed: 0, canceled: 0, replaced: 0, unchanged: 0, queued_next_open: 0 };
+
+  let placed = 0;
+  let canceled = 0;
+  let replaced = 0;
+  let unchanged = 0;
+  let queuedNextOpen = 0;
+  const nowIso = new Date().toISOString();
+  for (const position of held) {
+    try {
+      const result = await reconcileBrokerStopOrder(client, config, position, {
+        execute,
+        nowIso,
+      });
+      state.positions[position.symbol] = result.position;
+      placed += result.placed;
+      canceled += result.canceled;
+      replaced += result.replaced;
+      unchanged += result.unchanged;
+      queuedNextOpen += result.queued_next_open;
+    } catch (error) {
+      state.positions[position.symbol] = {
+        ...position,
+        error: error.message,
+        stop_order_status: 'sync_failed',
+        updated_at: new Date().toISOString(),
+      };
+    }
+  }
+  return {
+    watched: held.length,
+    placed,
+    canceled,
+    replaced,
+    unchanged,
+    queued_next_open: queuedNextOpen,
+  };
 }
 
 function assertRealExecutionAllowed(config, execute) {
@@ -715,31 +1034,48 @@ async function ensureRealAccount(client, config) {
   };
 }
 
-async function runCycle(client, config, quoteFeed, settings, execute) {
+async function runCycle(client, config, settings, execute) {
   const state = loadState();
   const positions = await refreshAtrState(client, config, state, settings);
   const pending = await refreshPendingSells(client, config, state, positions, settings, execute);
-  const monitor = await monitorStops(client, config, quoteFeed, state, execute, settings);
+  const stopOrders = await syncBrokerStopOrders(client, config, state, execute, settings);
+  const nextOpen = await submitNextOpenSells(client, config, state, settings, execute);
+  const queuedNextOpen = Math.max(stopOrders.queued_next_open, nextOpen.queued);
   await writeState(state);
   await writeStatus({
     phase: 'ok',
     execute,
     atr_period: settings.period,
     atr_multiplier: settings.multiplier,
-    marketable_limit_buffer_pct: settings.limitBufferPct,
-    fallback_seconds: settings.fallbackSeconds,
+    atr_method: settings.atrMethod,
+    price_basis: settings.priceBasis,
+    max_initial_loss_pct: settings.maxInitialLossPct,
+    breakeven: settings.breakeven,
+    profit_protection: settings.profitProtection,
+    order_management: settings.orderManagement,
     protected_symbols: settings.protectedSymbols,
     positions: positions.length,
     pending_sells: pending.pending,
     sold_this_cycle: pending.sold,
     fallback_submitted: pending.fallback_submitted,
-    watched: monitor.watched,
-    triggered: monitor.triggered,
-    submitted: monitor.submitted,
+    watched: stopOrders.watched,
+    stop_orders_placed: stopOrders.placed,
+    stop_orders_canceled: stopOrders.canceled,
+    stop_orders_replaced: stopOrders.replaced,
+    stop_orders_unchanged: stopOrders.unchanged,
+    queued_next_open: queuedNextOpen,
+    next_open_submitted: nextOpen.submitted,
+    next_open_waiting_regular_open: nextOpen.waiting_regular_open,
     state_path: path.relative(PROJECT_ROOT, statePath),
     orders_path: path.relative(PROJECT_ROOT, ordersPath),
   });
-  return monitor;
+  return {
+    watched: stopOrders.watched,
+    stop_orders_placed: stopOrders.placed,
+    stop_orders_replaced: stopOrders.replaced,
+    queued_next_open: queuedNextOpen,
+    next_open_submitted: nextOpen.submitted,
+  };
 }
 
 async function refreshAtrPoints(client, config, settings) {
@@ -753,6 +1089,12 @@ async function refreshAtrPoints(client, config, settings) {
     mode: 'atr_refresh_only',
     atr_period: settings.period,
     atr_multiplier: settings.multiplier,
+    atr_method: settings.atrMethod,
+    price_basis: settings.priceBasis,
+    max_initial_loss_pct: settings.maxInitialLossPct,
+    breakeven: settings.breakeven,
+    profit_protection: settings.profitProtection,
+    order_management: settings.orderManagement,
     protected_symbols: settings.protectedSymbols,
     positions: positions.length,
     displayed_positions: rows.length,
@@ -776,23 +1118,51 @@ async function main() {
     throw new Error('ATR stop requires --refresh-only for read-only point refresh, or --execute-real for active stop monitoring.');
   }
   assertRealExecutionAllowed(config, execute);
+  const breakevenEnabled = booleanSetting(args['breakeven-enabled'] ?? process.env.ATR_STOP_BREAKEVEN_ENABLED, true);
+  const profitProtectionEnabled = booleanSetting(args['profit-protection-enabled'] ?? process.env.ATR_STOP_PROFIT_PROTECTION_ENABLED, true);
   const settings = {
     period: Math.max(1, Number(args.period || process.env.ATR_STOP_PERIOD || defaultAtrPeriod)),
     multiplier: Number(args.multiplier || process.env.ATR_STOP_MULTIPLIER || defaultAtrMultiplier),
+    atrMethod: 'wilder',
+    priceBasis: 'adjusted_ohlc',
     lookbackDays: Math.max(60, Number(args['lookback-days'] || process.env.ATR_STOP_LOOKBACK_DAYS || 180)),
-    limitBufferPct: Number(args['limit-buffer-pct'] || process.env.ATR_STOP_LIMIT_BUFFER_PCT || defaultLimitBufferPct),
     fallbackSeconds: Math.max(30, Number(args['fallback-seconds'] || process.env.ATR_STOP_FALLBACK_SECONDS || defaultFallbackSeconds)),
+    maxInitialLossPct: pctFraction(args['max-initial-loss-pct'] ?? process.env.ATR_STOP_MAX_INITIAL_LOSS_PCT, defaultMaxInitialLossPct),
+    breakevenEnabled,
+    breakevenTriggerProfitPct: pctFraction(args['breakeven-trigger-profit-pct'] ?? process.env.ATR_STOP_BREAKEVEN_TRIGGER_PROFIT_PCT, defaultBreakevenTriggerProfitPct),
+    breakevenFloorProfitPct: pctFraction(args['breakeven-floor-profit-pct'] ?? process.env.ATR_STOP_BREAKEVEN_FLOOR_PROFIT_PCT, defaultBreakevenFloorProfitPct),
+    profitProtectionEnabled,
+    profitProtectionTriggerPct: pctFraction(args['profit-protection-trigger-pct'] ?? process.env.ATR_STOP_PROFIT_PROTECTION_TRIGGER_PCT, defaultProfitProtectionTriggerPct),
+    profitProtectionMaxDrawdownPct: pctFraction(args['profit-protection-max-drawdown-pct'] ?? process.env.ATR_STOP_PROFIT_PROTECTION_MAX_DRAWDOWN_PCT, defaultProfitProtectionMaxDrawdownPct),
     protectedSymbols: config.protectedStockSymbols,
+  };
+  settings.breakeven = {
+    enabled: settings.breakevenEnabled,
+    trigger_profit_pct: settings.breakevenTriggerProfitPct,
+    floor_profit_pct: settings.breakevenFloorProfitPct,
+  };
+  settings.profitProtection = {
+    enabled: settings.profitProtectionEnabled,
+    trigger_profit_pct: settings.profitProtectionTriggerPct,
+    max_drawdown_from_high_close_pct: settings.profitProtectionMaxDrawdownPct,
+  };
+  settings.orderManagement = {
+    order_type: 'stop_market',
+    time_in_force: 'GTC',
+    regular_trading_hours_only: true,
+    cancel_replace_when_stop_moves_up: true,
+    do_not_lower_existing_stop_order: true,
   };
   if (!Number.isFinite(settings.multiplier) || settings.multiplier <= 0) {
     throw new Error('ATR multiplier must be a positive number.');
   }
-  if (!Number.isFinite(settings.limitBufferPct) || settings.limitBufferPct < 0) {
-    throw new Error('ATR stop limit buffer must be zero or a positive number.');
-  }
+  validatePctFraction(settings.maxInitialLossPct, 'ATR_STOP_MAX_INITIAL_LOSS_PCT');
+  validatePctFraction(settings.breakevenTriggerProfitPct, 'ATR_STOP_BREAKEVEN_TRIGGER_PROFIT_PCT');
+  validatePctFraction(settings.breakevenFloorProfitPct, 'ATR_STOP_BREAKEVEN_FLOOR_PROFIT_PCT');
+  validatePctFraction(settings.profitProtectionTriggerPct, 'ATR_STOP_PROFIT_PROTECTION_TRIGGER_PCT');
+  validatePctFraction(settings.profitProtectionMaxDrawdownPct, 'ATR_STOP_PROFIT_PROTECTION_MAX_DRAWDOWN_PCT');
   const pollSeconds = Math.max(5, Number(args['poll-seconds'] || process.env.ATR_STOP_POLL_SECONDS || 10));
   const connection = await connectMoomoo(config);
-  const quoteFeed = createMoomooQuoteFeed(connection.client, config);
   try {
     const account = await ensureRealAccount(connection.client, config);
     await writeStatus({ phase: refreshOnly ? 'refreshing' : 'started', execute, account, poll_seconds: pollSeconds, ...settings });
@@ -802,13 +1172,12 @@ async function main() {
       return;
     }
     for (;;) {
-      const result = await runCycle(connection.client, config, quoteFeed, settings, execute);
-      console.log(`[${new Date().toISOString()}] ATR stop watched=${result.watched} triggered=${result.triggered} submitted=${result.submitted}`);
+      const result = await runCycle(connection.client, config, settings, execute);
+      console.log(`[${new Date().toISOString()}] ATR stop watched=${result.watched} placed=${result.stop_orders_placed} replaced=${result.stop_orders_replaced} queued_next_open=${result.queued_next_open} next_open_submitted=${result.next_open_submitted}`);
       if (!isTruthyFlag(args.watch)) break;
       await new Promise((resolve) => setTimeout(resolve, pollSeconds * 1000));
     }
   } finally {
-    await quoteFeed.close();
     connection.close();
   }
 }

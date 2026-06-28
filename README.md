@@ -391,12 +391,16 @@ ATR 业务线只负责当前实盘美股持仓的止损，不负责选股，也�
 规则：
 
 - 日线 ATR(21)，Wilder 平滑。
-- ATR 倍数 `3.5`。
+- ATR 倍数默认 `2.5`。
 - 使用买入后最高日线收盘价作为跟踪基准。
-- 止损线 `highest_close_since_entry - 3.5 * ATR(21)`，只能上移，不能下移。
+- 基础 ATR 止损线为 `highest_close_since_entry - 2.5 * ATR(21)`。
+- 最终止损线取 `previous_stop`、ATR 止损、入场价 `-12%`、保本保护和盈利保护中的最高值，只能上移，不能下移。
+- 最高收盘价相对入场价上涨超过 `8%` 后，止损至少抬到 `entry_price * 1.005`。
+- 最高收盘价相对入场价上涨超过 `15%` 后，止损至少抬到 `highest_close_since_entry * 0.85`。
 - 只用确认后的日线 close 更新最高收盘价，不使用盘中最高价。
-- 实时价格 `<= current_stop_price` 时，卖出该股票全部可卖持仓。
-- 触发后先提交可成交限价卖单，默认按实时价下方 `0.35%` 做保护限价；`30-60s` 内未成交时，按剩余可卖股数提交市价兜底单。
+- 确认监控会维护券商侧 `GTC Sell Stop-Market`，常规交易时段触发；默认不使用 stop-limit。
+- 如果最终止损价没有上移，不更新券商止损单；如果止损价上移，则撤掉旧 GTC stop order 后重新挂新的 GTC Stop-Market。
+- 如果最新确认收盘价已经低于最终止损价，不再挂无效 stop order；程序会撤掉旧止损单，标记 `STOP_TRIGGERED_AFTER_CLOSE`，并排队下一常规交易日开盘市价卖出。
 - 已触发 `PENDING_SELL` 或 `SOLD` 的股票不会重复发首单；成交或仓位消失后状态落到 `SOLD`。
 - `PROTECTED_STOCK_SYMBOLS` 里的股票会显示为 `PROTECTED`，不会计算/触发 ATR 卖出。
 - `logs/atr-stop-state.json` 会记录当前持仓、ATR 点数、止损价、离止损百分比、当前盈亏和盈亏比例，控制台直接读取这些字段。

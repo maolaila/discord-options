@@ -21,8 +21,10 @@ export const TRD_SIDE_BUY = 1;
 export const TRD_SIDE_SELL = 2;
 export const ORDER_TYPE_LIMIT = 1;
 export const ORDER_TYPE_MARKET = 2;
+export const ORDER_TYPE_STOP = 10;
 export const MODIFY_ORDER_OP_CANCEL = 2;
 export const TIME_IN_FORCE_DAY = 0;
+export const TIME_IN_FORCE_GTC = 1;
 export const SESSION_RTH = 1;
 export const QOT_SUBTYPE_BASIC = 1;
 export const QOT_SUBTYPE_ORDER_BOOK = 2;
@@ -1056,6 +1058,34 @@ export function buildMarketSellOrderRequest(config, order, opts = {}) {
   return buildMarketOrderRequest(config, { ...order, side: TRD_SIDE_SELL }, opts);
 }
 
+export function buildStopMarketSellOrderRequest(config, { code, qty, stopPrice, remark, positionID }, opts = {}) {
+  const parsedStop = Number(stopPrice);
+  if (!Number.isFinite(parsedStop) || parsedStop <= 0) {
+    throw new Error('Stop-market sell order requires a positive stopPrice.');
+  }
+  const c2s = {
+    header: buildTradeHeader(config, opts),
+    trdSide: TRD_SIDE_SELL,
+    orderType: ORDER_TYPE_STOP,
+    code,
+    qty,
+    auxPrice: parsedStop,
+    secMarket: TRD_SEC_MARKET_US,
+    remark: String(remark || '').slice(0, 60),
+    timeInForce: TIME_IN_FORCE_GTC,
+    session: SESSION_RTH,
+  };
+  if (positionID !== undefined && positionID !== null && positionID !== '') {
+    c2s.positionID = positionID;
+  }
+  if (opts.packetID) {
+    c2s.packetID = opts.packetID;
+  }
+  return {
+    c2s,
+  };
+}
+
 export function buildCancelOrderRequest(config, { orderID, orderIDEx }, opts = {}) {
   const c2s = {
     header: buildTradeHeader(config, opts),
@@ -1114,6 +1144,17 @@ export async function placeMarketSellOrder(client, config, order) {
   };
   tradeSerialNo += 1;
   const response = await client.PlaceOrder(buildMarketSellOrderRequest(config, order, { packetID }));
+  assertMoomooSuccess(response, 'PlaceOrder');
+  return response;
+}
+
+export async function placeStopMarketSellOrder(client, config, order) {
+  const packetID = {
+    connID: client.getConnID(),
+    serialNo: tradeSerialNo,
+  };
+  tradeSerialNo += 1;
+  const response = await client.PlaceOrder(buildStopMarketSellOrderRequest(config, order, { packetID }));
   assertMoomooSuccess(response, 'PlaceOrder');
   return response;
 }

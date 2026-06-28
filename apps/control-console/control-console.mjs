@@ -610,6 +610,50 @@ function dashboardHtmlPage() {
       color: var(--muted);
       font-size: 12px;
     }
+    .rebalance-summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(150px, 1fr));
+      gap: 10px 14px;
+      padding-bottom: 12px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+    .rebalance-summary .item {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+    }
+    .rebalance-summary .item.wide {
+      grid-column: span 2;
+    }
+    .rebalance-summary .k {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .rebalance-summary .v {
+      font-size: 14px;
+      font-weight: 650;
+      overflow-wrap: anywhere;
+    }
+    .rebalance-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+    .rebalance-chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: #161c22;
+      color: var(--text);
+      font-size: 12px;
+      line-height: 1.25;
+      max-width: 100%;
+      overflow-wrap: anywhere;
+    }
     .badge {
       display: inline-flex;
       align-items: center;
@@ -639,6 +683,8 @@ function dashboardHtmlPage() {
       .summary { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
       .toolbar { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
       .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .rebalance-summary { grid-template-columns: 1fr; }
+      .rebalance-summary .item.wide { grid-column: span 1; }
     }
   </style>
 </head>
@@ -718,6 +764,7 @@ function dashboardHtmlPage() {
     <section class="panel">
       <h2>股票调仓线：当前标的与目标标的</h2>
       <div class="panel-body table-wrap">
+        <div id="stockPlanSummary"></div>
         <table>
           <thead>
             <tr>
@@ -921,9 +968,70 @@ function dashboardHtmlPage() {
           '</tr>';
       }).join('') : '<tr><td colspan="11" class="hint">暂无 ATR 持仓状态</td></tr>';
     }
+    function fileBase(value) {
+      const raw = String(value || '');
+      if (!raw) return '-';
+      return raw.split(/[\\\\/]/).filter(Boolean).pop() || raw;
+    }
+    function orderReasonText(reason) {
+      const reasons = {
+        not_in_target_sheet: '非目标持仓',
+        rebalance_overweight: '超配调减',
+        rebalance_underweight: '低配补足',
+      };
+      return reasons[reason] || reason || '-';
+    }
+    function orderChip(order) {
+      const side = String(order.side || '').toUpperCase();
+      const cls = side === 'SELL' ? 'warn' : 'ok';
+      const label = side === 'SELL' ? '卖' : (side === 'BUY' ? '买' : side);
+      const qty = Number(order.qty);
+      const qtyText = Number.isFinite(qty) ? qty : text(order.qty);
+      return '<span class="rebalance-chip ' + cls + '"><span class="' + cls + '">' + label + '</span>&nbsp;<span class="mono">' + text(order.symbol) + '</span>&nbsp;x&nbsp;' + text(qtyText) + '&nbsp;<span class="hint">' + text(orderReasonText(order.reason)) + '</span></span>';
+    }
+    function targetChip(row) {
+      const delta = Number(row.delta_qty);
+      const deltaText = Number.isFinite(delta) && delta !== 0 ? ' / ' + (delta > 0 ? '+' : '') + delta : '';
+      return '<span class="rebalance-chip"><span class="mono">' + text(row.symbol) + '</span>&nbsp;' + text(row.current_qty) + '→' + text(row.desired_qty) + deltaText + '&nbsp;<span class="hint">' + pct(row.target_pct) + '</span></span>';
+    }
+    function renderChipList(rows, mapper, emptyText) {
+      return rows.length
+        ? '<div class="rebalance-list">' + rows.map(mapper).join('') + '</div>'
+        : '<span class="hint">' + text(emptyText) + '</span>';
+    }
+    function renderStockPlanSummary(data, plan, orders) {
+      const status = data.stockRebalanceStatus || {};
+      const sellOrders = orders.filter((order) => String(order.side || '').toUpperCase() === 'SELL');
+      const buyOrders = orders.filter((order) => String(order.side || '').toUpperCase() === 'BUY');
+      const protectedRows = plan.protected_positions || [];
+      const targetRows = plan.targets || [];
+      if (!targetRows.length && !orders.length) {
+        $('stockPlanSummary').innerHTML = '<div class="hint">暂无股票调仓计划，点击“调仓计划”生成预案。</div>';
+        return;
+      }
+      const sellPhase = status.sell_phase || plan.prior_sell_phase || null;
+      const sellPhaseText = sellPhase
+        ? '卖出完成 ' + text(sellPhase.complete_count) + '/' + text(sellPhase.total) + (sellPhase.open_count ? '，等待 ' + text(sellPhase.open_count) : '') + (sellPhase.failed_count ? '，失败 ' + text(sellPhase.failed_count) : '')
+        : '未进入卖出阶段';
+      $('stockPlanSummary').innerHTML =
+        '<div class="rebalance-summary">' +
+          '<div class="item"><div class="k">计划阶段</div><div class="v">' + badge(plan.execution_phase || status.phase || 'planned') + '</div></div>' +
+          '<div class="item"><div class="k">目标表</div><div class="v mono">' + text(fileBase(plan.target_file)) + '</div></div>' +
+          '<div class="item"><div class="k">组合金额</div><div class="v">' + money(plan.portfolio_value) + ' <span class="hint">现金 ' + money(plan.cash) + '</span></div></div>' +
+          '<div class="item"><div class="k">订单数</div><div class="v"><span class="warn">卖 ' + text(sellOrders.length) + '</span> / <span class="ok">买 ' + text(buyOrders.length) + '</span></div></div>' +
+          '<div class="item wide"><div class="k">卖出计划</div><div class="v">' + renderChipList(sellOrders, orderChip, '无卖出计划') + '</div></div>' +
+          '<div class="item wide"><div class="k">买入计划</div><div class="v">' + renderChipList(buyOrders, orderChip, '无买入计划') + '</div></div>' +
+          '<div class="item wide"><div class="k">目标仓位</div><div class="v">' + renderChipList(targetRows, targetChip, '无目标仓位') + '</div></div>' +
+          '<div class="item wide"><div class="k">保护/执行</div><div class="v">' +
+            renderChipList(protectedRows, (row) => '<span class="rebalance-chip warn"><span class="mono">' + text(row.symbol) + '</span>&nbsp;x&nbsp;' + text(row.qty) + '&nbsp;<span class="hint">保护</span></span>', '无保护仓位') +
+            '<div class="hint">' + sellPhaseText + (status.buy_phase_skipped ? '；买入已跳过' : '') + '</div>' +
+          '</div></div>' +
+        '</div>';
+    }
     function renderStock(data) {
       const plan = data.stockRebalancePlan || {};
       const orders = plan.orders || [];
+      renderStockPlanSummary(data, plan, orders);
       const orderMap = new Map();
       for (const order of orders) {
         const arr = orderMap.get(order.symbol) || [];

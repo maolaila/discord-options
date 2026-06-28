@@ -526,9 +526,26 @@ function dashboardHtmlPage() {
     }
     .toolbar {
       display: grid;
-      grid-template-columns: minmax(280px, 1.4fr) repeat(11, minmax(104px, auto));
-      gap: 10px;
-      align-items: end;
+      grid-template-columns: minmax(280px, 1fr) repeat(4, minmax(210px, auto));
+      gap: 12px;
+      align-items: stretch;
+    }
+    .toolbar-group {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(92px, 1fr));
+      gap: 8px;
+      align-content: end;
+      min-width: 0;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #151b21;
+    }
+    .toolbar-group .group-title {
+      grid-column: 1 / -1;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1;
     }
     label {
       color: var(--muted);
@@ -561,6 +578,7 @@ function dashboardHtmlPage() {
     button.primary { background: #1f6d4a; border-color: #2b8a60; }
     button.secondary { background: #204e76; border-color: #2c6798; }
     button.danger { background: #6a2c2c; border-color: #8c4141; }
+    button.confirm { background: #1f6d4a; border-color: #2b8a60; }
     button:disabled { opacity: .55; cursor: wait; }
     .grid-2 {
       display: grid;
@@ -681,7 +699,7 @@ function dashboardHtmlPage() {
     }
     @media (max-width: 1280px) {
       .summary { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
-      .toolbar { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
+      .toolbar { grid-template-columns: 1fr; }
       .grid-2, .grid-3 { grid-template-columns: 1fr; }
       .rebalance-summary { grid-template-columns: 1fr; }
       .rebalance-summary .item.wide { grid-column: span 1; }
@@ -708,17 +726,53 @@ function dashboardHtmlPage() {
       <label>OpenD 配置文件
         <input id="envFile" value="${defaultEnvFile}" />
       </label>
-      <button class="primary" data-action="start-all-sim">全套模拟</button>
-      <button class="secondary" data-action="start-all-plan">全套干跑</button>
-      <button data-action="start-capture">抓包</button>
-      <button data-action="start-watch-sim">期权模拟</button>
-      <button data-action="start-exit-monitor">期权退出</button>
-      <button data-action="stock-rebalance-plan">调仓计划</button>
-      <button class="primary" data-action="start-stock-rebalance">执行调仓</button>
-      <button data-action="start-atr-stop">ATR 止损</button>
-      <button class="danger" data-action="stop-stock-rebalance">停调仓</button>
-      <button class="danger" data-action="stop-atr-stop">停 ATR</button>
-      <button class="danger" data-action="stop-all">停止全部</button>
+      <div class="toolbar-group">
+        <div class="group-title">全局</div>
+        <button class="primary" data-action="start-all-sim">全套模拟</button>
+        <button class="secondary" data-action="start-all-plan">全套干跑</button>
+        <button data-action="start-capture">抓包</button>
+        <button class="danger" data-action="stop-all">停止全部</button>
+      </div>
+      <div class="toolbar-group">
+        <div class="group-title">期权模拟</div>
+        <button data-action="start-watch-sim">模拟监听</button>
+        <button data-action="start-exit-monitor">退出监听</button>
+      </div>
+      <div class="toolbar-group">
+        <div class="group-title">股票调仓</div>
+        <button data-action="stock-rebalance-plan">刷新计划</button>
+        <button class="confirm" data-action="start-stock-rebalance" data-confirm="确认已经检查最新股票调仓计划，并启动开盘监听执行？">确认执行</button>
+        <button class="danger" data-action="stop-stock-rebalance">停调仓</button>
+      </div>
+      <div class="toolbar-group">
+        <div class="group-title">ATR 止损</div>
+        <button data-action="start-atr-stop">启动 ATR</button>
+        <button class="danger" data-action="stop-atr-stop">停 ATR</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>股票调仓线：最新计划</h2>
+      <div class="panel-body table-wrap">
+        <div id="stockPlanSummary"></div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:9%">目标标的</th>
+              <th style="width:9%">目标比例</th>
+              <th style="width:9%">现价</th>
+              <th style="width:10%">当前股数</th>
+              <th style="width:10%">目标股数</th>
+              <th style="width:9%">差额</th>
+              <th style="width:11%">当前市值</th>
+              <th style="width:11%">目标市值</th>
+              <th>计划动作</th>
+            </tr>
+          </thead>
+          <tbody id="stockRows"></tbody>
+        </table>
+        <div class="hint" id="stockOffSheet"></div>
+      </div>
     </section>
 
     <section class="grid-2">
@@ -758,30 +812,6 @@ function dashboardHtmlPage() {
           </thead>
           <tbody id="atrRows"></tbody>
         </table>
-      </div>
-    </section>
-
-    <section class="panel">
-      <h2>股票调仓线：当前标的与目标标的</h2>
-      <div class="panel-body table-wrap">
-        <div id="stockPlanSummary"></div>
-        <table>
-          <thead>
-            <tr>
-              <th style="width:9%">目标标的</th>
-              <th style="width:9%">目标比例</th>
-              <th style="width:9%">现价</th>
-              <th style="width:10%">当前股数</th>
-              <th style="width:10%">目标股数</th>
-              <th style="width:9%">差额</th>
-              <th style="width:11%">当前市值</th>
-              <th style="width:11%">目标市值</th>
-              <th>计划动作</th>
-            </tr>
-          </thead>
-          <tbody id="stockRows"></tbody>
-        </table>
-        <div class="hint" id="stockOffSheet"></div>
       </div>
     </section>
 
@@ -849,6 +879,7 @@ function dashboardHtmlPage() {
   <script>
     const $ = (id) => document.getElementById(id);
     let busy = false;
+    let lastStatus = null;
     function escapeHtml(value) {
       const raw = value === null || value === undefined || value === '' ? '-' : String(value);
       return raw.replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
@@ -898,8 +929,38 @@ function dashboardHtmlPage() {
       if (!s) return '-';
       return [s.ticker, s.expiration, String(s.strike || '') + (s.option_type || '')].filter(Boolean).join(' ');
     }
+    function stockOrderCounts(plan) {
+      const orders = plan?.orders || [];
+      return {
+        sell: orders.filter((order) => String(order.side || '').toUpperCase() === 'SELL').length,
+        buy: orders.filter((order) => String(order.side || '').toUpperCase() === 'BUY').length,
+      };
+    }
+    async function waitForStockPlanRefresh(previousGeneratedAt) {
+      const deadline = Date.now() + 25000;
+      while (Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        lastStatus = data;
+        const plan = data.stockRebalancePlan || {};
+        const process = data.processes?.stockPlan || {};
+        const generatedAt = plan.generated_at || '';
+        if (!process.running && generatedAt && generatedAt !== previousGeneratedAt) return data;
+        if (!process.running && process.exitCode !== null && process.exitCode !== undefined) return data;
+      }
+      return lastStatus;
+    }
+    function scrollStockPlanIntoView() {
+      const node = $('stockPlanSummary');
+      if (node) node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
     async function post(action) {
       if (busy) return;
+      const button = document.querySelector('button[data-action="' + action + '"]');
+      const confirmMessage = button?.dataset?.confirm || '';
+      if (confirmMessage && !window.confirm(confirmMessage)) return;
+      const previousStockPlanAt = lastStatus?.stockRebalancePlan?.generated_at || '';
       busy = true;
       document.querySelectorAll('button').forEach((button) => { button.disabled = true; });
       try {
@@ -908,7 +969,9 @@ function dashboardHtmlPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ envFile: $('envFile').value })
         });
+        if (action === 'stock-rebalance-plan') await waitForStockPlanRefresh(previousStockPlanAt);
         await refresh();
+        if (action === 'stock-rebalance-plan') scrollStockPlanIntoView();
       } finally {
         busy = false;
         document.querySelectorAll('button').forEach((button) => { button.disabled = false; });
@@ -1107,6 +1170,7 @@ function dashboardHtmlPage() {
       $('clock').textContent = new Date().toLocaleString();
       const res = await fetch('/api/status');
       const data = await res.json();
+      lastStatus = data;
       const p = data.processes || {};
       $('statCapture').innerHTML = p.capture?.running ? '<span class="ok">运行中</span>' : '<span class="warn">未运行</span>';
       $('statOptions').innerHTML = p.watchSim?.running && p.exitMonitor?.running
@@ -1116,9 +1180,12 @@ function dashboardHtmlPage() {
       $('statOpenD').innerHTML = gs?.qotLogined && gs?.trdLogined ? '<span class="ok">已连接</span>' : '<span class="warn">待检查</span>';
       $('statSignal').textContent = shortContract((data.latestSignals || [])[0]);
       $('statPlan').textContent = data.latestPlan ? String(data.latestPlan.order_status || '-') : '-';
+      const stockCounts = stockOrderCounts(data.stockRebalancePlan);
       $('statStock').innerHTML = p.stockRebalance?.running
         ? '<span class="ok">执行中</span>'
-        : (p.stockPlan?.running ? '<span class="info">计划中</span>' : '<span class="warn">' + text(data.stockRebalanceStatus?.phase || '未运行') + '</span>');
+        : (p.stockPlan?.running ? '<span class="info">计划中</span>' : (data.stockRebalancePlan?.targets?.length
+          ? '<span class="warn">卖 ' + text(stockCounts.sell) + ' / 买 ' + text(stockCounts.buy) + '</span>'
+          : '<span class="warn">' + text(data.stockRebalanceStatus?.phase || '未运行') + '</span>'));
       $('statAtr').innerHTML = p.atrStop?.running
         ? '<span class="ok">监控中</span>'
         : '<span class="warn">' + text(data.atrStopStatus?.phase || '未运行') + '</span>';

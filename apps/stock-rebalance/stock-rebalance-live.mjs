@@ -41,6 +41,22 @@ function numeric(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function firstProvided(...values) {
+  for (const value of values) {
+    if (value !== undefined && value !== null && value !== '') return value;
+  }
+  return undefined;
+}
+
+function percentValue(value, name, defaultValue = 100) {
+  const raw = firstProvided(value, defaultValue);
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
+    throw new Error(`${name} must be a percentage between 0 and 100.`);
+  }
+  return parsed;
+}
+
 function isTruthyFlag(value) {
   if (value === undefined || value === null || value === false) return false;
   if (value === true) return true;
@@ -68,6 +84,19 @@ function stockOrderOverridesFromArgs() {
     stockFillOutsideRTH: fillOutsideRTH,
     stockLimitBufferPct: args['limit-buffer-pct'],
   };
+}
+
+function stockTargetInvestedPctFromArgs() {
+  return percentValue(
+    firstProvided(
+      args['target-invested-pct'],
+      args['invested-pct'],
+      process.env.STOCK_REBALANCE_TARGET_INVESTED_PCT,
+      process.env.MOOMOO_STOCK_TARGET_INVESTED_PCT,
+    ),
+    'STOCK_REBALANCE_TARGET_INVESTED_PCT',
+    100,
+  );
 }
 
 function normalizeStockOrderConfig(config) {
@@ -233,6 +262,70 @@ function quoteForSymbol(quoteMap, symbol) {
   return quoteMap.get(normalizeSymbol(symbol)) || {};
 }
 
+function targetRowStockValue(row, qty = row.desired_qty) {
+  return (numeric(qty) ?? 0) * (numeric(row.price) ?? 0);
+}
+
+function optimizeTargetRowsForBudget(rows, targetStockBudget) {
+  const budget = numeric(targetStockBudget);
+  if (budget === null || budget <= 0) return rows;
+
+  const baseRows = rows.map((row) => ({ ...row }));
+  const baseValue = baseRows.reduce((sum, row) => sum + targetRowStockValue(row), 0);
+  const remainingBudget = budget - baseValue;
+  if (remainingBudget <= 0) return baseRows;
+
+  const candidateLists = baseRows.map((row) => {
+    const price = numeric(row.price);
+    if (row.protected || price === null || price <= 0) return [row.desired_qty];
+    const maxExtra = Math.min(25, Math.floor(remainingBudget / price));
+    return Array.from({ length: maxExtra + 1 }, (_, index) => row.desired_qty + index);
+  });
+
+  let bestQuantities = baseRows.map((row) => row.desired_qty);
+  let bestStockValue = baseValue;
+  let bestWeightDeviation = baseRows.reduce((sum, row) => sum + Math.abs(targetRowStockValue(row) - row.target_value), 0);
+  const quantities = [];
+
+  function visit(index, stockValue) {
+    if (stockValue > budget + 1e-6) return;
+    if (index === baseRows.length) {
+      const weightDeviation = baseRows.reduce((sum, row, rowIndex) => (
+        sum + Math.abs(targetRowStockValue(row, quantities[rowIndex]) - row.target_value)
+      ), 0);
+      const closerToBudget = stockValue > bestStockValue + 1e-6;
+      const sameBudgetBetterWeights = Math.abs(stockValue - bestStockValue) <= 1e-6
+        && weightDeviation < bestWeightDeviation - 1e-6;
+      if (closerToBudget || sameBudgetBetterWeights) {
+        bestStockValue = stockValue;
+        bestWeightDeviation = weightDeviation;
+        bestQuantities = quantities.slice();
+      }
+      return;
+    }
+
+    const row = baseRows[index];
+    const price = numeric(row.price) ?? 0;
+    for (const qty of candidateLists[index]) {
+      quantities[index] = qty;
+      visit(index + 1, stockValue + qty * price);
+    }
+  }
+
+  visit(0, 0);
+
+  return baseRows.map((row, index) => {
+    const desiredQty = bestQuantities[index];
+    const optimizedValue = targetRowStockValue(row, desiredQty);
+    return {
+      ...row,
+      desired_qty: desiredQty,
+      delta_qty: row.protected ? 0 : desiredQty - row.current_qty,
+      optimized_value: Number(optimizedValue.toFixed(2)),
+    };
+  });
+}
+
 export function buildRebalancePlan({
   targets,
   positions,
@@ -240,6 +333,7 @@ export function buildRebalancePlan({
   quotes,
   protectedSymbols = [],
   orderType = 'MARKET',
+  targetInvestedPct = 100,
   generatedAt = new Date().toISOString(),
 }) {
   const targetSymbols = new Set(targets.map((row) => row.symbol));
@@ -255,7 +349,10 @@ export function buildRebalancePlan({
     return sum + positionValue(position, quote.price);
   }, 0);
   const portfolioValue = cash + stockValue;
-  const targetRows = targets.map((target) => {
+  const investedPct = percentValue(targetInvestedPct, 'targetInvestedPct', 100);
+  const targetStockBudget = portfolioValue * investedPct / 100;
+  const targetCashReserve = portfolioValue - targetStockBudget;
+  let targetRows = targets.map((target) => {
     const protectedTarget = protectedSet.has(target.symbol);
     const current = currentBySymbol.get(target.symbol) || { symbol: target.symbol, qty: 0, can_sell_qty: 0 };
     const quote = quoteForSymbol(quoteMap, target.symbol);
@@ -263,7 +360,7 @@ export function buildRebalancePlan({
     const bid = numeric(quote.bid);
     const ask = numeric(quote.ask);
     const priceSpread = numeric(quote.price_spread) ?? DEFAULT_STOCK_LIMIT_TICK;
-    const targetValue = portfolioValue * target.target_pct / 100;
+    const targetValue = targetStockBudget * target.target_pct / 100;
     const currentQty = Math.floor(current.qty || 0);
     const desiredQty = protectedTarget ? currentQty : (price && price > 0 ? Math.floor(targetValue / price) : 0);
     const deltaQty = protectedTarget ? 0 : desiredQty - currentQty;
@@ -284,6 +381,7 @@ export function buildRebalancePlan({
       can_sell_qty: Math.floor(current.can_sell_qty || 0),
     };
   });
+  targetRows = optimizeTargetRowsForBudget(targetRows, targetStockBudget);
 
   const orders = [];
   for (const position of activePositions) {
@@ -348,6 +446,10 @@ export function buildRebalancePlan({
     cash: Number(cash.toFixed(2)),
     stock_value: Number(stockValue.toFixed(2)),
     portfolio_value: Number(portfolioValue.toFixed(2)),
+    target_invested_pct: Number(investedPct.toFixed(6)),
+    target_cash_pct: Number((100 - investedPct).toFixed(6)),
+    target_stock_budget: Number(targetStockBudget.toFixed(2)),
+    target_cash_reserve: Number(targetCashReserve.toFixed(2)),
     target_count: targets.length,
     targets: targetRows,
     protected_symbols: [...protectedSet],
@@ -621,6 +723,7 @@ async function createPlan({ client, quoteFeed, config, targets }) {
     quotes,
     protectedSymbols: config.protectedStockSymbols,
     orderType: stockOrderMode(config).order_type,
+    targetInvestedPct: config.stockTargetInvestedPct,
   });
   plan.account = { accID: maskId(config.accId), trdEnv: config.trdEnv };
   plan.order_submission = stockOrderMode(config);
@@ -716,6 +819,7 @@ async function executeSellThenBuy({ client, quoteFeed, config, targets, executio
     target_file: targetFile,
     planned_sell_orders: sellOrders.length,
     planned_buy_orders: splitRebalanceOrders(executionPlan.orders).buyOrders.length,
+    target_invested_pct: config.stockTargetInvestedPct,
     order_submission: stockOrderMode(config),
     account,
   });
@@ -727,6 +831,7 @@ async function executeSellThenBuy({ client, quoteFeed, config, targets, executio
       phase: 'sell_phase_waiting',
       target_file: targetFile,
       sell_phase: summary,
+      target_invested_pct: config.stockTargetInvestedPct,
       order_submission: stockOrderMode(config),
       account,
     }),
@@ -739,6 +844,7 @@ async function executeSellThenBuy({ client, quoteFeed, config, targets, executio
       sell_phase: sellPhase,
       submitted_sell_orders: submittedSells.filter((row) => row.status === 'submitted').length,
       failed_sell_orders: submittedSells.filter((row) => row.status !== 'submitted').length,
+      target_invested_pct: config.stockTargetInvestedPct,
       order_submission: stockOrderMode(config),
       account,
       orders_path: path.relative(PROJECT_ROOT, ordersPath),
@@ -757,6 +863,7 @@ async function executeSellThenBuy({ client, quoteFeed, config, targets, executio
     phase: 'buy_phase_planning',
     target_file: targetFile,
     sell_phase: sellPhase,
+    target_invested_pct: config.stockTargetInvestedPct,
     order_submission: stockOrderMode(config),
     account,
   });
@@ -772,6 +879,7 @@ async function executeSellThenBuy({ client, quoteFeed, config, targets, executio
     target_file: targetFile,
     sell_phase: sellPhase,
     planned_buy_orders: buyOrders.length,
+    target_invested_pct: config.stockTargetInvestedPct,
     order_submission: stockOrderMode(config),
     account,
   });
@@ -798,6 +906,7 @@ async function main() {
   const pollSeconds = Math.max(1, Number(args['poll-seconds'] || 5));
   const sellPhaseTimeoutSeconds = Math.max(1, Number(args['sell-phase-timeout-seconds'] || DEFAULT_SELL_PHASE_TIMEOUT_SECONDS));
   const config = normalizeStockOrderConfig(loadMoomooConfig({ envFile: args.env, ...stockOrderOverridesFromArgs() }));
+  config.stockTargetInvestedPct = stockTargetInvestedPctFromArgs();
   assertRealAccountAllowed(config, execute);
 
   const connection = await connectMoomoo(config);
@@ -811,6 +920,7 @@ async function main() {
       execute,
       wait_open: waitOpen,
       sell_phase_timeout_seconds: sellPhaseTimeoutSeconds,
+      target_invested_pct: config.stockTargetInvestedPct,
       order_submission: stockOrderMode(config),
       account,
     });
@@ -820,7 +930,15 @@ async function main() {
     await writeLatestPlan(prePlan);
 
     if (planOnly) {
-      await writeStatus({ phase: 'planned', target_file: file, target_count: targets.length, execute: false, order_submission: stockOrderMode(config), account });
+      await writeStatus({
+        phase: 'planned',
+        target_file: file,
+        target_count: targets.length,
+        execute: false,
+        target_invested_pct: config.stockTargetInvestedPct,
+        order_submission: stockOrderMode(config),
+        account,
+      });
       console.log(`Planned ${prePlan.orders.length} stock rebalance orders. Wrote ${latestPlanPath}`);
       return;
     }
@@ -856,6 +974,7 @@ async function main() {
       buy_phase_skipped: result.buyPhaseSkipped,
       submitted_orders: submitted.filter((row) => row.status === 'submitted').length,
       failed_orders: submitted.filter((row) => row.status !== 'submitted').length,
+      target_invested_pct: config.stockTargetInvestedPct,
       order_submission: stockOrderMode(config),
       account,
       orders_path: path.relative(PROJECT_ROOT, ordersPath),

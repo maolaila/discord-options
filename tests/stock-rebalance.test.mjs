@@ -64,6 +64,51 @@ AMZN,20
   ]);
 });
 
+test('stock rebalance can reserve cash by targeting less than full invested value', () => {
+  const targets = parseTargetsCsv(`symbol,target_pct
+AAPL,20
+MSFT,20
+NVDA,20
+GOOGL,20
+AMZN,20
+`);
+  const positions = [
+    { symbol: 'AAPL', qty: 12, can_sell_qty: 12, market_value: 1200, price: 100, position_id: 'p1' },
+    { symbol: 'MSFT', qty: 2, can_sell_qty: 2, market_value: 400, price: 200, position_id: 'p2' },
+    { symbol: 'TSLA', qty: 3, can_sell_qty: 3, market_value: 900, price: 300, position_id: 'p3' },
+  ];
+  const quotes = new Map([
+    ['AAPL', { price: 100 }],
+    ['MSFT', { price: 200 }],
+    ['NVDA', { price: 50 }],
+    ['GOOGL', { price: 100 }],
+    ['AMZN', { price: 25 }],
+    ['TSLA', { price: 300 }],
+  ]);
+
+  const plan = buildRebalancePlan({
+    targets,
+    positions,
+    funds: { cash: 500 },
+    quotes,
+    targetInvestedPct: 85,
+    generatedAt: '2026-06-28T00:00:00.000Z',
+  });
+
+  assert.equal(plan.portfolio_value, 3000);
+  assert.equal(plan.target_invested_pct, 85);
+  assert.equal(plan.target_cash_pct, 15);
+  assert.equal(plan.target_stock_budget, 2550);
+  assert.equal(plan.target_cash_reserve, 450);
+  assert.deepEqual(plan.orders.map((order) => `${order.side}:${order.symbol}:${order.qty}:${order.reason}`), [
+    'SELL:TSLA:3:not_in_target_sheet',
+    'SELL:AAPL:7:rebalance_overweight',
+    'BUY:NVDA:10:rebalance_underweight',
+    'BUY:GOOGL:6:rebalance_underweight',
+    'BUY:AMZN:22:rebalance_underweight',
+  ]);
+});
+
 test('stock rebalance never sells protected symbols such as SPCX', () => {
   const targets = parseTargetsCsv(`symbol,target_pct
 AAPL,20

@@ -1,0 +1,51 @@
+{
+  "dataset": "three-channel-discord-option-messages",
+  "captured_at": "2026-06-30T07:40:21.594Z",
+  "guild_id": "1434960637561409689",
+  "source_channels": [
+    {
+      "key": "pa",
+      "id": "1467498779497201716",
+      "name": "pa分析师",
+      "response_count": 88,
+      "message_count": 1750,
+      "earliest": "2026-04-22T15:21:42.496000+00:00",
+      "latest": "2026-06-29T19:28:54.650000+00:00"
+    },
+    {
+      "key": "qmr",
+      "id": "1467498823265026188",
+      "name": "qmr分析师",
+      "response_count": 130,
+      "message_count": 2590,
+      "earliest": "2026-03-30T18:34:28.442000+00:00",
+      "latest": "2026-06-29T19:29:02.614000+00:00"
+    },
+    {
+      "key": "mr",
+      "id": "1469972672514625749",
+      "name": "mr分析师",
+      "response_count": 88,
+      "message_count": 1750,
+      "earliest": "2026-04-21T19:13:57.023000+00:00",
+      "latest": "2026-06-29T19:29:00.749000+00:00"
+    }
+  ],
+  "source_urls": [
+    "https://discord.com/channels/1434960637561409689/1467498779497201716",
+    "https://discord.com/channels/1434960637561409689/1467498823265026188",
+    "https://discord.com/channels/1434960637561409689/1469972672514625749"
+  ],
+  "files": [
+    {
+      "path": "three-channel-history.json",
+      "bytes": 8382773,
+      "sha256": "8f8a9d4d2ca3ea203383f15d2c296ede577d172b64754dd2c7252a4a2bc25c9d",
+      "description": "Raw Discord option-analysis message history captured from the three PA/QMR/MR channels."
+    }
+  ],
+  "notes": [
+    "This dataset contains Discord message content and message metadata from the captured option-analysis channels.",
+    "Runtime logs, OpenD minute-bar caches, and backtest result files are intentionally excluded from this data package."
+  ]
+}

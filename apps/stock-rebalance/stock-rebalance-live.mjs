@@ -18,8 +18,11 @@ import {
   maskId,
   normalizeForJson,
   parseCliArgs,
+  placeLimitBuyOrder,
+  placeLimitSellOrder,
   placeMarketBuyOrder,
   placeMarketSellOrder,
+  SESSION_RTH,
   selectConfiguredUsRealAccount,
 } from '../../packages/moomoo-opend/moomoo-opend.mjs';
 
@@ -30,6 +33,7 @@ const statusPath = path.join(logsDir, 'stock-rebalance-status.json');
 const latestPlanPath = path.join(logsDir, 'stock-rebalance-plan-latest.json');
 const ordersPath = path.join(logsDir, 'stock-rebalance-orders.ndjson');
 const DEFAULT_SELL_PHASE_TIMEOUT_SECONDS = 120;
+const DEFAULT_STOCK_LIMIT_TICK = 0.01;
 
 function numeric(value) {
   if (value === null || value === undefined || value === '') return null;
@@ -41,6 +45,52 @@ function isTruthyFlag(value) {
   if (value === undefined || value === null || value === false) return false;
   if (value === true) return true;
   return ['1', 'true', 'yes', 'y', 'on'].includes(String(value).trim().toLowerCase());
+}
+
+function hasArg(name) {
+  return Object.prototype.hasOwnProperty.call(args, name);
+}
+
+function sessionLooksOutsideRth(value) {
+  if (value === undefined || value === null || value === '') return false;
+  const normalized = String(value).trim().toLowerCase();
+  return !['1', 'rth', 'regular', 'regular_hours', 'regular-hours'].includes(normalized);
+}
+
+function stockOrderOverridesFromArgs() {
+  const extendedHours = isTruthyFlag(args['extended-hours']) || isTruthyFlag(args.premarket) || isTruthyFlag(args['pre-market']);
+  const session = args.session || args['order-session'] || (extendedHours ? 'eth' : undefined);
+  const fillOutsideRTH = hasArg('fill-outside-rth')
+    ? isTruthyFlag(args['fill-outside-rth'])
+    : (extendedHours || sessionLooksOutsideRth(session) ? true : undefined);
+  return {
+    stockOrderSession: session,
+    stockFillOutsideRTH: fillOutsideRTH,
+    stockLimitBufferPct: args['limit-buffer-pct'],
+  };
+}
+
+function normalizeStockOrderConfig(config) {
+  const fillOverridePresent = hasArg('fill-outside-rth')
+    || process.env.STOCK_REBALANCE_FILL_OUTSIDE_RTH !== undefined
+    || process.env.MOOMOO_STOCK_FILL_OUTSIDE_RTH !== undefined;
+  if (Number(config.stockOrderSession) !== SESSION_RTH && !fillOverridePresent) {
+    config.stockFillOutsideRTH = true;
+  }
+  return config;
+}
+
+export function shouldUseExtendedHoursLimitOrders(config = {}) {
+  return Number(config.stockOrderSession) !== SESSION_RTH || Boolean(config.stockFillOutsideRTH);
+}
+
+function stockOrderMode(config = {}) {
+  return {
+    order_type: shouldUseExtendedHoursLimitOrders(config) ? 'LIMIT' : 'MARKET',
+    order_session: Number(config.stockOrderSession ?? SESSION_RTH),
+    fill_outside_rth: Boolean(config.stockFillOutsideRTH),
+    limit_buffer_pct: shouldUseExtendedHoursLimitOrders(config) ? Number(config.stockLimitBufferPct ?? 0.25) : null,
+  };
 }
 
 function normalizeSymbol(value) {
@@ -160,6 +210,18 @@ function quotePrice(snapshot) {
   return numeric(basic.curPrice) ?? numeric(basic.lastClosePrice) ?? numeric(basic.openPrice);
 }
 
+function quoteBid(snapshot) {
+  return numeric(snapshot?.basic?.bidPrice);
+}
+
+function quoteAsk(snapshot) {
+  return numeric(snapshot?.basic?.askPrice);
+}
+
+function quotePriceSpread(snapshot) {
+  return numeric(snapshot?.basic?.priceSpread) ?? DEFAULT_STOCK_LIMIT_TICK;
+}
+
 function positionValue(position, price) {
   const value = numeric(position.market_value);
   if (value !== null && value >= 0) return value;
@@ -177,6 +239,7 @@ export function buildRebalancePlan({
   funds,
   quotes,
   protectedSymbols = [],
+  orderType = 'MARKET',
   generatedAt = new Date().toISOString(),
 }) {
   const targetSymbols = new Set(targets.map((row) => row.symbol));
@@ -197,6 +260,9 @@ export function buildRebalancePlan({
     const current = currentBySymbol.get(target.symbol) || { symbol: target.symbol, qty: 0, can_sell_qty: 0 };
     const quote = quoteForSymbol(quoteMap, target.symbol);
     const price = numeric(quote.price) ?? numeric(current.price);
+    const bid = numeric(quote.bid);
+    const ask = numeric(quote.ask);
+    const priceSpread = numeric(quote.price_spread) ?? DEFAULT_STOCK_LIMIT_TICK;
     const targetValue = portfolioValue * target.target_pct / 100;
     const currentQty = Math.floor(current.qty || 0);
     const desiredQty = protectedTarget ? currentQty : (price && price > 0 ? Math.floor(targetValue / price) : 0);
@@ -207,6 +273,9 @@ export function buildRebalancePlan({
       protected: protectedTarget,
       target_value: protectedTarget ? Number(positionValue(current, price).toFixed(2)) : Number(targetValue.toFixed(2)),
       price,
+      bid,
+      ask,
+      price_spread: priceSpread,
       current_qty: currentQty,
       desired_qty: desiredQty,
       delta_qty: deltaQty,
@@ -220,14 +289,20 @@ export function buildRebalancePlan({
   for (const position of activePositions) {
     if (!targetSymbols.has(position.symbol)) {
       const qty = Math.min(Math.floor(position.qty), Math.floor(position.can_sell_qty));
+      const quote = quoteForSymbol(quoteMap, position.symbol);
+      const price = numeric(quote.price) ?? numeric(position.price);
       if (qty > 0) {
         orders.push({
           side: 'SELL',
           symbol: position.symbol,
           qty,
-          order_type: 'MARKET',
+          order_type: orderType,
           reason: 'not_in_target_sheet',
           position_id: position.position_id,
+          reference_price: price,
+          bid: numeric(quote.bid),
+          ask: numeric(quote.ask),
+          price_spread: numeric(quote.price_spread) ?? DEFAULT_STOCK_LIMIT_TICK,
         });
       }
     }
@@ -240,9 +315,13 @@ export function buildRebalancePlan({
           side: 'SELL',
           symbol: row.symbol,
           qty,
-          order_type: 'MARKET',
+          order_type: orderType,
           reason: 'rebalance_overweight',
           position_id: row.position_id,
+          reference_price: row.price,
+          bid: row.bid,
+          ask: row.ask,
+          price_spread: row.price_spread,
         });
       }
     }
@@ -253,8 +332,12 @@ export function buildRebalancePlan({
         side: 'BUY',
         symbol: row.symbol,
         qty: row.delta_qty,
-        order_type: 'MARKET',
+        order_type: orderType,
         reason: 'rebalance_underweight',
+        reference_price: row.price,
+        bid: row.bid,
+        ask: row.ask,
+        price_spread: row.price_spread,
       });
     }
   }
@@ -289,6 +372,33 @@ export function buildRebalancePlan({
       })),
     orders,
   };
+}
+
+function roundUpToTick(value, tick) {
+  const step = Number.isFinite(tick) && tick > 0 ? tick : DEFAULT_STOCK_LIMIT_TICK;
+  return Number((Math.ceil((value - Number.EPSILON) / step) * step).toFixed(4));
+}
+
+function roundDownToTick(value, tick) {
+  const step = Number.isFinite(tick) && tick > 0 ? tick : DEFAULT_STOCK_LIMIT_TICK;
+  return Number((Math.floor((value + Number.EPSILON) / step) * step).toFixed(4));
+}
+
+export function stockLimitPriceForOrder(order, bufferPct = 0.25) {
+  const side = String(order?.side || '').toUpperCase();
+  if (!['BUY', 'SELL'].includes(side)) throw new Error(`Unsupported stock order side for limit price: ${order?.side || ''}`);
+  const tick = Math.max(0.001, numeric(order?.price_spread) ?? DEFAULT_STOCK_LIMIT_TICK);
+  const fallback = numeric(order?.reference_price) ?? numeric(order?.price);
+  const base = side === 'BUY'
+    ? (numeric(order?.ask) ?? fallback)
+    : (numeric(order?.bid) ?? fallback);
+  if (base === null || base <= 0) {
+    throw new Error(`Missing positive reference price for ${side} ${order?.symbol || ''} limit order.`);
+  }
+  const buffer = Math.max(0, numeric(bufferPct) ?? 0);
+  const raw = side === 'BUY' ? base * (1 + buffer / 100) : base * (1 - buffer / 100);
+  const rounded = side === 'BUY' ? roundUpToTick(raw, tick) : roundDownToTick(raw, tick);
+  return Math.max(tick, rounded);
 }
 
 async function writeStatus(payload) {
@@ -470,8 +580,9 @@ async function waitForRegularOpen(pollSeconds) {
 
 async function quoteSymbols(quoteFeed, symbols, config) {
   const securities = symbols.map(stockSecurity);
+  const needsOrderBook = shouldUseExtendedHoursLimitOrders(config);
   const result = await quoteFeed.getSnapshots(securities, {
-    orderBookSecurities: [],
+    orderBookSecurities: needsOrderBook ? securities : [],
     warmupMs: config.quotePushWarmupMs,
   });
   const out = new Map();
@@ -480,9 +591,15 @@ async function quoteSymbols(quoteFeed, symbols, config) {
     if (!symbol) continue;
     out.set(symbol, {
       price: quotePrice(snapshot),
+      bid: quoteBid(snapshot),
+      ask: quoteAsk(snapshot),
+      price_spread: quotePriceSpread(snapshot),
       basic: normalizeForJson(snapshot?.basic || null),
+      order_book: normalizeForJson(snapshot?.order_book || null),
       quote_source: snapshot?.quote_source || null,
       quote_received_at: snapshot?.quote_received_at || null,
+      bid_ask_source: snapshot?.bid_ask_source || null,
+      bid_ask_received_at: snapshot?.bid_ask_received_at || null,
     });
   }
   return out;
@@ -503,13 +620,20 @@ async function createPlan({ client, quoteFeed, config, targets }) {
     funds: normalizeForJson(fundsResponse).s2c?.funds || {},
     quotes,
     protectedSymbols: config.protectedStockSymbols,
+    orderType: stockOrderMode(config).order_type,
   });
   plan.account = { accID: maskId(config.accId), trdEnv: config.trdEnv };
+  plan.order_submission = stockOrderMode(config);
   return plan;
 }
 
 async function submitOrders(client, config, orders, executionPhase) {
   const submitted = [];
+  const orderMode = stockOrderMode(config);
+  const orderOptions = {
+    session: orderMode.order_session,
+    fillOutsideRTH: orderMode.fill_outside_rth,
+  };
   for (const order of orders) {
     const payload = {
       submitted_at: new Date().toISOString(),
@@ -518,7 +642,10 @@ async function submitOrders(client, config, orders, executionPhase) {
       side: order.side,
       symbol: order.symbol,
       qty: order.qty,
-      order_type: order.order_type,
+      planned_order_type: order.order_type,
+      order_type: orderMode.order_type,
+      order_session: orderMode.order_session,
+      fill_outside_rth: orderMode.fill_outside_rth,
       reason: order.reason,
     };
     try {
@@ -528,9 +655,19 @@ async function submitOrders(client, config, orders, executionPhase) {
         remark: `rebalance:${order.reason}`.slice(0, 60),
         positionID: order.position_id,
       };
-      const response = order.side === 'BUY'
-        ? await placeMarketBuyOrder(client, config, request)
-        : await placeMarketSellOrder(client, config, request);
+      let response;
+      if (orderMode.order_type === 'LIMIT') {
+        request.price = stockLimitPriceForOrder(order, orderMode.limit_buffer_pct);
+        payload.limit_price = request.price;
+        payload.limit_buffer_pct = orderMode.limit_buffer_pct;
+        response = order.side === 'BUY'
+          ? await placeLimitBuyOrder(client, config, request, orderOptions)
+          : await placeLimitSellOrder(client, config, request, orderOptions);
+      } else {
+        response = order.side === 'BUY'
+          ? await placeMarketBuyOrder(client, config, request)
+          : await placeMarketSellOrder(client, config, request);
+      }
       payload.status = 'submitted';
       payload.order_id_ex = brokerOrderIdEx(response);
       payload.order_id = brokerOrderId(response);
@@ -579,6 +716,7 @@ async function executeSellThenBuy({ client, quoteFeed, config, targets, executio
     target_file: targetFile,
     planned_sell_orders: sellOrders.length,
     planned_buy_orders: splitRebalanceOrders(executionPlan.orders).buyOrders.length,
+    order_submission: stockOrderMode(config),
     account,
   });
   const submittedSells = await submitOrders(client, config, sellOrders, 'sell_phase');
@@ -589,6 +727,7 @@ async function executeSellThenBuy({ client, quoteFeed, config, targets, executio
       phase: 'sell_phase_waiting',
       target_file: targetFile,
       sell_phase: summary,
+      order_submission: stockOrderMode(config),
       account,
     }),
   });
@@ -600,6 +739,7 @@ async function executeSellThenBuy({ client, quoteFeed, config, targets, executio
       sell_phase: sellPhase,
       submitted_sell_orders: submittedSells.filter((row) => row.status === 'submitted').length,
       failed_sell_orders: submittedSells.filter((row) => row.status !== 'submitted').length,
+      order_submission: stockOrderMode(config),
       account,
       orders_path: path.relative(PROJECT_ROOT, ordersPath),
     });
@@ -617,6 +757,7 @@ async function executeSellThenBuy({ client, quoteFeed, config, targets, executio
     phase: 'buy_phase_planning',
     target_file: targetFile,
     sell_phase: sellPhase,
+    order_submission: stockOrderMode(config),
     account,
   });
   const buyPlan = await createPlan({ client, quoteFeed, config, targets });
@@ -631,6 +772,7 @@ async function executeSellThenBuy({ client, quoteFeed, config, targets, executio
     target_file: targetFile,
     sell_phase: sellPhase,
     planned_buy_orders: buyOrders.length,
+    order_submission: stockOrderMode(config),
     account,
   });
   const submittedBuys = await submitOrders(client, config, buyOrders, 'buy_phase');
@@ -655,7 +797,7 @@ async function main() {
   const waitOpen = isTruthyFlag(args['wait-open']);
   const pollSeconds = Math.max(1, Number(args['poll-seconds'] || 5));
   const sellPhaseTimeoutSeconds = Math.max(1, Number(args['sell-phase-timeout-seconds'] || DEFAULT_SELL_PHASE_TIMEOUT_SECONDS));
-  const config = loadMoomooConfig({ envFile: args.env });
+  const config = normalizeStockOrderConfig(loadMoomooConfig({ envFile: args.env, ...stockOrderOverridesFromArgs() }));
   assertRealAccountAllowed(config, execute);
 
   const connection = await connectMoomoo(config);
@@ -669,6 +811,7 @@ async function main() {
       execute,
       wait_open: waitOpen,
       sell_phase_timeout_seconds: sellPhaseTimeoutSeconds,
+      order_submission: stockOrderMode(config),
       account,
     });
     const prePlan = await createPlan({ client: connection.client, quoteFeed, config, targets });
@@ -677,7 +820,7 @@ async function main() {
     await writeLatestPlan(prePlan);
 
     if (planOnly) {
-      await writeStatus({ phase: 'planned', target_file: file, target_count: targets.length, execute: false, account });
+      await writeStatus({ phase: 'planned', target_file: file, target_count: targets.length, execute: false, order_submission: stockOrderMode(config), account });
       console.log(`Planned ${prePlan.orders.length} stock rebalance orders. Wrote ${latestPlanPath}`);
       return;
     }
@@ -713,6 +856,7 @@ async function main() {
       buy_phase_skipped: result.buyPhaseSkipped,
       submitted_orders: submitted.filter((row) => row.status === 'submitted').length,
       failed_orders: submitted.filter((row) => row.status !== 'submitted').length,
+      order_submission: stockOrderMode(config),
       account,
       orders_path: path.relative(PROJECT_ROOT, ordersPath),
     });

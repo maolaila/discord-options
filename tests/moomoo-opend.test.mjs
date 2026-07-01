@@ -2,12 +2,15 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   MODIFY_ORDER_OP_CANCEL,
+  ORDER_TYPE_LIMIT,
   ORDER_TYPE_MARKET,
   ORDER_TYPE_STOP,
+  SESSION_ETH,
   SESSION_RTH,
   TIME_IN_FORCE_GTC,
   TRD_SIDE_BUY,
   TRD_SIDE_SELL,
+  buildLimitBuyOrderRequest,
   buildCancelOrderRequest,
   buildMarketBuyOrderRequest,
   buildOptionExecutionQuote,
@@ -149,6 +152,45 @@ test('market stock order request uses market order type and whole-share quantity
   assert.equal(request.c2s.code, 'AAPL');
   assert.equal(request.c2s.qty, 7);
   assert.equal(request.c2s.price, undefined);
+  assert.equal(request.c2s.session, SESSION_RTH);
+  assert.equal(request.c2s.fillOutsideRTH, undefined);
+});
+
+test('extended-hours limit stock order request sets session and outside-RTH permission', () => {
+  const request = buildLimitBuyOrderRequest({
+    trdEnv: 1,
+    trdMarket: 2,
+    accId: '123456',
+  }, {
+    code: 'AAPL',
+    qty: 7,
+    price: 195.25,
+    remark: 'rebalance:premarket',
+  }, {
+    session: SESSION_ETH,
+    fillOutsideRTH: true,
+  });
+
+  assert.equal(request.c2s.trdSide, TRD_SIDE_BUY);
+  assert.equal(request.c2s.orderType, ORDER_TYPE_LIMIT);
+  assert.equal(request.c2s.code, 'AAPL');
+  assert.equal(request.c2s.qty, 7);
+  assert.equal(request.c2s.price, 195.25);
+  assert.equal(request.c2s.session, SESSION_ETH);
+  assert.equal(request.c2s.fillOutsideRTH, true);
+});
+
+test('stock order session config parses extended-hours aliases', () => {
+  const config = loadMoomooConfig({
+    envFile: './__missing_test_env__',
+    stockOrderSession: 'extended-hours',
+    stockFillOutsideRTH: true,
+    stockLimitBufferPct: 0.5,
+  });
+
+  assert.equal(config.stockOrderSession, SESSION_ETH);
+  assert.equal(config.stockFillOutsideRTH, true);
+  assert.equal(config.stockLimitBufferPct, 0.5);
 });
 
 test('GTC stop-market sell order request uses auxPrice and RTH session', () => {

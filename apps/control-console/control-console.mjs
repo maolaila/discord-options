@@ -203,6 +203,15 @@ function startStockRebalance(envFile) {
   ], { oneShot: true, env: realConfirmEnv() });
 }
 
+function startStockRebalanceExtended(envFile) {
+  return startProcess('stockRebalance', '股票盘前盘后调仓', nodeBin(), [
+    path.join(ROOT, 'apps', 'stock-rebalance', 'stock-rebalance-live.mjs'),
+    '--extended-hours',
+    '--execute-real',
+    ...envArgs(envFile),
+  ], { oneShot: true, env: realConfirmEnv() });
+}
+
 function startAtrStop(envFile) {
   return startProcess('atrStop', 'ATR 实盘止损', nodeBin(), [
     path.join(ROOT, 'apps', 'atr-stop', 'atr-trailing-stop.mjs'),
@@ -409,6 +418,7 @@ async function routePost(req, res, pathname) {
   else if (pathname === '/api/moomoo-check') runMoomooCheck(envFile);
   else if (pathname === '/api/stock-rebalance-plan') startStockRebalancePlan(envFile);
   else if (pathname === '/api/start-stock-rebalance') startStockRebalance(envFile);
+  else if (pathname === '/api/start-stock-rebalance-extended') startStockRebalanceExtended(envFile);
   else if (pathname === '/api/atr-stop-refresh') refreshAtrStop(envFile);
   else if (pathname === '/api/start-atr-stop') startAtrStop(envFile);
   else if (pathname === '/api/stop-capture') stopProcess('capture');
@@ -753,6 +763,7 @@ function dashboardHtmlPage() {
         <div class="group-title">股票调仓</div>
         <button data-action="stock-rebalance-plan">刷新计划</button>
         <button class="confirm" data-action="start-stock-rebalance" data-confirm="确认已经检查最新股票调仓计划，并启动开盘监听执行？">确认执行</button>
+        <button class="confirm" data-action="start-stock-rebalance-extended" data-confirm="确认已经检查最新股票调仓计划，并使用盘前/盘后限价单立即执行？">盘前/盘后执行</button>
         <button class="danger" data-action="stop-stock-rebalance">停调仓</button>
       </div>
       <div class="toolbar-group">
@@ -1496,6 +1507,7 @@ function htmlPage() {
       <button data-action="moomoo-check">OpenD 检查</button>
       <button data-action="stock-rebalance-plan">股票计划</button>
       <button class="primary" data-action="start-stock-rebalance">启动股票调仓</button>
+      <button class="primary confirm" data-action="start-stock-rebalance-extended" data-confirm="确认已经检查最新股票调仓计划，并使用盘前/盘后限价单立即执行？">盘前/盘后股票调仓</button>
       <button data-action="start-atr-stop">启动 ATR</button>
       <button class="danger" data-action="stop-stock-rebalance">停股票</button>
       <button class="danger" data-action="stop-atr-stop">停 ATR</button>

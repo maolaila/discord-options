@@ -4,7 +4,9 @@ import {
   buildRebalancePlan,
   parseTargetsCsv,
   shouldProceedToBuyPhase,
+  shouldUseExtendedHoursLimitOrders,
   splitRebalanceOrders,
+  stockLimitPriceForOrder,
   summarizeSellPhase,
 } from '../apps/stock-rebalance/stock-rebalance-live.mjs';
 
@@ -117,6 +119,27 @@ test('stock rebalance execution separates sell phase before buy phase', () => {
     'BUY:AAPL:1',
     'BUY:NVDA:4',
   ]);
+});
+
+test('extended-hours stock rebalance uses protected limit prices', () => {
+  assert.equal(shouldUseExtendedHoursLimitOrders({ stockOrderSession: 2, stockFillOutsideRTH: true }), true);
+  assert.equal(shouldUseExtendedHoursLimitOrders({ stockOrderSession: 1, stockFillOutsideRTH: false }), false);
+
+  assert.equal(stockLimitPriceForOrder({
+    side: 'BUY',
+    symbol: 'AAPL',
+    ask: 100,
+    reference_price: 99.5,
+    price_spread: 0.01,
+  }, 0.25), 100.25);
+
+  assert.equal(stockLimitPriceForOrder({
+    side: 'SELL',
+    symbol: 'MSFT',
+    bid: 200,
+    reference_price: 201,
+    price_spread: 0.01,
+  }, 0.25), 199.5);
 });
 
 test('stock rebalance only proceeds to buy phase after all submitted sells fully fill', () => {

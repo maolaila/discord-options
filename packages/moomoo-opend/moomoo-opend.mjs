@@ -25,7 +25,11 @@ export const ORDER_TYPE_STOP = 10;
 export const MODIFY_ORDER_OP_CANCEL = 2;
 export const TIME_IN_FORCE_DAY = 0;
 export const TIME_IN_FORCE_GTC = 1;
+export const SESSION_NONE = 0;
 export const SESSION_RTH = 1;
+export const SESSION_ETH = 2;
+export const SESSION_ALL = 3;
+export const SESSION_OVERNIGHT = 4;
 export const QOT_SUBTYPE_BASIC = 1;
 export const QOT_SUBTYPE_ORDER_BOOK = 2;
 export const KL_TYPE_DAY = 2;
@@ -54,6 +58,20 @@ const trdEnvMap = {
 
 const trdMarketMap = {
   US: TRD_MARKET_US,
+};
+
+const orderSessionMap = {
+  none: SESSION_NONE,
+  rth: SESSION_RTH,
+  regular: SESSION_RTH,
+  regular_hours: SESSION_RTH,
+  'regular-hours': SESSION_RTH,
+  eth: SESSION_ETH,
+  extended: SESSION_ETH,
+  extended_hours: SESSION_ETH,
+  'extended-hours': SESSION_ETH,
+  all: SESSION_ALL,
+  overnight: SESSION_OVERNIGHT,
 };
 
 function boolValue(value, defaultValue) {
@@ -125,6 +143,22 @@ function mappedInt(value, map, name, defaultValue = undefined) {
   const mapped = map[raw] ?? map[raw.toUpperCase()] ?? map[raw.toLowerCase()];
   if (mapped === undefined) throw new Error(`${name} must be one of ${Object.keys(map).join(', ')} or an integer.`);
   return mapped;
+}
+
+export function parseOrderSession(value, defaultValue = SESSION_RTH) {
+  return mappedInt(value, orderSessionMap, 'MOOMOO_STOCK_ORDER_SESSION', defaultValue);
+}
+
+function orderSessionFromOpts(opts = {}) {
+  return parseOrderSession(firstPresent(opts.session, opts.orderSession), SESSION_RTH);
+}
+
+function applyOrderSessionFields(c2s, opts = {}, { allowFillOutsideRTH = false } = {}) {
+  c2s.session = orderSessionFromOpts(opts);
+  if (allowFillOutsideRTH && boolValue(firstPresent(opts.fillOutsideRTH, opts.fillOutsideRth), false)) {
+    c2s.fillOutsideRTH = true;
+  }
+  return c2s;
 }
 
 function resolveMaybeRelative(filePath, baseDir) {
@@ -255,6 +289,9 @@ export function loadMoomooConfig(opts = {}) {
     optionExitStopLossPct: numberValue(opts.optionExitStopLossPct || process.env.MOOMOO_OPTION_EXIT_STOP_LOSS_PCT, 'MOOMOO_OPTION_EXIT_STOP_LOSS_PCT', exits.option_stop_loss_pct ?? 20),
     closeExitStartTimeEt: String(opts.closeExitStartTimeEt || process.env.MOOMOO_CLOSE_EXIT_START_TIME_ET || exits.close_exit_start_time_et || '15:45').trim(),
     forceCloseExitStartTimeEt: String(opts.forceCloseExitStartTimeEt || process.env.MOOMOO_FORCE_CLOSE_EXIT_START_TIME_ET || exits.force_close_exit_start_time_et || '15:55').trim(),
+    stockOrderSession: parseOrderSession(firstPresent(opts.stockOrderSession, opts.orderSession, process.env.STOCK_REBALANCE_ORDER_SESSION, process.env.MOOMOO_STOCK_ORDER_SESSION), SESSION_RTH),
+    stockFillOutsideRTH: boolValue(firstPresent(opts.stockFillOutsideRTH, opts.fillOutsideRTH, process.env.STOCK_REBALANCE_FILL_OUTSIDE_RTH, process.env.MOOMOO_STOCK_FILL_OUTSIDE_RTH), false),
+    stockLimitBufferPct: numberValue(firstPresent(opts.stockLimitBufferPct, process.env.STOCK_REBALANCE_LIMIT_BUFFER_PCT, process.env.MOOMOO_STOCK_LIMIT_BUFFER_PCT), 'MOOMOO_STOCK_LIMIT_BUFFER_PCT', 0.25),
     allowRealTrading: boolValue(opts.allowRealTrading ?? process.env.MOOMOO_ALLOW_REAL_TRADING, false),
     protectedStockSymbols: parseProtectedStockSymbols(opts.protectedStockSymbols ?? process.env.PROTECTED_STOCK_SYMBOLS),
     policy,
@@ -993,8 +1030,8 @@ export function buildLimitBuyOrderRequest(config, { code, qty, price, remark }, 
     secMarket: TRD_SEC_MARKET_US,
     remark: String(remark || '').slice(0, 60),
     timeInForce: TIME_IN_FORCE_DAY,
-    session: SESSION_RTH,
   };
+  applyOrderSessionFields(c2s, opts, { allowFillOutsideRTH: true });
   if (opts.packetID) {
     c2s.packetID = opts.packetID;
   }
@@ -1014,8 +1051,8 @@ export function buildLimitSellOrderRequest(config, { code, qty, price, remark, p
     secMarket: TRD_SEC_MARKET_US,
     remark: String(remark || '').slice(0, 60),
     timeInForce: TIME_IN_FORCE_DAY,
-    session: SESSION_RTH,
   };
+  applyOrderSessionFields(c2s, opts, { allowFillOutsideRTH: true });
   if (positionID !== undefined && positionID !== null && positionID !== '') {
     c2s.positionID = positionID;
   }
@@ -1037,8 +1074,8 @@ export function buildMarketOrderRequest(config, { code, qty, side, remark, posit
     secMarket: TRD_SEC_MARKET_US,
     remark: String(remark || '').slice(0, 60),
     timeInForce: TIME_IN_FORCE_DAY,
-    session: SESSION_RTH,
   };
+  applyOrderSessionFields(c2s, opts);
   if (positionID !== undefined && positionID !== null && positionID !== '') {
     c2s.positionID = positionID;
   }
@@ -1104,46 +1141,46 @@ export function buildCancelOrderRequest(config, { orderID, orderIDEx }, opts = {
   };
 }
 
-export async function placeLimitBuyOrder(client, config, order) {
+export async function placeLimitBuyOrder(client, config, order, opts = {}) {
   const packetID = {
     connID: client.getConnID(),
     serialNo: tradeSerialNo,
   };
   tradeSerialNo += 1;
-  const response = await client.PlaceOrder(buildLimitBuyOrderRequest(config, order, { packetID }));
+  const response = await client.PlaceOrder(buildLimitBuyOrderRequest(config, order, { ...opts, packetID }));
   assertMoomooSuccess(response, 'PlaceOrder');
   return response;
 }
 
-export async function placeLimitSellOrder(client, config, order) {
+export async function placeLimitSellOrder(client, config, order, opts = {}) {
   const packetID = {
     connID: client.getConnID(),
     serialNo: tradeSerialNo,
   };
   tradeSerialNo += 1;
-  const response = await client.PlaceOrder(buildLimitSellOrderRequest(config, order, { packetID }));
+  const response = await client.PlaceOrder(buildLimitSellOrderRequest(config, order, { ...opts, packetID }));
   assertMoomooSuccess(response, 'PlaceOrder');
   return response;
 }
 
-export async function placeMarketBuyOrder(client, config, order) {
+export async function placeMarketBuyOrder(client, config, order, opts = {}) {
   const packetID = {
     connID: client.getConnID(),
     serialNo: tradeSerialNo,
   };
   tradeSerialNo += 1;
-  const response = await client.PlaceOrder(buildMarketBuyOrderRequest(config, order, { packetID }));
+  const response = await client.PlaceOrder(buildMarketBuyOrderRequest(config, order, { ...opts, packetID }));
   assertMoomooSuccess(response, 'PlaceOrder');
   return response;
 }
 
-export async function placeMarketSellOrder(client, config, order) {
+export async function placeMarketSellOrder(client, config, order, opts = {}) {
   const packetID = {
     connID: client.getConnID(),
     serialNo: tradeSerialNo,
   };
   tradeSerialNo += 1;
-  const response = await client.PlaceOrder(buildMarketSellOrderRequest(config, order, { packetID }));
+  const response = await client.PlaceOrder(buildMarketSellOrderRequest(config, order, { ...opts, packetID }));
   assertMoomooSuccess(response, 'PlaceOrder');
   return response;
 }

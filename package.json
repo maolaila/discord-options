@@ -20,6 +20,7 @@
     "moomoo:order-smoke": "node ./apps/opend-check/order-smoke-test.mjs --execute-real",
     "stock:rebalance-plan": "node ./apps/stock-rebalance/stock-rebalance-live.mjs --plan-only",
     "stock:rebalance-live": "node ./apps/stock-rebalance/stock-rebalance-live.mjs --wait-open --execute-real",
+    "stock:rebalance-extended": "node ./apps/stock-rebalance/stock-rebalance-live.mjs --extended-hours --execute-real",
     "atr:stop-refresh": "node ./apps/atr-stop/atr-trailing-stop.mjs --refresh-only",
     "atr:stop-watch": "node ./apps/atr-stop/atr-trailing-stop.mjs --watch --execute-real",
     "console": "node ./apps/control-console/control-console.mjs",

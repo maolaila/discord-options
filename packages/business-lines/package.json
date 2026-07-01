@@ -1,0 +1,6 @@
+{
+  "name": "@discord-options/business-lines",
+  "private": true,
+  "type": "module",
+  "main": "business-lines.mjs"
+}

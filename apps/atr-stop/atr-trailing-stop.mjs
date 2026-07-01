@@ -23,8 +23,13 @@ import {
   requestHistoryKL,
   selectConfiguredUsRealAccount,
 } from '../../packages/moomoo-opend/moomoo-opend.mjs';
+import {
+  moomooConfigOptionsForBusinessLine,
+  resolveBusinessLine,
+} from '../../packages/business-lines/business-lines.mjs';
 
 const args = parseCliArgs();
+const businessLine = resolveBusinessLine('atr-stop');
 const logsDir = path.join(PROJECT_ROOT, 'logs');
 const statusPath = path.join(logsDir, 'atr-stop-status.json');
 const statePath = path.join(logsDir, 'atr-stop-state.json');
@@ -287,7 +292,7 @@ async function writeState(state) {
 
 async function writeStatus(payload) {
   await ensureDir(path.dirname(statusPath));
-  await fsp.writeFile(statusPath, `${JSON.stringify({ updated_at: new Date().toISOString(), ...payload }, null, 2)}\n`, 'utf8');
+  await fsp.writeFile(statusPath, `${JSON.stringify({ updated_at: new Date().toISOString(), business_line: businessLine.key, ...payload }, null, 2)}\n`, 'utf8');
 }
 
 async function appendOrder(payload) {
@@ -1111,7 +1116,7 @@ async function refreshAtrPoints(client, config, settings) {
 }
 
 async function main() {
-  const config = loadMoomooConfig({ envFile: args.env });
+  const config = loadMoomooConfig(moomooConfigOptionsForBusinessLine(businessLine, args));
   const execute = isTruthyFlag(args['execute-real']);
   const refreshOnly = isTruthyFlag(args['refresh-only']) || isTruthyFlag(args.refresh) || isTruthyFlag(args['plan-only']);
   if (!execute && !refreshOnly) {

@@ -9,10 +9,12 @@
 这是一个 npm workspaces monorepo。根目录保留统一脚本和运行日志，业务入口放在 `apps/`，公共能力放在 `packages/`：
 
 - `apps/discord-capture`: Discord 消息抓包和期权信号识别入口。
-- `apps/options-sim`: 期权模拟买入监听和退出监控，只允许模拟账户。
+- `apps/options-sim`: PA 期权模拟买入监听和退出监控，只允许模拟账户。
+- `apps/zero-dte-options`: 0DTE/Nightwatch 独立业务线骨架，当前禁用，后续单独开发。
 - `apps/stock-rebalance`: 股票月度调仓线，读取目标 CSV 后生成/执行调仓计划。
 - `apps/atr-stop`: 股票 ATR 动态止损线，使用确认日线维护本地止损并用实时价触发卖出。
 - `apps/control-console`: 本地网页控制台，按业务线展示核心状态。
+- `packages/business-lines`: PA 期权、0DTE 期权、股票调仓、ATR 止损等业务线元数据、policy 路径和日志前缀。
 - `packages/moomoo-opend`: OpenD 连接、行情、账户、下单和日志共享能力。
 - `packages/option-signals`: Discord 期权信号解析和信号文档写入。
 - `packages/trade-journal`: 期权模拟交易复盘事件日志。
@@ -236,28 +238,28 @@ npm run moomoo:order-smoke -- --symbol AAPL --qty 1 --max-notional 100 --price-r
 
 smoke test 会拒绝触碰 `PROTECTED_STOCK_SYMBOLS` 里的股票，例如默认的 `SPCX`。
 
-用某条 Discord 信号生成一份 dry-run 交易计划：
+用某条 PA Discord 信号生成一份 dry-run 交易计划：
 
 ```powershell
-npm run moomoo:plan -- --message-id 1512473332728070174
+npm run pa:options-plan -- --message-id 1512473332728070174
 ```
 
 持续监听新产生的 `logs/order-intents.ndjson` 并实时生成 dry-run 计划：
 
 ```powershell
-npm run moomoo:watch-plan
+npm run pa:options-watch-plan
 ```
 
 输出文件：
 
 - `logs/moomoo-check.json`: OpenD 连接、市场状态、账户列表检查结果
-- `logs/moomoo-order-plans.ndjson`: 每条信号的交易计划或拦截原因
-- `logs/moomoo-order-plans-latest.json`: 最近一次交易计划，便于人工检查
-- `logs/moomoo-executions.ndjson`: 只有显式执行模拟/实盘时才会写入
+- `logs/pa-options-order-plans.ndjson`: PA 期权线每条信号的交易计划或拦截原因
+- `logs/pa-options-order-plans-latest.json`: PA 期权线最近一次交易计划，便于人工检查
+- `logs/pa-options-executions.ndjson`: 只有显式执行 PA 模拟时才会写入
 - `logs/trade-journal.ndjson`: 交易复盘事件流，记录候选计划、买入提交、成交状态、持仓监控快照、退出触发和卖出提交
 - `logs/trade-journal-latest.json`: 最近一条复盘事件，便于控制台和人工检查
 
-模拟交易策略默认读取 `config/sim-trading-policy.json`。这是纯本地确定性程序规则，不调用 AI、LLM、OpenAI 或外部模型接口。
+PA 期权模拟策略默认读取 `config/pa-options-policy.json`；旧 `config/sim-trading-policy.json` 保留为兼容文件。这是纯本地确定性程序规则，不调用 AI、LLM、OpenAI 或外部模型接口。
 
 当前期权模拟跟单只处理 PA 信号：`执行观点` 必须是交易，`胜率 >= 60`，必须能解析到执行观点里的股票止损价，且 `bull` 只买 Call、`bear` 只买 Put。置信度和风险分数不再作为买入 gate。下单前还会读取 OpenD 正股报价，当前正股价格低于信号止损价时直接拒绝交易。可以在 `.env` 里改：
 
@@ -293,22 +295,22 @@ MOOMOO_OPTION_MAX_QTY_TO_ASK_VOLUME_RATIO=10
 模拟执行需要显式传参：
 
 ```powershell
-npm run moomoo:simulate -- --message-id 1512473332728070174
+npm run pa:options-simulate -- --message-id 1512473332728070174
 ```
 
 持续监听新信号并提交模拟账户订单：
 
 ```powershell
-npm run moomoo:watch-sim
+npm run pa:options-watch-sim
 ```
 
 模拟账户卖出监控：
 
 ```powershell
-npm run moomoo:exit-watch
+npm run pa:options-exit-watch
 ```
 
-控制台里的 `启动全套模拟` 会同时启动买入监听和卖出监控。卖出监控只处理本程序提交且已经成交的同环境买入单；触发有效股票目标价/股票止损价、期权成交价 `-20%/+50%`、或收盘前退出时，按当前期权 `bid - 滑点` 的保守限价提交 `SELL_TO_CLOSE` 单。收盘退出使用纽约时间：`15:45 ET` 开始主动退出，`15:55 ET` 后进入强制退出阶段并使用更积极但仍受最小 tick 保护的限价；如果持仓符合受控隔夜条件，监控会记录 `controlled_overnight_hold` 并跳过当日收盘卖出，下一常规交易日收盘窗口触发 `controlled_overnight_next_day_exit`。行情触发采用 OpenD 推送缓存优先，订单/持仓状态默认每 `5` 秒向 OpenD 校验一次，避免触发未完成订单查询限频。卖出记录写入 `logs/moomoo-exit-orders.ndjson`，状态写入 `logs/moomoo-exit-status.json`。
+控制台里的 `启动全套模拟` 会同时启动 PA 期权买入监听和卖出监控。卖出监控只处理本程序提交且已经成交的同环境买入单；触发有效股票目标价/股票止损价、期权成交价 `-20%/+50%`、或收盘前退出时，按当前期权 `bid - 滑点` 的保守限价提交 `SELL_TO_CLOSE` 单。收盘退出使用纽约时间：`15:45 ET` 开始主动退出，`15:55 ET` 后进入强制退出阶段并使用更积极但仍受最小 tick 保护的限价；如果持仓符合受控隔夜条件，监控会记录 `controlled_overnight_hold` 并跳过当日收盘卖出，下一常规交易日收盘窗口触发 `controlled_overnight_next_day_exit`。行情触发采用 OpenD 推送缓存优先，订单/持仓状态默认每 `5` 秒向 OpenD 校验一次，避免触发未完成订单查询限频。卖出记录写入 `logs/pa-options-exit-orders.ndjson`，状态写入 `logs/pa-options-exit-status.json`。
 
 每个交易生命周期都会额外写入 `logs/trade-journal.ndjson`，用于后续人工复盘或本地整理后给 AI 参考。该文件是追加式 JSONL，每行包含：
 
@@ -323,11 +325,27 @@ npm run moomoo:exit-watch
 
 `--execute-simulate` 会自动从 OpenD 账户列表中选择 `trdEnv=0`、支持美股市场、且模拟账户类型支持期权的账户；不会使用 `.env` 里的真实账户 ID。
 
-期权业务线现在只允许模拟账户执行。`apps/options-sim/moomoo-signal-trader.mjs` 和 `apps/options-sim/moomoo-exit-monitor.mjs` 遇到 `--execute-real` 会直接拒绝；真实账户操作只放在股票调仓和 ATR 止损两条独立业务线。
+PA 期权业务线默认只允许模拟账户执行；除非下面的实盘开关全部打开，`apps/options-sim/moomoo-signal-trader.mjs` 和 `apps/options-sim/moomoo-exit-monitor.mjs` 遇到 `--execute-real` 会直接拒绝。股票调仓和 ATR 止损是当前已启用的实盘业务线。
 
 当前点差、滑点、可见 ask 流动性和立即往返磨损模型用于模拟盘和交易计划的保守估算。真实盘不会把这些估算当成真实成交价；真实成交必须以真实市场和券商实际成交回报为准。bid、ask 和 mid 只作为开仓/平仓限价和成交质量的参考。
 
-## 三条独立业务线
+PA 和 0DTE 期权线都按“先模拟、稳定后再开实盘”的方式设计。PA 线默认仍是模拟盘，实盘必须同时满足三层开关：
+
+- 对应 policy 里 `execution.real_trading_allowed=true`。
+- `.env` 里 `MOOMOO_ALLOW_REAL_TRADING=true`。
+- 启动进程时同时设置 `MOOMOO_REAL_TRADING_CONFIRM=I_UNDERSTAND` 和 `MOOMOO_OPTIONS_REAL_TRADING_CONFIRM=I_UNDERSTAND`，并显式使用 `--execute-real`。
+
+默认仓库里的 `config/pa-options-policy.json` 和 `config/zero-dte-options-policy.json` 都保持 `real_trading_allowed=false`，所以今晚继续挂 PA 模拟不会误进实盘。
+
+0DTE/Nightwatch 已经预留为独立业务线，但当前不接 PA 执行器、不下单。状态检查：
+
+```powershell
+npm run zero-dte:status
+```
+
+旧的 `moomoo:plan`、`moomoo:watch-sim`、`moomoo:exit-watch` 等脚本仍保留为 PA 期权线兼容别名，新命令优先使用 `pa:options-*`。
+
+## 业务线边界
 
 控制台仍用同一个入口：
 
@@ -337,11 +355,12 @@ npm run moomoo:exit-watch
 
 页面里可以分别启动和停止：
 
-- 期权模拟：`全套模拟` / `停止全部`
+- PA 期权模拟：`全套模拟` / `停止全部`
+- 0DTE 期权：独立骨架已存在，当前禁用，后续单独开发。
 - 股票实盘调仓：`调仓计划`、`执行调仓` / `停调仓`
 - ATR 实盘止损：`刷新 ATR`、`确认监控` / `停 ATR`
 
-三条线除了 OpenD 连接封装以外，不共用交易状态文件。期权线只走模拟账户；股票调仓和 ATR 监控是实盘业务线，仍要求 `.env` 里 `MOOMOO_ALLOW_REAL_TRADING=true`，否则确认执行/确认监控后会拒绝下单。`刷新 ATR` 只读取实盘持仓和行情计算点位，不提交订单。
+四条业务线除了 OpenD 连接/行情/下单封装以外，不共用交易状态文件。PA 期权线只走模拟账户；0DTE 不复用 PA 策略且当前禁用；股票调仓和 ATR 监控是实盘业务线，仍要求 `.env` 里 `MOOMOO_ALLOW_REAL_TRADING=true`，否则确认执行/确认监控后会拒绝下单。`刷新 ATR` 只读取实盘持仓和行情计算点位，不提交订单。
 
 默认保护标的是 `SPCX`：`PROTECTED_STOCK_SYMBOLS=SPCX`。保护标的不会被股票调仓卖出/买入、不会被 ATR 止损线监控卖出，也不会被真实挂单 smoke test 使用。这个仓位按长期持有处理。
 
@@ -370,6 +389,7 @@ AMZN,20
 - 检查计划无误后，再点 `确认执行` 启动开盘监听执行程序；按钮会二次确认，避免误点直接下单。
 - 到美股常规盘开盘后，会按最新持仓、资金和报价重算一次卖出计划，先提交全部市价卖单。
 - 如果要盘前/盘后立即执行，使用 `盘前/盘后执行` 或 `npm run stock:rebalance-extended`。这条入口会用美股 extended-hours 限价单，并设置 `fillOutsideRTH=true`；买入限价默认按 ask/现价上浮 `0.25%`，卖出限价默认按 bid/现价下浮 `0.25%`，可通过 `STOCK_REBALANCE_LIMIT_BUFFER_PCT` 调整。
+- moomoo 日本账户下，调仓买入默认使用一般/普通口座：`STOCK_REBALANCE_BUY_JP_ACC_TYPE=1`。卖出订单不指定 `jpAccType`，只带对应持仓的 `positionID`，因此哪个子账户有可卖持仓就卖哪个；不要用全局 `MOOMOO_JP_ACC_TYPE` 来限制整条调仓线。
 - 卖出阶段默认最多等待 `120s`。只有所有卖出计划都确认完全成交后，才会刷新持仓/资金/报价并重算买入计划。
 - 常规盘入口的买入阶段提交市价买单；盘前/盘后入口的买入阶段提交限价买单。两者都会在卖出阶段失败、取消、超时或未完全成交时跳过买入阶段，等待人工确认或下次调仓。
 
@@ -431,7 +451,7 @@ npm run atr:stop-watch
 可以提交到 GitHub 的内容：
 
 - 程序源码、PowerShell 启动脚本、`package.json`、`package-lock.json`
-- `.env.example`、`config/sim-trading-policy.json`
+- `.env.example`、`config/sim-trading-policy.json`、`config/pa-options-policy.json`、`config/zero-dte-options-policy.json`、`config/stock-rebalance-policy.json`、`config/atr-stop-policy.json`
 - `vendor/MMAPI4JS_10.6.6608/`，这是本项目运行 moomoo OpenD 所需的本地 JS SDK
 - `NEW_DEVICE_SETUP.md` 和其他说明文档
 

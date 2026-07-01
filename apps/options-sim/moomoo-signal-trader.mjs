@@ -26,14 +26,24 @@ import {
   appendTradeJournalEvent,
   buildPlanJournalPayload,
 } from '../../packages/trade-journal/trade-journal.mjs';
+import {
+  assertBusinessLineKind,
+  businessLineLogPath,
+  moomooConfigOptionsForBusinessLine,
+  resolveBusinessLine,
+} from '../../packages/business-lines/business-lines.mjs';
 
 const args = parseCliArgs();
+const businessLine = assertBusinessLineKind(resolveBusinessLine(args['business-line'] || args.line || 'pa-options'), 'options');
+if (businessLine.key !== 'pa-options') {
+  throw new Error(`${businessLine.key} is isolated from the PA options trader. Use its dedicated business-line entrypoint.`);
+}
 const logsDir = path.join(PROJECT_ROOT, 'logs');
 const signalsPath = path.join(logsDir, 'option-signals.ndjson');
 const intentsPath = path.join(logsDir, 'order-intents.ndjson');
-const plansPath = path.join(logsDir, 'moomoo-order-plans.ndjson');
-const latestPlanPath = path.join(logsDir, 'moomoo-order-plans-latest.json');
-const executionsPath = path.join(logsDir, 'moomoo-executions.ndjson');
+const plansPath = businessLineLogPath(businessLine, 'order-plans.ndjson');
+const latestPlanPath = businessLineLogPath(businessLine, 'order-plans-latest.json');
+const executionsPath = businessLineLogPath(businessLine, 'executions.ndjson');
 
 function parseJsonLine(line, sourcePath, lineNumber) {
   try {
@@ -161,13 +171,30 @@ function selectIntents(intents) {
 
 function getMode(config) {
   if (isTruthyFlag(args['execute-real'])) {
-    throw new Error('Options business line is simulation-only. Use stock rebalance or ATR stop for real-account stock trading.');
+    assertOptionsRealTradingAllowed(config);
+    config.trdEnv = TRD_ENV_REAL;
+    return 'execute_real';
   }
   if (isTruthyFlag(args['execute-simulate'])) {
     config.trdEnv = TRD_ENV_SIMULATE;
     return 'execute_simulate';
   }
   return 'dry_run';
+}
+
+function assertOptionsRealTradingAllowed(config) {
+  if (config.policyRealTradingAllowed !== true) {
+    throw new Error(`Real ${businessLine.key} trading is blocked by policy. Set execution.real_trading_allowed=true in ${config.policyPath}.`);
+  }
+  if (!config.allowRealTrading) {
+    throw new Error(`Real ${businessLine.key} trading is blocked. Set MOOMOO_ALLOW_REAL_TRADING=true in .env first.`);
+  }
+  if (String(process.env.MOOMOO_REAL_TRADING_CONFIRM || '') !== 'I_UNDERSTAND') {
+    throw new Error(`Real ${businessLine.key} trading is blocked. Set MOOMOO_REAL_TRADING_CONFIRM=I_UNDERSTAND for the started process.`);
+  }
+  if (String(process.env.MOOMOO_OPTIONS_REAL_TRADING_CONFIRM || '') !== 'I_UNDERSTAND') {
+    throw new Error(`Real ${businessLine.key} trading is blocked. Set MOOMOO_OPTIONS_REAL_TRADING_CONFIRM=I_UNDERSTAND for the started process.`);
+  }
 }
 
 function calculatePositionSizing(optionPrice, contractMultiplier, config) {
@@ -427,6 +454,8 @@ async function processIntent(intent, signalMaps, config, mode, connectionHolder)
   const summary = signalSummary(intent, signal);
   const plan = {
     planned_at: new Date().toISOString(),
+    business_line: businessLine.key,
+    policy_path: config.policyPath || null,
     mode,
     order_status: gate.passed ? 'gate_passed' : 'gate_failed',
     gate,
@@ -691,7 +720,7 @@ async function processBatch(intents, signalMaps, config, mode) {
 }
 
 async function runOnce() {
-  const config = loadMoomooConfig({ envFile: args.env });
+  const config = loadMoomooConfig(moomooConfigOptionsForBusinessLine(businessLine, args));
   const mode = getMode(config);
   const signalMaps = buildSignalMaps(readNdjson(signalsPath));
   const selected = selectIntents(readNdjson(intentsPath));
@@ -732,12 +761,12 @@ async function readNewIntentLines(offset) {
 }
 
 async function runWatch() {
-  const config = loadMoomooConfig({ envFile: args.env });
+  const config = loadMoomooConfig(moomooConfigOptionsForBusinessLine(businessLine, args));
   const mode = getMode(config);
   let offset = fs.existsSync(intentsPath) && !isTruthyFlag(args['from-start']) ? fs.statSync(intentsPath).size : 0;
   const processed = new Set();
   console.log(`Watching ${intentsPath}`);
-  console.log(`Mode: ${mode}; from_start=${offset === 0}`);
+  console.log(`Business line: ${businessLine.key}; mode=${mode}; from_start=${offset === 0}`);
   while (true) {
     const result = await readNewIntentLines(offset);
     offset = result.offset;

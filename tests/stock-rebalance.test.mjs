@@ -107,6 +107,13 @@ AMZN,20
     'BUY:GOOGL:6:rebalance_underweight',
     'BUY:AMZN:22:rebalance_underweight',
   ]);
+  assert.deepEqual(plan.orders.map((order) => `${order.side}:${order.symbol}:${order.submit_jp_acc_type ?? 'none'}`), [
+    'SELL:TSLA:none',
+    'SELL:AAPL:none',
+    'BUY:NVDA:1',
+    'BUY:GOOGL:1',
+    'BUY:AMZN:1',
+  ]);
 });
 
 test('stock rebalance never sells protected symbols such as SPCX', () => {
@@ -144,6 +151,40 @@ AMZN,20
     'SPCX:4:protected_stock_symbol',
   ]);
   assert.equal(plan.off_sheet_positions.some((row) => row.symbol === 'SPCX'), false);
+});
+
+test('stock rebalance aggregates split positions and sells from each sellable lot', () => {
+  const targets = parseTargetsCsv(`symbol,target_pct
+AAPL,20
+MSFT,20
+NVDA,20
+GOOGL,20
+AMZN,20
+`);
+  const positions = [
+    { symbol: 'AAPL', qty: 10, can_sell_qty: 10, market_value: 1000, price: 100, position_id: 'tokutei-aapl', jp_acc_type: 2 },
+    { symbol: 'AAPL', qty: 5, can_sell_qty: 5, market_value: 500, price: 100, position_id: 'general-aapl', jp_acc_type: 1 },
+  ];
+  const quotes = Object.fromEntries(['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN'].map((symbol) => [symbol, { price: 100, bid: 100, ask: 101, price_spread: 0.01 }]));
+
+  const plan = buildRebalancePlan({
+    targets,
+    positions,
+    funds: { cash: 0 },
+    quotes,
+    targetInvestedPct: 100,
+  });
+
+  const aaplRow = plan.targets.find((row) => row.symbol === 'AAPL');
+  assert.equal(aaplRow.current_qty, 15);
+  assert.equal(aaplRow.desired_qty, 3);
+  assert.deepEqual(aaplRow.position_ids, ['tokutei-aapl', 'general-aapl']);
+
+  const aaplSells = plan.orders.filter((order) => order.side === 'SELL' && order.symbol === 'AAPL');
+  assert.deepEqual(aaplSells.map((order) => `${order.qty}:${order.position_id}:${order.jp_acc_type}`), [
+    '10:tokutei-aapl:2',
+    '2:general-aapl:1',
+  ]);
 });
 
 test('stock rebalance execution separates sell phase before buy phase', () => {

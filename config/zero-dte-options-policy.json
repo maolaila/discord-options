@@ -1,0 +1,61 @@
+{
+  "name": "zero_dte_options_placeholder",
+  "version": 1,
+  "business_line": {
+    "id": "zero-dte-options",
+    "status": "disabled_pending_development",
+    "description": "Dedicated 0DTE/Nightwatch line. Kept isolated from PA option simulation until separately developed."
+  },
+  "execution": {
+    "broker": "moomoo_opend",
+    "environment": "simulate_only",
+    "real_trading_allowed": false,
+    "ai_decisioning_allowed": false,
+    "external_model_calls_allowed": false,
+    "decision_engine": "local_deterministic_program"
+  },
+  "signal_filter": {
+    "advice_format": "flow",
+    "action": "trade",
+    "enabled": false,
+    "full_plan_required": false,
+    "min_win_rate_pct": null,
+    "require_stock_stop": false
+  },
+  "position_sizing": {
+    "paper_equity_usd": 10000,
+    "target_position_pct": 5,
+    "min_position_pct": 1,
+    "max_position_pct": 10,
+    "contract_multiplier_default": 100
+  },
+  "execution_quality": {
+    "quote_source": "opend_push_orderbook_with_snapshot_fallback",
+    "require_bid_ask": true,
+    "min_bid_price": 0.01,
+    "max_spread_pct_of_mid": 20,
+    "max_spread_abs": null,
+    "max_round_trip_loss_pct": 25,
+    "buy_limit_basis": "ask_plus_slippage_buffer",
+    "sell_estimate_basis": "bid_minus_slippage_buffer",
+    "slippage_ticks": 1,
+    "slippage_pct_of_spread": 20,
+    "cap_qty_by_visible_ask": true,
+    "max_qty_to_ask_volume_ratio": 3,
+    "min_open_interest": 100,
+    "min_option_day_volume": 100
+  },
+  "exit_rules": {
+    "price_basis": "option_entry_fill_price",
+    "option_price_exit": true,
+    "option_take_profit_pct": 25,
+    "option_stop_loss_pct": 15,
+    "exit_before_regular_session_close": true,
+    "close_exit_start_time_et": "15:30",
+    "force_close_exit_start_time_et": "15:45",
+    "no_overnight_holding": true,
+    "controlled_overnight": {
+      "enabled": false
+    }
+  }
+}

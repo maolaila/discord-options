@@ -14,6 +14,7 @@ import {
   fetchMoomooAccounts,
   fetchOrderList,
   fetchPositionList,
+  JP_SUB_ACC_TYPE_GENERAL,
   loadMoomooConfig,
   maskId,
   normalizeForJson,
@@ -25,8 +26,13 @@ import {
   SESSION_RTH,
   selectConfiguredUsRealAccount,
 } from '../../packages/moomoo-opend/moomoo-opend.mjs';
+import {
+  moomooConfigOptionsForBusinessLine,
+  resolveBusinessLine,
+} from '../../packages/business-lines/business-lines.mjs';
 
 const args = parseCliArgs();
+const businessLine = resolveBusinessLine('stock-rebalance');
 const logsDir = path.join(PROJECT_ROOT, 'logs');
 export const defaultTargetsPath = path.join(PROJECT_ROOT, 'stock-rebalance-targets.csv');
 const statusPath = path.join(logsDir, 'stock-rebalance-status.json');
@@ -83,6 +89,7 @@ function stockOrderOverridesFromArgs() {
     stockOrderSession: session,
     stockFillOutsideRTH: fillOutsideRTH,
     stockLimitBufferPct: args['limit-buffer-pct'],
+    stockBuyJpAccType: args['buy-jp-acc-type'] || args['buy-jp-account-type'] || args['buy-account-type'],
   };
 }
 
@@ -106,6 +113,8 @@ function normalizeStockOrderConfig(config) {
   if (Number(config.stockOrderSession) !== SESSION_RTH && !fillOverridePresent) {
     config.stockFillOutsideRTH = true;
   }
+  config.stockBuyJpAccType = numeric(config.stockBuyJpAccType) ?? JP_SUB_ACC_TYPE_GENERAL;
+  config.jpAccType = undefined;
   return config;
 }
 
@@ -119,6 +128,8 @@ function stockOrderMode(config = {}) {
     order_session: Number(config.stockOrderSession ?? SESSION_RTH),
     fill_outside_rth: Boolean(config.stockFillOutsideRTH),
     limit_buffer_pct: shouldUseExtendedHoursLimitOrders(config) ? Number(config.stockLimitBufferPct ?? 0.25) : null,
+    buy_jp_acc_type: numeric(config.stockBuyJpAccType),
+    sell_jp_acc_type: null,
   };
 }
 
@@ -224,6 +235,7 @@ function normalizeStockPositions(positionList) {
       price: numeric(raw.price),
       market_value: numeric(raw.val),
       position_id: raw.positionID,
+      jp_acc_type: numeric(raw.jpAccType),
       raw: normalizeForJson(raw),
     });
   }
@@ -257,6 +269,39 @@ function positionValue(position, price) {
   const value = numeric(position.market_value);
   if (value !== null && value >= 0) return value;
   return 0;
+}
+
+function groupPositionsBySymbol(positions = []) {
+  const bySymbol = new Map();
+  for (const position of positions || []) {
+    const symbol = normalizeSymbol(position.symbol);
+    if (!symbol) continue;
+    if (!bySymbol.has(symbol)) bySymbol.set(symbol, []);
+    bySymbol.get(symbol).push(position);
+  }
+  return bySymbol;
+}
+
+function combineStockPositions(symbol, lots = []) {
+  const qty = lots.reduce((sum, row) => sum + Math.floor(numeric(row.qty) ?? 0), 0);
+  const canSellQty = lots.reduce((sum, row) => sum + Math.floor(numeric(row.can_sell_qty) ?? 0), 0);
+  const marketValue = lots.reduce((sum, row) => sum + (numeric(row.market_value) ?? 0), 0);
+  const weightedPriceNumerator = lots.reduce((sum, row) => {
+    const rowQty = Math.floor(numeric(row.qty) ?? 0);
+    const price = numeric(row.price);
+    return price !== null ? sum + rowQty * price : sum;
+  }, 0);
+  const weightedPrice = qty > 0 && weightedPriceNumerator > 0 ? weightedPriceNumerator / qty : null;
+  return {
+    symbol,
+    qty,
+    can_sell_qty: canSellQty,
+    price: weightedPrice,
+    market_value: marketValue || null,
+    position_id: lots.length === 1 ? lots[0].position_id : null,
+    position_ids: lots.map((row) => row.position_id).filter(Boolean),
+    jp_acc_types: [...new Set(lots.map((row) => row.jp_acc_type).filter((value) => value !== null && value !== undefined))],
+  };
 }
 
 function quoteForSymbol(quoteMap, symbol) {
@@ -335,14 +380,18 @@ export function buildRebalancePlan({
   protectedSymbols = [],
   orderType = 'MARKET',
   targetInvestedPct = 100,
+  buyJpAccType = JP_SUB_ACC_TYPE_GENERAL,
   generatedAt = new Date().toISOString(),
 }) {
   const targetSymbols = new Set(targets.map((row) => row.symbol));
   const quoteMap = quotes instanceof Map ? quotes : new Map(Object.entries(quotes || {}));
   const protectedSet = new Set(protectedSymbols.map((symbol) => normalizeSymbol(symbol)).filter(Boolean));
   const activePositions = positions.filter((position) => !protectedSet.has(position.symbol));
+  const activePositionsBySymbol = groupPositionsBySymbol(activePositions);
   const currentBySymbol = new Map();
-  for (const position of positions) currentBySymbol.set(position.symbol, position);
+  for (const [symbol, lots] of groupPositionsBySymbol(positions)) {
+    currentBySymbol.set(symbol, combineStockPositions(symbol, lots));
+  }
 
   const cash = fundsCash(funds);
   const stockValue = activePositions.reduce((sum, position) => {
@@ -379,6 +428,9 @@ export function buildRebalancePlan({
       delta_qty: deltaQty,
       current_value: Number(positionValue(current, price).toFixed(2)),
       position_id: current.position_id,
+      position_ids: current.position_ids || [],
+      jp_acc_type: current.jp_acc_type ?? null,
+      jp_acc_types: current.jp_acc_types || [],
       can_sell_qty: Math.floor(current.can_sell_qty || 0),
     };
   });
@@ -398,6 +450,8 @@ export function buildRebalancePlan({
           order_type: orderType,
           reason: 'not_in_target_sheet',
           position_id: position.position_id,
+          jp_acc_type: position.jp_acc_type ?? null,
+          submit_jp_acc_type: null,
           reference_price: price,
           bid: numeric(quote.bid),
           ask: numeric(quote.ask),
@@ -408,20 +462,27 @@ export function buildRebalancePlan({
   }
   for (const row of targetRows) {
     if (row.delta_qty < 0) {
-      const qty = Math.min(Math.abs(row.delta_qty), row.can_sell_qty);
-      if (qty > 0) {
+      let remainingQty = Math.min(Math.abs(row.delta_qty), row.can_sell_qty);
+      const lots = activePositionsBySymbol.get(row.symbol) || [];
+      for (const lot of lots) {
+        const qty = Math.min(remainingQty, Math.floor(numeric(lot.can_sell_qty) ?? 0));
+        if (qty <= 0) continue;
         orders.push({
           side: 'SELL',
           symbol: row.symbol,
           qty,
           order_type: orderType,
           reason: 'rebalance_overweight',
-          position_id: row.position_id,
+          position_id: lot.position_id,
+          jp_acc_type: lot.jp_acc_type ?? null,
+          submit_jp_acc_type: null,
           reference_price: row.price,
           bid: row.bid,
           ask: row.ask,
           price_spread: row.price_spread,
         });
+        remainingQty -= qty;
+        if (remainingQty <= 0) break;
       }
     }
   }
@@ -433,6 +494,7 @@ export function buildRebalancePlan({
         qty: row.delta_qty,
         order_type: orderType,
         reason: 'rebalance_underweight',
+        submit_jp_acc_type: numeric(buyJpAccType) ?? JP_SUB_ACC_TYPE_GENERAL,
         reference_price: row.price,
         bid: row.bid,
         ask: row.ask,
@@ -462,6 +524,7 @@ export function buildRebalancePlan({
         can_sell_qty: position.can_sell_qty,
         market_value: position.market_value,
         position_id: position.position_id,
+        jp_acc_type: position.jp_acc_type ?? null,
         reason: 'protected_stock_symbol',
       })),
     off_sheet_positions: activePositions
@@ -472,6 +535,7 @@ export function buildRebalancePlan({
         can_sell_qty: position.can_sell_qty,
         market_value: position.market_value,
         position_id: position.position_id,
+        jp_acc_type: position.jp_acc_type ?? null,
       })),
     orders,
   };
@@ -725,6 +789,7 @@ async function createPlan({ client, quoteFeed, config, targets }) {
     protectedSymbols: config.protectedStockSymbols,
     orderType: stockOrderMode(config).order_type,
     targetInvestedPct: config.stockTargetInvestedPct,
+    buyJpAccType: config.stockBuyJpAccType,
   });
   plan.account = { accID: maskId(config.accId), trdEnv: config.trdEnv };
   plan.order_submission = stockOrderMode(config);
@@ -734,11 +799,15 @@ async function createPlan({ client, quoteFeed, config, targets }) {
 async function submitOrders(client, config, orders, executionPhase) {
   const submitted = [];
   const orderMode = stockOrderMode(config);
-  const orderOptions = {
-    session: orderMode.order_session,
-    fillOutsideRTH: orderMode.fill_outside_rth,
-  };
   for (const order of orders) {
+    const submitJpAccType = order.side === 'BUY'
+      ? (numeric(order.submit_jp_acc_type) ?? config.stockBuyJpAccType)
+      : null;
+    const orderOptions = {
+      session: orderMode.order_session,
+      fillOutsideRTH: orderMode.fill_outside_rth,
+      jpAccType: submitJpAccType,
+    };
     const payload = {
       submitted_at: new Date().toISOString(),
       business_line: 'stock_rebalance_live',
@@ -750,6 +819,8 @@ async function submitOrders(client, config, orders, executionPhase) {
       order_type: orderMode.order_type,
       order_session: orderMode.order_session,
       fill_outside_rth: orderMode.fill_outside_rth,
+      jp_acc_type: submitJpAccType,
+      position_jp_acc_type: order.jp_acc_type ?? null,
       reason: order.reason,
     };
     try {
@@ -769,8 +840,8 @@ async function submitOrders(client, config, orders, executionPhase) {
           : await placeLimitSellOrder(client, config, request, orderOptions);
       } else {
         response = order.side === 'BUY'
-          ? await placeMarketBuyOrder(client, config, request)
-          : await placeMarketSellOrder(client, config, request);
+          ? await placeMarketBuyOrder(client, config, request, orderOptions)
+          : await placeMarketSellOrder(client, config, request, orderOptions);
       }
       payload.status = 'submitted';
       payload.order_id_ex = brokerOrderIdEx(response);
@@ -906,7 +977,10 @@ async function main() {
   const waitOpen = isTruthyFlag(args['wait-open']);
   const pollSeconds = Math.max(1, Number(args['poll-seconds'] || 5));
   const sellPhaseTimeoutSeconds = Math.max(1, Number(args['sell-phase-timeout-seconds'] || DEFAULT_SELL_PHASE_TIMEOUT_SECONDS));
-  const config = normalizeStockOrderConfig(loadMoomooConfig({ envFile: args.env, ...stockOrderOverridesFromArgs() }));
+  const config = normalizeStockOrderConfig(loadMoomooConfig({
+    ...moomooConfigOptionsForBusinessLine(businessLine, args),
+    ...stockOrderOverridesFromArgs(),
+  }));
   config.stockTargetInvestedPct = stockTargetInvestedPctFromArgs();
   assertRealAccountAllowed(config, execute);
 

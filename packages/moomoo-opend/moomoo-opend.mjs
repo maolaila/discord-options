@@ -30,6 +30,8 @@ export const SESSION_RTH = 1;
 export const SESSION_ETH = 2;
 export const SESSION_ALL = 3;
 export const SESSION_OVERNIGHT = 4;
+export const JP_SUB_ACC_TYPE_GENERAL = 1;
+export const JP_SUB_ACC_TYPE_TOKUTEI = 2;
 export const QOT_SUBTYPE_BASIC = 1;
 export const QOT_SUBTYPE_ORDER_BOOK = 2;
 export const KL_TYPE_DAY = 2;
@@ -38,6 +40,7 @@ export const DEFAULT_PROTECTED_STOCK_SYMBOLS = ['SPCX'];
 const CMD_QOT_UPDATE_BASIC_QOT = 3005;
 const CMD_QOT_UPDATE_ORDER_BOOK = 3013;
 export const DEFAULT_POLICY_PATH = path.join(PROJECT_ROOT, 'config', 'sim-trading-policy.json');
+export const DEFAULT_PA_OPTIONS_POLICY_PATH = path.join(PROJECT_ROOT, 'config', 'pa-options-policy.json');
 
 let tradeSerialNo = 1;
 
@@ -166,9 +169,14 @@ function resolveMaybeRelative(filePath, baseDir) {
   return path.isAbsolute(filePath) ? filePath : path.resolve(baseDir || PROJECT_ROOT, filePath);
 }
 
-function readPolicy() {
+export function resolvePolicyPath(policyFile = process.env.MOOMOO_POLICY_FILE || DEFAULT_POLICY_PATH) {
+  return resolveMaybeRelative(policyFile || DEFAULT_POLICY_PATH, PROJECT_ROOT);
+}
+
+function readPolicy(policyFile) {
+  const policyPath = resolvePolicyPath(policyFile);
   try {
-    return JSON.parse(fs.readFileSync(DEFAULT_POLICY_PATH, 'utf8'));
+    return JSON.parse(fs.readFileSync(policyPath, 'utf8'));
   } catch {
     return {};
   }
@@ -229,14 +237,20 @@ function readOpenDWebSocketKey(envBaseDir) {
 
 export function loadMoomooConfig(opts = {}) {
   const envInfo = loadEnvFile(opts.envFile);
-  const policy = readPolicy();
+  const policyPath = resolvePolicyPath(opts.policyFile || opts.policyPath || process.env.MOOMOO_POLICY_FILE || DEFAULT_POLICY_PATH);
+  const policy = readPolicy(policyPath);
   const signalFilter = policy.signal_filter || {};
   const sizing = policy.position_sizing || {};
   const executionQuality = policy.execution_quality || {};
   const exits = policy.exit_rules || {};
+  const execution = policy.execution || {};
   return {
     envFile: envInfo.envFile,
     envLoaded: envInfo.loaded,
+    businessLine: String(opts.businessLine || policy.business_line?.id || policy.business_line || '').trim() || undefined,
+    policyPath,
+    policyExecutionEnvironment: String(execution.environment || '').trim() || undefined,
+    policyRealTradingAllowed: boolValue(execution.real_trading_allowed, false),
     host: String(opts.host || process.env.MOOMOO_OPEND_HOST || '127.0.0.1'),
     websocketPort: intValue(opts.websocketPort || process.env.MOOMOO_OPEND_WS_PORT || process.env.MOOMOO_OPEND_PORT || 33333, 'MOOMOO_OPEND_WS_PORT'),
     websocketSsl: boolValue(opts.websocketSsl ?? process.env.MOOMOO_OPEND_WS_SSL, false),
@@ -292,6 +306,7 @@ export function loadMoomooConfig(opts = {}) {
     stockOrderSession: parseOrderSession(firstPresent(opts.stockOrderSession, opts.orderSession, process.env.STOCK_REBALANCE_ORDER_SESSION, process.env.MOOMOO_STOCK_ORDER_SESSION), SESSION_RTH),
     stockFillOutsideRTH: boolValue(firstPresent(opts.stockFillOutsideRTH, opts.fillOutsideRTH, process.env.STOCK_REBALANCE_FILL_OUTSIDE_RTH, process.env.MOOMOO_STOCK_FILL_OUTSIDE_RTH), false),
     stockLimitBufferPct: numberValue(firstPresent(opts.stockLimitBufferPct, process.env.STOCK_REBALANCE_LIMIT_BUFFER_PCT, process.env.MOOMOO_STOCK_LIMIT_BUFFER_PCT), 'MOOMOO_STOCK_LIMIT_BUFFER_PCT', 0.25),
+    stockBuyJpAccType: intValue(firstPresent(opts.stockBuyJpAccType, process.env.STOCK_REBALANCE_BUY_JP_ACC_TYPE, process.env.MOOMOO_STOCK_BUY_JP_ACC_TYPE), 'STOCK_REBALANCE_BUY_JP_ACC_TYPE'),
     allowRealTrading: boolValue(opts.allowRealTrading ?? process.env.MOOMOO_ALLOW_REAL_TRADING, false),
     protectedStockSymbols: parseProtectedStockSymbols(opts.protectedStockSymbols ?? process.env.PROTECTED_STOCK_SYMBOLS),
     policy,
@@ -1015,7 +1030,9 @@ export function buildTradeHeader(config, opts = {}) {
     accID: config.accId || (opts.allowMissingAccId ? 'DRY_RUN_NO_ACCOUNT' : requireAccId(config)),
     trdMarket: config.trdMarket,
   };
-  if (config.jpAccType !== undefined) header.jpAccType = config.jpAccType;
+  const hasRequestJpAccType = Object.prototype.hasOwnProperty.call(opts, 'jpAccType');
+  const jpAccType = hasRequestJpAccType ? opts.jpAccType : config.jpAccType;
+  if (jpAccType !== undefined && jpAccType !== null && jpAccType !== '') header.jpAccType = jpAccType;
   return header;
 }
 
@@ -1210,7 +1227,7 @@ export async function cancelOrder(client, config, order) {
 export async function fetchPositionList(client, config, opts = {}) {
   const response = await client.GetPositionList({
     c2s: {
-      header: buildTradeHeader(config),
+      header: buildTradeHeader(config, opts),
       refreshCache: opts.refreshCache ?? true,
     },
   });
@@ -1221,7 +1238,7 @@ export async function fetchPositionList(client, config, opts = {}) {
 export async function fetchOrderList(client, config, opts = {}) {
   const response = await client.GetOrderList({
     c2s: {
-      header: buildTradeHeader(config),
+      header: buildTradeHeader(config, opts),
       filterConditions: opts.filterConditions || undefined,
       filterStatusList: opts.filterStatusList || [],
       refreshCache: opts.refreshCache ?? true,
@@ -1234,7 +1251,7 @@ export async function fetchOrderList(client, config, opts = {}) {
 export async function fetchOrderFillList(client, config, opts = {}) {
   const response = await client.GetOrderFillList({
     c2s: {
-      header: buildTradeHeader(config),
+      header: buildTradeHeader(config, opts),
       filterConditions: opts.filterConditions || undefined,
       refreshCache: opts.refreshCache ?? true,
     },

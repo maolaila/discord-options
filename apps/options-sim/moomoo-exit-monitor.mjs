@@ -28,13 +28,25 @@ import {
   appendTradeJournalEvent,
   buildExitJournalPayload,
 } from '../../packages/trade-journal/trade-journal.mjs';
+import {
+  assertBusinessLineKind,
+  businessLineLogPath,
+  legacyBusinessLineLogPaths,
+  moomooConfigOptionsForBusinessLine,
+  resolveBusinessLine,
+} from '../../packages/business-lines/business-lines.mjs';
 
 const args = parseCliArgs();
-const logsDir = path.join(PROJECT_ROOT, 'logs');
-const executionsPath = path.join(logsDir, 'moomoo-executions.ndjson');
-const exitOrdersPath = path.join(logsDir, 'moomoo-exit-orders.ndjson');
-const statePath = path.join(logsDir, 'moomoo-exit-state.json');
-const statusPath = path.join(logsDir, 'moomoo-exit-status.json');
+const businessLine = assertBusinessLineKind(resolveBusinessLine(args['business-line'] || args.line || 'pa-options'), 'options');
+if (businessLine.key !== 'pa-options') {
+  throw new Error(`${businessLine.key} is isolated from the PA options exit monitor. Use its dedicated business-line entrypoint.`);
+}
+const executionsPath = businessLineLogPath(businessLine, 'executions.ndjson');
+const legacyExecutionsPaths = legacyBusinessLineLogPaths(businessLine, 'executions.ndjson');
+const exitOrdersPath = businessLineLogPath(businessLine, 'exit-orders.ndjson');
+const statePath = businessLineLogPath(businessLine, 'exit-state.json');
+const legacyStatePaths = legacyBusinessLineLogPaths(businessLine, 'exit-state.json');
+const statusPath = businessLineLogPath(businessLine, 'exit-status.json');
 const regularSessionStartMinutes = 9 * 60 + 30;
 const regularSessionEndMinutes = 16 * 60;
 const defaultCloseExitStartMinutes = 15 * 60 + 45;
@@ -54,6 +66,12 @@ function firstPositiveNumber(...values) {
   return null;
 }
 
+function isTruthyFlag(value) {
+  if (value === undefined || value === null || value === false) return false;
+  if (value === true) return true;
+  return ['1', 'true', 'yes', 'y', 'on'].includes(String(value).trim().toLowerCase());
+}
+
 function readNdjson(filePath) {
   if (!fs.existsSync(filePath)) return [];
   return fs.readFileSync(filePath, 'utf8')
@@ -69,12 +87,15 @@ async function appendJsonLine(filePath, payload) {
 }
 
 function loadState() {
-  if (!fs.existsSync(statePath)) return { orders: {} };
-  try {
-    return JSON.parse(fs.readFileSync(statePath, 'utf8'));
-  } catch {
-    return { orders: {} };
+  for (const candidate of [statePath, ...legacyStatePaths]) {
+    if (!fs.existsSync(candidate)) continue;
+    try {
+      return JSON.parse(fs.readFileSync(candidate, 'utf8'));
+    } catch {
+      return { orders: {} };
+    }
   }
+  return { orders: {} };
 }
 
 async function writeState(state) {
@@ -84,17 +105,19 @@ async function writeState(state) {
 
 async function writeStatus(payload) {
   await ensureDir(path.dirname(statusPath));
-  await fsp.writeFile(statusPath, `${JSON.stringify({ updated_at: new Date().toISOString(), ...payload }, null, 2)}\n`, 'utf8');
+  await fsp.writeFile(statusPath, `${JSON.stringify({ updated_at: new Date().toISOString(), business_line: businessLine.key, ...payload }, null, 2)}\n`, 'utf8');
 }
 
 function submittedBuyPlans(mode) {
   const seen = new Map();
-  for (const plan of readNdjson(executionsPath)) {
-    const orderIDEx = String(plan.execution?.response?.s2c?.orderIDEx || '');
-    if (!orderIDEx) continue;
-    if (plan.mode !== mode || plan.order_status !== 'submitted') continue;
-    if (plan.order?.side !== 'BUY_TO_OPEN') continue;
-    seen.set(orderIDEx, plan);
+  for (const logPath of [executionsPath, ...legacyExecutionsPaths]) {
+    for (const plan of readNdjson(logPath)) {
+      const orderIDEx = String(plan.execution?.response?.s2c?.orderIDEx || '');
+      if (!orderIDEx) continue;
+      if (plan.mode !== mode || plan.order_status !== 'submitted') continue;
+      if (plan.order?.side !== 'BUY_TO_OPEN') continue;
+      seen.set(orderIDEx, { ...plan, business_line: plan.business_line || businessLine.key });
+    }
   }
   return [...seen.entries()].map(([orderIDEx, plan]) => ({ orderIDEx, plan }));
 }
@@ -521,11 +544,28 @@ async function ensureSimAccount(client, config) {
 }
 
 function getMode(config) {
-  if (args['execute-real']) {
-    throw new Error('Options exit monitor is simulation-only. Use ATR stop for real-account stock exits.');
+  if (isTruthyFlag(args['execute-real'])) {
+    assertOptionsRealTradingAllowed(config);
+    config.trdEnv = TRD_ENV_REAL;
+    return 'execute_real';
   }
   config.trdEnv = TRD_ENV_SIMULATE;
   return 'execute_simulate';
+}
+
+function assertOptionsRealTradingAllowed(config) {
+  if (config.policyRealTradingAllowed !== true) {
+    throw new Error(`Real ${businessLine.key} exit monitoring is blocked by policy. Set execution.real_trading_allowed=true in ${config.policyPath}.`);
+  }
+  if (!config.allowRealTrading) {
+    throw new Error(`Real ${businessLine.key} exit monitoring is blocked. Set MOOMOO_ALLOW_REAL_TRADING=true in .env first.`);
+  }
+  if (String(process.env.MOOMOO_REAL_TRADING_CONFIRM || '') !== 'I_UNDERSTAND') {
+    throw new Error(`Real ${businessLine.key} exit monitoring is blocked. Set MOOMOO_REAL_TRADING_CONFIRM=I_UNDERSTAND for the started process.`);
+  }
+  if (String(process.env.MOOMOO_OPTIONS_REAL_TRADING_CONFIRM || '') !== 'I_UNDERSTAND') {
+    throw new Error(`Real ${businessLine.key} exit monitoring is blocked. Set MOOMOO_OPTIONS_REAL_TRADING_CONFIRM=I_UNDERSTAND for the started process.`);
+  }
 }
 
 async function ensureTradingAccount(client, config, mode) {
@@ -1188,7 +1228,7 @@ async function processOnce(client, config, state, quoteFeed, mode) {
 }
 
 async function main() {
-  const config = loadMoomooConfig({ envFile: args.env });
+  const config = loadMoomooConfig(moomooConfigOptionsForBusinessLine(businessLine, args));
   const mode = getMode(config);
   const pollSeconds = Math.max(5, Number(args['poll-seconds'] || process.env.MOOMOO_EXIT_POLL_SECONDS || 5));
   const conn = await connectMoomoo(config);

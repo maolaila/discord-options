@@ -1,0 +1,6 @@
+{
+  "name": "@discord-options/zero-dte-options",
+  "private": true,
+  "type": "module",
+  "main": "zero-dte-line.mjs"
+}

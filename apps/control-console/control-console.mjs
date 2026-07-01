@@ -9,6 +9,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const HOST = process.env.CONTROL_CONSOLE_HOST || '127.0.0.1';
 const PORT = Number(process.env.CONTROL_CONSOLE_PORT || 18766);
 const DEFAULT_ENV_FILE = process.env.MOOMOO_CONTROL_ENV_FILE || path.join(ROOT, '.env');
+const PA_OPTIONS_POLICY_FILE = path.join(ROOT, 'config', 'pa-options-policy.json');
+const ATR_STOP_POLICY_FILE = path.join(ROOT, 'config', 'atr-stop-policy.json');
 const MAX_LOG_LINES = 300;
 
 const logsDir = path.join(ROOT, 'logs');
@@ -155,6 +157,10 @@ function startWatchPlan(envFile) {
   stopProcess('watchSim');
   return startProcess('watchPlan', 'Moomoo 干跑监听', nodeBin(), [
     path.join(ROOT, 'apps', 'options-sim', 'moomoo-signal-trader.mjs'),
+    '--business-line',
+    'pa-options',
+    '--policy-file',
+    PA_OPTIONS_POLICY_FILE,
     '--watch',
     '--dry-run',
     ...envArgs(envFile),
@@ -165,6 +171,10 @@ function startWatchSim(envFile) {
   stopProcess('watchPlan');
   return startProcess('watchSim', 'Moomoo 模拟监听', nodeBin(), [
     path.join(ROOT, 'apps', 'options-sim', 'moomoo-signal-trader.mjs'),
+    '--business-line',
+    'pa-options',
+    '--policy-file',
+    PA_OPTIONS_POLICY_FILE,
     '--watch',
     '--execute-simulate',
     ...envArgs(envFile),
@@ -174,6 +184,10 @@ function startWatchSim(envFile) {
 function startExitMonitor(envFile) {
   return startProcess('exitMonitor', 'Moomoo 卖出监控', nodeBin(), [
     path.join(ROOT, 'apps', 'options-sim', 'moomoo-exit-monitor.mjs'),
+    '--business-line',
+    'pa-options',
+    '--policy-file',
+    PA_OPTIONS_POLICY_FILE,
     '--watch',
     ...envArgs(envFile),
   ]);
@@ -215,6 +229,10 @@ function startStockRebalanceExtended(envFile) {
 function startAtrStop(envFile) {
   return startProcess('atrStop', 'ATR 实盘止损', nodeBin(), [
     path.join(ROOT, 'apps', 'atr-stop', 'atr-trailing-stop.mjs'),
+    '--business-line',
+    'atr-stop',
+    '--policy-file',
+    ATR_STOP_POLICY_FILE,
     '--watch',
     '--execute-real',
     ...envArgs(envFile),
@@ -224,6 +242,10 @@ function startAtrStop(envFile) {
 function refreshAtrStop(envFile) {
   return startProcess('atrRefresh', 'ATR 点位刷新', nodeBin(), [
     path.join(ROOT, 'apps', 'atr-stop', 'atr-trailing-stop.mjs'),
+    '--business-line',
+    'atr-stop',
+    '--policy-file',
+    ATR_STOP_POLICY_FILE,
     '--refresh-only',
     ...envArgs(envFile),
   ], { oneShot: true });
@@ -322,10 +344,12 @@ function processSnapshot(entry) {
 
 function statusPayload() {
   const captureStatus = readJson(path.join(logsDir, 'capture-status.json'));
-  const latestPlan = readJson(path.join(logsDir, 'moomoo-order-plans-latest.json'));
+  const latestPlan = readJson(path.join(logsDir, 'pa-options-order-plans-latest.json'))
+    || readJson(path.join(logsDir, 'moomoo-order-plans-latest.json'));
   const latestTradeJournal = readJson(path.join(logsDir, 'trade-journal-latest.json'));
   const moomooCheck = redactMoomooCheck(readJson(path.join(logsDir, 'moomoo-check.json')));
-  const exitStatus = readJson(path.join(logsDir, 'moomoo-exit-status.json'));
+  const exitStatus = readJson(path.join(logsDir, 'pa-options-exit-status.json'))
+    || readJson(path.join(logsDir, 'moomoo-exit-status.json'));
   const stockRebalanceStatus = readJson(path.join(logsDir, 'stock-rebalance-status.json'));
   const stockRebalancePlan = readJson(path.join(logsDir, 'stock-rebalance-plan-latest.json'));
   const atrStopStatus = readJson(path.join(logsDir, 'atr-stop-status.json'));
@@ -342,11 +366,11 @@ function statusPayload() {
       fileInfo('logs/capture-status.json'),
       fileInfo('logs/option-signals.ndjson'),
       fileInfo('logs/order-intents.ndjson'),
-      fileInfo('logs/moomoo-order-plans.ndjson'),
-      fileInfo('logs/moomoo-order-plans-latest.json'),
+      fileInfo('logs/pa-options-order-plans.ndjson'),
+      fileInfo('logs/pa-options-order-plans-latest.json'),
       fileInfo('logs/moomoo-check.json'),
-      fileInfo('logs/moomoo-exit-status.json'),
-      fileInfo('logs/moomoo-exit-orders.ndjson'),
+      fileInfo('logs/pa-options-exit-status.json'),
+      fileInfo('logs/pa-options-exit-orders.ndjson'),
       fileInfo('logs/trade-journal.ndjson'),
       fileInfo('logs/trade-journal-latest.json'),
       fileInfo('logs/stock-rebalance-status.json'),
@@ -367,8 +391,8 @@ function statusPayload() {
     atrStopState,
     latestMessages: tailNdjson('logs/messages.ndjson', 8).reverse(),
     latestSignals: tailNdjson('logs/option-signals.ndjson', 8).reverse(),
-    latestPlans: tailNdjson('logs/moomoo-order-plans.ndjson', 8).reverse(),
-    latestExits: tailNdjson('logs/moomoo-exit-orders.ndjson', 8).reverse(),
+    latestPlans: tailNdjson('logs/pa-options-order-plans.ndjson', 8).reverse(),
+    latestExits: tailNdjson('logs/pa-options-exit-orders.ndjson', 8).reverse(),
     latestStockRebalanceOrders: tailNdjson('logs/stock-rebalance-orders.ndjson', 8).reverse(),
     latestAtrStopOrders: tailNdjson('logs/atr-stop-orders.ndjson', 8).reverse(),
     latestTradeJournalRows: tailNdjson('logs/trade-journal.ndjson', 8).reverse(),

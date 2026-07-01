@@ -252,10 +252,11 @@ function quotePriceSpread(snapshot) {
 }
 
 function positionValue(position, price) {
+  const px = numeric(price) ?? numeric(position.price);
+  if (px !== null) return position.qty * px;
   const value = numeric(position.market_value);
   if (value !== null && value >= 0) return value;
-  const px = numeric(price) ?? numeric(position.price);
-  return px === null ? 0 : position.qty * px;
+  return 0;
 }
 
 function quoteForSymbol(quoteMap, symbol) {

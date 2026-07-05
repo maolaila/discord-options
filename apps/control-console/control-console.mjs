@@ -12,6 +12,7 @@ const DEFAULT_ENV_FILE = process.env.MOOMOO_CONTROL_ENV_FILE || path.join(ROOT, 
 const PA_OPTIONS_POLICY_FILE = path.join(ROOT, 'config', 'pa-options-policy.json');
 const ATR_STOP_POLICY_FILE = path.join(ROOT, 'config', 'atr-stop-policy.json');
 const MAX_LOG_LINES = 300;
+const DEFAULT_RESTART_DELAY_MS = 15000;
 
 const logsDir = path.join(ROOT, 'logs');
 const processes = new Map();
@@ -61,6 +62,12 @@ function makeEntry(name, label, command, args, options = {}) {
     pid: null,
     error: null,
     oneShot: Boolean(options.oneShot),
+    restartOnExit: Boolean(options.restartOnExit),
+    restartDelayMs: Number(options.restartDelayMs || DEFAULT_RESTART_DELAY_MS),
+    restartScheduledAt: null,
+    manualStop: false,
+    env: options.env || null,
+    restartTimer: null,
     log: [],
     child: null,
   };
@@ -81,6 +88,10 @@ function startProcess(name, label, command, args, options = {}) {
     return entry;
   }
 
+  if (entry.restartTimer) {
+    clearTimeout(entry.restartTimer);
+    entry.restartTimer = null;
+  }
   entry.command = command;
   entry.args = args;
   entry.startedAt = nowIso();
@@ -89,6 +100,11 @@ function startProcess(name, label, command, args, options = {}) {
   entry.signal = null;
   entry.error = null;
   entry.oneShot = Boolean(options.oneShot);
+  entry.restartOnExit = Boolean(options.restartOnExit) && !entry.oneShot;
+  entry.restartDelayMs = Number(options.restartDelayMs || DEFAULT_RESTART_DELAY_MS);
+  entry.restartScheduledAt = null;
+  entry.manualStop = false;
+  entry.env = options.env || null;
   entry.log = [];
 
   const child = spawn(command, args, {
@@ -115,13 +131,34 @@ function startProcess(name, label, command, args, options = {}) {
     entry.signal = signal;
     entry.stoppedAt = nowIso();
     pushLog(entry, 'status', `exited code=${code} signal=${signal || ''}`);
+    if (entry.restartOnExit && !entry.manualStop) {
+      entry.restartScheduledAt = new Date(Date.now() + entry.restartDelayMs).toISOString();
+      pushLog(entry, 'status', `restart scheduled at ${entry.restartScheduledAt}`);
+      entry.restartTimer = setTimeout(() => {
+        entry.restartTimer = null;
+        if (!entry.manualStop) {
+          startProcess(entry.name, entry.label, entry.command, entry.args, {
+            env: entry.env,
+            restartOnExit: entry.restartOnExit,
+            restartDelayMs: entry.restartDelayMs,
+          });
+        }
+      }, entry.restartDelayMs);
+    }
   });
   return entry;
 }
 
 function stopProcess(name) {
   const entry = processes.get(name);
-  if (!entry || !isRunning(entry)) return entry || null;
+  if (!entry) return null;
+  entry.manualStop = true;
+  entry.restartScheduledAt = null;
+  if (entry.restartTimer) {
+    clearTimeout(entry.restartTimer);
+    entry.restartTimer = null;
+  }
+  if (!isRunning(entry)) return entry;
   pushLog(entry, 'status', 'stopping');
   entry.child.kill();
   return entry;
@@ -150,7 +187,7 @@ function startBrowser() {
 function startCapture() {
   return startProcess('capture', 'Discord 抓包', nodeBin(), [
     path.join(ROOT, 'apps', 'discord-capture', 'capture-discord.js'),
-  ]);
+  ], { restartOnExit: true });
 }
 
 function startWatchPlan(envFile) {
@@ -164,7 +201,7 @@ function startWatchPlan(envFile) {
     '--watch',
     '--dry-run',
     ...envArgs(envFile),
-  ]);
+  ], { restartOnExit: true });
 }
 
 function startWatchSim(envFile) {
@@ -178,7 +215,7 @@ function startWatchSim(envFile) {
     '--watch',
     '--execute-simulate',
     ...envArgs(envFile),
-  ]);
+  ], { restartOnExit: true });
 }
 
 function startExitMonitor(envFile) {
@@ -190,7 +227,7 @@ function startExitMonitor(envFile) {
     PA_OPTIONS_POLICY_FILE,
     '--watch',
     ...envArgs(envFile),
-  ]);
+  ], { restartOnExit: true });
 }
 
 function runMoomooCheck(envFile) {
@@ -295,7 +332,17 @@ function fileInfo(relativePath) {
 function tailNdjson(relativePath, count = 5) {
   const fullPath = path.join(ROOT, relativePath);
   if (!fs.existsSync(fullPath)) return [];
-  const text = fs.readFileSync(fullPath, 'utf8');
+  const stat = fs.statSync(fullPath);
+  const bytesToRead = Math.min(stat.size, 1024 * 1024);
+  const fd = fs.openSync(fullPath, 'r');
+  let text = '';
+  try {
+    const buffer = Buffer.alloc(bytesToRead);
+    fs.readSync(fd, buffer, 0, bytesToRead, stat.size - bytesToRead);
+    text = buffer.toString('utf8');
+  } finally {
+    fs.closeSync(fd);
+  }
   return text
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -338,6 +385,8 @@ function processSnapshot(entry) {
     signal: entry.signal,
     error: entry.error,
     oneShot: entry.oneShot,
+    restartOnExit: entry.restartOnExit,
+    restartScheduledAt: entry.restartScheduledAt,
     lastLog: entry.log.slice(-12),
   };
 }

@@ -6,15 +6,9 @@ const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 const {
-  buildOrderIntent,
-  formatSignalLine,
-  parseOptionSignal,
-} = require('../../packages/option-signals/option-signal-utils');
-const {
-  appendSignalDocument,
-  resolveTimeZone,
-  stampSignalLogTimes,
-} = require('../../packages/option-signals/signal-document-writer');
+  NIGHTWATCH_ZERO_DTE_FLOW_CHANNEL_ID,
+  parseNightwatchZeroDteFlowAlerts,
+} = require('../../packages/option-signals/nightwatch-0dte-flow-alert.cjs');
 
 let chromium;
 try {
@@ -27,14 +21,11 @@ try {
 const ROOT = path.resolve(__dirname, '../..');
 const LOG_DIR = path.join(ROOT, 'logs');
 const MESSAGE_LOG = path.join(LOG_DIR, 'messages.ndjson');
-const LIVE_SIGNAL_LOG = path.join(LOG_DIR, 'live-signals.ndjson');
-const OPTION_SIGNAL_LOG = path.join(LOG_DIR, 'option-signals.ndjson');
-const ORDER_INTENT_LOG = path.join(LOG_DIR, 'order-intents.ndjson');
 const HISTORY_MESSAGE_LOG = path.join(LOG_DIR, 'history-messages.ndjson');
 const RAW_EVENT_LOG = path.join(LOG_DIR, 'raw-events.ndjson');
 const REST_LOG = path.join(LOG_DIR, 'rest-responses.ndjson');
+const ZERO_DTE_FLOW_EVENT_LOG = path.join(LOG_DIR, 'zero-dte-options-flow-events.ndjson');
 const STATUS_FILE = path.join(LOG_DIR, 'capture-status.json');
-const SIGNAL_DOC_DIR = path.join(ROOT, 'signal-docs');
 
 const UTF8_BOM = Buffer.from([0xef, 0xbb, 0xbf]);
 const ZLIB_SUFFIX = Buffer.from([0x00, 0x00, 0xff, 0xff]);
@@ -47,16 +38,10 @@ function parseArgs(argv) {
     channelId: '',
     historyMessageIds: new Set(),
     historyMessageLog: HISTORY_MESSAGE_LOG,
-    liveSignalIds: new Set(),
-    liveSignalLog: LIVE_SIGNAL_LOG,
-    optionSignalKeys: new Set(),
-    optionSignalLog: OPTION_SIGNAL_LOG,
-    orderIntentIds: new Set(),
-    orderIntentLog: ORDER_INTENT_LOG,
+    zeroDteFlowEventIds: new Set(),
+    zeroDteFlowEventLog: ZERO_DTE_FLOW_EVENT_LOG,
     printAllMessages: false,
     rest: false,
-    signalDocDir: SIGNAL_DOC_DIR,
-    signalDocTimeZone: process.env.SIGNAL_DOC_TIMEZONE || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -66,7 +51,6 @@ function parseArgs(argv) {
     else if (arg === '--channel-id') args.channelId = argv[++i] || '';
     else if (arg === '--print-all-messages') args.printAllMessages = true;
     else if (arg === '--rest') args.rest = true;
-    else if (arg === '--signal-doc-tz') args.signalDocTimeZone = argv[++i] || args.signalDocTimeZone;
     else if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
@@ -97,7 +81,6 @@ Options:
   --channel-id <id> Optional: only keep REST message observations for this channel
   --print-all-messages Print non-signal chat messages to console too
   --rest            Also log Discord REST API JSON responses
-  --signal-doc-tz <tz> Time zone used for daily signal documents
   -h, --help        Show this help
 `.trim());
 }
@@ -129,11 +112,8 @@ function ensureFile(file) {
 
 function ensureDirs(options) {
   fs.mkdirSync(LOG_DIR, { recursive: true });
-  fs.mkdirSync(options.signalDocDir, { recursive: true });
   ensureFile(MESSAGE_LOG);
-  ensureFile(options.liveSignalLog);
-  ensureFile(options.optionSignalLog);
-  ensureFile(options.orderIntentLog);
+  ensureFile(options.zeroDteFlowEventLog);
   ensureFile(options.historyMessageLog);
   ensureFile(RAW_EVENT_LOG);
   if (options.rest) ensureFile(REST_LOG);
@@ -160,6 +140,18 @@ function writeStatus(patch) {
     ...patch,
     updated_at: new Date().toISOString(),
   };
+  for (const legacyField of [
+    'signal_doc_dir',
+    'signal_doc_timezone',
+    'last_option_signal_at',
+    'last_option_signal_message_id',
+    'last_option_signal_title',
+    'last_option_signal_channel_id',
+    'last_option_signal_received_at',
+    'last_order_intent_message_id',
+  ]) {
+    delete status[legacyField];
+  }
   fs.writeFileSync(STATUS_FILE, `${JSON.stringify(status, null, 2)}\n`, 'utf8');
 }
 
@@ -459,105 +451,51 @@ function printMessage(record) {
   console.log(`[${record.captured_at}] MESSAGE_CREATE channel=${where} author=${author}: ${content}`);
 }
 
-function firstEmbed(record) {
-  return record && Array.isArray(record.embeds) && record.embeds.length ? record.embeds[0] : null;
+function isNightwatchZeroDteFlowChannel(record) {
+  return Boolean(
+    record &&
+    String(record.channel_id || '') === NIGHTWATCH_ZERO_DTE_FLOW_CHANNEL_ID
+  );
 }
 
-function isOptionSignal(record) {
-  const embed = firstEmbed(record);
-  if (!embed || !embed.title) return false;
-  return /^[A-Z][A-Z0-9.-]*\s+\d{4}-\d{2}-\d{2}\s+[0-9]+(?:\.[0-9]+)?[CP]\s+\|/.test(embed.title);
-}
+function appendNightwatchZeroDteFlowEvent(event, options) {
+  if (!event || !options.zeroDteFlowEventLog) return false;
+  if (event.sub_event_id && options.zeroDteFlowEventIds.has(String(event.sub_event_id))) return false;
 
-function getEmbedField(embed, names) {
-  if (!embed || !Array.isArray(embed.fields)) return '';
-  const wanted = new Set(names.map((name) => name.toLowerCase()));
-  const found = embed.fields.find((field) => wanted.has(String(field.name || '').toLowerCase()));
-  return found ? String(found.value || '') : '';
-}
-
-function oneLine(value) {
-  return String(value || '').replace(/\s+/g, ' ').trim();
-}
-
-function signalLine(record, sourceLabel) {
-  const embed = firstEmbed(record);
-  const author = record.author.global_name || record.author.username || record.author.id || 'unknown';
-  const title = oneLine(embed.title);
-  const execution = oneLine(getEmbedField(embed, ['执行观点', '执行计划', 'decision', '结论']));
-  const invalidation = oneLine(getEmbedField(embed, ['失效条件', 'confidence_score']));
-  const risk = oneLine(getEmbedField(embed, ['风险提示', '执行要点']));
-  const lag = record.capture_lag_ms === null || record.capture_lag_ms === undefined
-    ? ''
-    : ` lag=${record.capture_lag_ms}ms`;
-
-  const details = [execution, invalidation, risk].filter(Boolean).join(' | ');
-  return `[${record.captured_at}] ${sourceLabel} channel=${record.channel_id} id=${record.id}${lag} author=${author} | ${title}${details ? ` | ${details}` : ''}`;
-}
-
-function appendLiveSignal(record, options) {
-  if (!options.liveSignalLog) return false;
-  if (record.id && options.liveSignalIds.has(String(record.id))) return false;
-
-  appendJsonLine(options.liveSignalLog, record);
-  if (record.id) options.liveSignalIds.add(String(record.id));
+  appendJsonLine(options.zeroDteFlowEventLog, event);
+  if (event.sub_event_id) options.zeroDteFlowEventIds.add(String(event.sub_event_id));
   return true;
 }
 
-function appendOptionSignal(signal, options) {
-  if (!options.optionSignalLog) return false;
-  if (signal.signal_key && options.optionSignalKeys.has(signal.signal_key)) return false;
+function processNightwatchZeroDteFlow(record, observedVia, options) {
+  if (!isNightwatchZeroDteFlowChannel(record)) return { handled: false, added_count: 0 };
 
-  stampSignalLogTimes(signal, new Date().toISOString(), 'live_capture');
-  appendJsonLine(options.optionSignalLog, signal);
-  if (signal.signal_key) options.optionSignalKeys.add(signal.signal_key);
-  return true;
-}
-
-function appendOrderIntent(intent, options) {
-  if (!intent || !options.orderIntentLog) return false;
-  if (intent.message_id && options.orderIntentIds.has(String(intent.message_id))) return false;
-
-  appendJsonLine(options.orderIntentLog, intent);
-  if (intent.message_id) options.orderIntentIds.add(String(intent.message_id));
-  return true;
-}
-
-function processOptionAdvice(record, observedVia, options) {
-  const signal = parseOptionSignal(record, observedVia);
-  if (!signal) return false;
-
-  const added = appendOptionSignal(signal, options);
-  if (observedVia === 'LIVE_SIGNAL') {
-    appendLiveSignal(record, options);
+  const events = parseNightwatchZeroDteFlowAlerts(record, observedVia);
+  let addedCount = 0;
+  for (const event of events) {
+    if (!appendNightwatchZeroDteFlowEvent(event, options)) continue;
+    addedCount += 1;
+    console.log(
+      `[${event.captured_at || new Date().toISOString()}] ZERO_DTE_FLOW ${event.ticker} ${event.dte}DTE ` +
+      `${event.strike}${event.right_code} aggressor=${event.aggressor_side} eligible=${event.live_eligible} ` +
+      `channel=${event.channel_id} id=${event.message_id} sub_event=${event.sub_event_id}`
+    );
   }
 
-  if (added) {
-    const intent = buildOrderIntent(signal);
-    if (appendOrderIntent(intent, options)) {
-      console.log(`[${intent.created_at}] ORDER_INTENT ${intent.action} ${intent.ticker} ${intent.expiration} ${intent.strike}${intent.option_type} status=${intent.status}`);
-    }
-    const docFile = appendSignalDocument({
-      signal,
-      record,
-      intent,
-      signalDocDir: options.signalDocDir,
-      timeZone: options.signalDocTimeZone,
-    });
+  if (addedCount) {
+    const lastEvent = events[events.length - 1];
     writeStatus({
       status: 'capturing',
-      last_option_signal_at: signal.logged_at,
-      last_option_signal_message_id: signal.message_id,
-      last_option_signal_title: signal.title,
-      last_option_signal_channel_id: signal.channel_id,
-      last_option_signal_received_at: signal.received_at,
-      last_order_intent_message_id: intent ? intent.message_id : null,
+      last_zero_dte_flow_at: new Date().toISOString(),
+      last_zero_dte_flow_message_id: lastEvent.message_id,
+      last_zero_dte_flow_sub_event_id: lastEvent.sub_event_id,
+      last_zero_dte_flow_live_eligible: lastEvent.live_eligible,
     });
-    console.log(formatSignalLine(signal));
-    console.log(`[${signal.logged_at}] SIGNAL_DOC ${displayPath(docFile)} received_to_logged=${signal.received_to_logged_lag_ms}ms id=${signal.message_id}`);
   }
 
-  return true;
+  // This feed is evidence only. The JUNKMAN trader independently confirms
+  // direction and structure before any simulated order can be created.
+  return { handled: true, added_count: addedCount };
 }
 
 function appendHistoryMessage(record, options) {
@@ -589,22 +527,21 @@ function handleRestMessagesPayload(parsed, meta, options) {
   if (!messages.length) return;
 
   let newCount = 0;
-  let newSignalCount = 0;
+  let newZeroDteFlowCount = 0;
   for (const message of messages) {
     if (!message || typeof message !== 'object') continue;
     const record = normalizeRestChannelMessage(message, meta);
     if (appendHistoryMessage(record, options)) {
       newCount += 1;
-      if (processOptionAdvice(record, 'REST_SIGNAL', options)) {
-        newSignalCount += 1;
-      }
+      const flowResult = processNightwatchZeroDteFlow(record, 'rest_archive', options);
+      newZeroDteFlowCount += flowResult.added_count;
     }
   }
 
   printRestCaptureSummary(meta.channel_request, messages.length, newCount, meta.url);
-  if (newSignalCount) {
+  if (newZeroDteFlowCount) {
     const channel = meta.channel_request && meta.channel_request.channel_id ? meta.channel_request.channel_id : 'embedded';
-    console.log(`[${new Date().toISOString()}] REST_SIGNAL_COUNT channel=${channel} new_signals=${newSignalCount}`);
+    console.log(`[${new Date().toISOString()}] REST_ZERO_DTE_FLOW_COUNT channel=${channel} new_events=${newZeroDteFlowCount}`);
   }
 }
 
@@ -643,7 +580,8 @@ function handleGatewayPayload(payload, url, options) {
       last_message_channel_id: messageRecord.channel_id,
       last_message_event_type: messageRecord.event_type,
     });
-    if (!processOptionAdvice(messageRecord, 'LIVE_SIGNAL', options) && options.printAllMessages) {
+    const flowResult = processNightwatchZeroDteFlow(messageRecord, 'live_gateway', options);
+    if (!flowResult.handled && options.printAllMessages) {
       printMessage(messageRecord);
     }
   } else if (options.allEvents) {
@@ -762,24 +700,15 @@ async function attachNetworkCapture(context, page, options) {
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
-  options.signalDocTimeZone = resolveTimeZone(options.signalDocTimeZone);
   ensureDirs(options);
   writeStatus({
     status: 'starting',
     started_at: new Date().toISOString(),
     cdp_endpoint: options.cdpEndpoint,
-    signal_doc_dir: displayPath(options.signalDocDir),
-    signal_doc_timezone: options.signalDocTimeZone,
     note: 'Refresh Discord after this listener is attached so the compressed gateway websocket starts from the beginning.',
   });
-  if (options.liveSignalLog) {
-    options.liveSignalIds = readExistingMessageIds(options.liveSignalLog);
-  }
-  if (options.optionSignalLog) {
-    options.optionSignalKeys = readExistingFieldValues(options.optionSignalLog, 'signal_key');
-  }
-  if (options.orderIntentLog) {
-    options.orderIntentIds = readExistingFieldValues(options.orderIntentLog, 'message_id');
+  if (options.zeroDteFlowEventLog) {
+    options.zeroDteFlowEventIds = readExistingFieldValues(options.zeroDteFlowEventLog, 'sub_event_id');
   }
   if (options.historyMessageLog) {
     options.historyMessageIds = readExistingMessageIds(options.historyMessageLog);
@@ -787,12 +716,9 @@ async function main() {
 
   console.log(`CDP endpoint: ${options.cdpEndpoint}`);
   console.log(`Message log: ${displayPath(MESSAGE_LOG)}`);
-  console.log(`Live signal log: ${displayPath(options.liveSignalLog)}`);
-  console.log(`Unified option signal log: ${displayPath(options.optionSignalLog)}`);
-  console.log(`Order intent log: ${displayPath(options.orderIntentLog)}`);
-  console.log(`Daily signal documents: ${displayPath(options.signalDocDir)}/*.md timezone=${options.signalDocTimeZone}`);
+  console.log(`Nightwatch 0DTE Flow event log: ${displayPath(options.zeroDteFlowEventLog)}`);
   console.log(`History message API log: ${displayPath(options.historyMessageLog)}`);
-  console.log('Console output: option advice only. Use --print-all-messages to also print ordinary chat.');
+  console.log('Console output: strict Nightwatch 0DTE Flow events only. Use --print-all-messages to also print ordinary chat.');
   if (options.channelId) {
     console.log(`History API channel filter: ${options.channelId}`);
   } else {

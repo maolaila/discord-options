@@ -1,15 +1,17 @@
-# 换设备运行指引
+# New Device Setup
 
-这份指引用于把项目克隆到另一台 Windows 电脑后重新跑起来。仓库只提交代码、示例配置和 Moomoo OpenD JavaScript SDK；真实日志、Discord 登录 profile、OpenD 密钥、账户号和模拟交易记录都不提交，需要在新设备本地重新配置。
+This guide deploys the JUNKMAN SPX 0DTE simulation system on another Windows computer. Git transfers the program, tests, strategy policy, documentation, and reviewed trade-record snapshots. Discord login state, the Nightwatch key, the OpenD key, and live runtime state must be configured locally on the new device.
 
-## 需要提前安装
+## 1. Install prerequisites
+
+Install:
 
 - Git
-- Node.js LTS
-- Chrome 或 Edge
-- Moomoo 桌面端和 OpenD，并确认 OpenD 已登录、已开启 WebSocket API
+- Node.js 20 or newer
+- Chrome or Edge
+- Moomoo desktop and OpenD, logged in with the WebSocket API enabled
 
-## 克隆和安装
+Clone and install:
 
 ```powershell
 git clone https://github.com/maolaila/discord-options.git
@@ -17,14 +19,24 @@ cd discord-options
 npm install
 ```
 
-## 创建本地配置
+Verify the effective Node.js version:
+
+```powershell
+node --version
+```
+
+The JUNKMAN supervisor rejects Node.js versions below 20.
+
+## 2. Configure OpenD
+
+Create the local environment file:
 
 ```powershell
 Copy-Item .\.env.example .\.env
 notepad .\.env
 ```
 
-至少检查这些项：
+Keep at least these values:
 
 ```text
 MOOMOO_OPEND_HOST=127.0.0.1
@@ -34,73 +46,123 @@ MOOMOO_OPEND_WS_KEY=
 MOOMOO_OPEND_WS_KEY_FILE=./secrets/moomoo_opend_ws_key.txt
 MOOMOO_TRD_ENV=simulate
 MOOMOO_TRD_MARKET=US
-MOOMOO_QUOTE_PUSH_WARMUP_MS=350
-MOOMOO_QUOTE_FALLBACK_SNAPSHOT_MAX_AGE_MS=2000
 MOOMOO_ALLOW_REAL_TRADING=false
 ```
 
-如果 OpenD 设置了 WebSocket 连接密钥，把密钥放到本地文件：
+If OpenD has a WebSocket key, place it in an ignored local file:
 
 ```powershell
 New-Item -ItemType Directory -Force .\secrets
 notepad .\secrets\moomoo_opend_ws_key.txt
 ```
 
-不要把 `.env`、`secrets/`、`logs/`、`profile/`、`analysis/` 或 `signal-docs/` 提交到 GitHub。
-
-## 检查 OpenD
-
-先启动 Moomoo 和 OpenD，然后运行：
+Start Moomoo and OpenD, then verify connectivity:
 
 ```powershell
 npm run moomoo:check
 ```
 
-输出里应看到：
+The output should confirm the OpenD connection, `qotLogined=true`, `trdLogined=true`, and at least one `trdEnv=0` simulated account that supports US options. Do not put a real account ID in the policy. JUNKMAN selects a compatible simulated option account from the accounts returned by OpenD.
 
-- `OpenD connection: OK`
-- `qotLogined=true`
-- `trdLogined=true`
-- 至少一个 `trdEnv=0` 且支持 US 市场的模拟账户
+## 3. Configure Nightwatch
 
-如果想临时复用旧项目里的配置，可以这样运行，但不需要把旧项目文件复制进仓库：
+Store the Nightwatch key only in the Windows user environment, never in project `.env`:
 
 ```powershell
-npm run moomoo:check -- --env D:\path\to\old-project\.env
+[Environment]::SetEnvironmentVariable('YEHANGSHE_API_KEY', '<your-key>', 'User')
 ```
 
-## 启动控制台
+Close and reopen PowerShell, then verify access:
+
+```powershell
+npm run nightwatch:discover
+```
+
+Confirm that the response includes the available datasets and `quota.monthly_remaining`. Snapshot polling has a one-request-per-second minimum interval. HTTP 429 responses follow `Retry-After` backoff.
+
+## 4. Optional Discord Flow context
+
+The main strategy uses Nightwatch API evidence and moomoo market data; it does not depend on Discord Flow. To archive `0dte-flow-alert` and use eligible live events as optional confirmation context:
+
+```powershell
+.\start-discord-cdp.ps1
+npm run capture
+```
+
+Log into Discord in the opened browser. After the capture process prints `Attached`, refresh the Discord tab once so compressed Gateway WebSocket decoding begins at the start of the connection. Login state remains local in `profile/`.
+
+Check capture health with:
+
+```powershell
+.\show-capture-status.ps1
+```
+
+Flow cannot create or veto a trade by itself. History backfill, delayed messages, manually posted content, and messages from any nonconfigured bot are archive-only.
+
+## 5. Start and verify JUNKMAN
+
+Check current status and run a dry plan first:
+
+```powershell
+npm run junk:gex:status
+npm run junk:gex:plan
+```
+
+Use the supervisor for continuous simulated trading:
+
+```powershell
+.\run-junk-gex.ps1
+```
+
+The supervisor enforces one instance per Windows session and restarts the watcher after an abnormal exit or stale heartbeat. For foreground debugging only:
+
+```powershell
+npm run junk:gex:watch-sim
+```
+
+Start the local console with:
 
 ```powershell
 .\start-console.ps1
 ```
 
-浏览器会打开：
+The default URL is `http://127.0.0.1:18766`.
 
-```text
-http://127.0.0.1:18766
+Verify runtime state and recent records:
+
+```powershell
+npm run junk:gex:status
+Get-Content .\logs\zero-dte-options-supervisor.log -Encoding UTF8 -Tail 30
+Get-Content .\logs\zero-dte-options-trades.ndjson -Encoding UTF8 -Tail 20
 ```
 
-点 `启动全套模拟` 后，控制台会启动：
+The effective mode must be `simulate_only`. No real-account order should exist.
 
-- Discord CDP 浏览器
-- Discord 网络监听
-- Moomoo OpenD 检查
-- 模拟账户买入监听
-- 模拟账户卖出监控
+## 6. Seven-line exit experiment
 
-等抓包日志显示 `Attached` 后，刷新 Discord 页面一次。之后只要网页版 Discord 收到符合条件的期权信号，程序会实时落本地日志并按模拟账户规则处理。
+One aggregate moomoo simulated position backs seven local virtual portfolios. Every line shares the same signal, contract, entry time, and fill price. Each line has USD 10,000 and differs only in its fixed stop and take-profit pair:
 
-## 本地数据会重新生成
+- `SL15 / TP off` control
+- `SL10 / TP off`
+- `SL10 / TP20`
+- `SL10 / TP30`
+- `SL15 / TP20`
+- `SL15 / TP30`
+- `SL12.5 / TP25`
 
-以下目录是本地运行数据，不随仓库迁移：
+Structural exits, the five-minute no-progress rule, breakeven protection after a 20% gain, and the close discipline are shared by all lines. Experiment events are written to `logs/zero-dte-options-experiment-events.ndjson`; aggregate metrics are written to `logs/zero-dte-options-experiment-summary.json`.
 
-- `profile/`: 浏览器登录状态。新设备需要重新登录 Discord。
-- `logs/`: 抓包消息、计划、模拟订单、状态。
-- `signal-docs/`: 每日信号文档。
-- `analysis/`: 历史整理和回测输出。
-- `secrets/`: OpenD WebSocket 密钥等本地密钥。
+## 7. Local-only data
 
-## 安全边界
+These items are recreated or configured locally and normally do not move with Git:
 
-默认只允许模拟交易。实盘需要同时满足代码里的多重开关：`.env` 里 `MOOMOO_ALLOW_REAL_TRADING=true`、环境变量 `MOOMOO_REAL_TRADING_CONFIRM=I_UNDERSTAND`，并且命令行传 `--execute-real`。没有明确授权前，不要开启这些开关。
+- `.env`: machine-specific OpenD settings
+- `secrets/`: OpenD WebSocket key
+- `profile/`: Discord browser login state
+- `logs/`: runtime state, decisions, orders, Flow events, and experiment events; only a reviewed JUNKMAN trade-record snapshot is explicitly committed
+
+Never commit an API key, Bearer value, cookie, browser token, account ID, or private raw Discord content.
+
+## Safety boundary
+
+JUNKMAN permits moomoo simulation only. The policy must keep `real_trading_allowed=false`; `.env` must keep `MOOMOO_TRD_ENV=simulate` and `MOOMOO_ALLOW_REAL_TRADING=false`. The repository has no real-trading command. Do not add or bypass one.

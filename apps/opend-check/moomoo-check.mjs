@@ -14,7 +14,11 @@ import {
 } from '../../packages/moomoo-opend/moomoo-opend.mjs';
 
 const args = parseCliArgs();
-const config = loadMoomooConfig({ envFile: args.env });
+const config = loadMoomooConfig({
+  envFile: args.env,
+  businessLine: 'zero-dte-options',
+  policyFile: path.join(PROJECT_ROOT, 'config', 'zero-dte-options-policy.json'),
+});
 
 const printableConfig = {
   envFile: config.envFile || '',

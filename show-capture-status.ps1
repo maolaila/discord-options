@@ -10,10 +10,9 @@ $status | Format-List
 
 $files = @(
   "logs\messages.ndjson",
-  "logs\option-signals.ndjson",
-  "logs\order-intents.ndjson",
+  "logs\zero-dte-options-flow-events.ndjson",
   "logs\raw-events.ndjson",
-  "signal-docs\$((Get-Date).ToString('yyyy-MM-dd')).md"
+  "logs\capture-status.json"
 )
 
 Write-Host ""

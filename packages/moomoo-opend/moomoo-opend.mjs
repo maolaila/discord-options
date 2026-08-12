@@ -36,11 +36,9 @@ export const QOT_SUBTYPE_BASIC = 1;
 export const QOT_SUBTYPE_ORDER_BOOK = 2;
 export const KL_TYPE_DAY = 2;
 export const REHAB_TYPE_FORWARD = 1;
-export const DEFAULT_PROTECTED_STOCK_SYMBOLS = ['SPCX'];
 const CMD_QOT_UPDATE_BASIC_QOT = 3005;
 const CMD_QOT_UPDATE_ORDER_BOOK = 3013;
-export const DEFAULT_POLICY_PATH = path.join(PROJECT_ROOT, 'config', 'sim-trading-policy.json');
-export const DEFAULT_PA_OPTIONS_POLICY_PATH = path.join(PROJECT_ROOT, 'config', 'pa-options-policy.json');
+export const DEFAULT_POLICY_PATH = path.join(PROJECT_ROOT, 'config', 'zero-dte-options-policy.json');
 
 let tradeSerialNo = 1;
 
@@ -105,26 +103,6 @@ function optionalMaxGateNumberValue(value, name, defaultValue = undefined) {
   if (!Number.isFinite(parsed)) throw new Error(`${name} must be a number or disabled.`);
   if (parsed <= 0) return null;
   return parsed;
-}
-
-export function parseProtectedStockSymbols(value, defaultSymbols = DEFAULT_PROTECTED_STOCK_SYMBOLS) {
-  if (value === undefined || value === null || value === '') {
-    return [...defaultSymbols];
-  }
-  if (Array.isArray(value)) {
-    return [...new Set(value.map((item) => String(item || '').trim().toUpperCase()).filter(Boolean))];
-  }
-  const normalized = String(value).trim().toLowerCase();
-  if (['0', 'false', 'no', 'n', 'off', 'none', 'null', 'disabled', 'disable'].includes(normalized)) return [];
-  return [...new Set(String(value)
-    .split(/[,\s;]+/)
-    .map((item) => item.trim().toUpperCase())
-    .filter(Boolean))];
-}
-
-export function isProtectedStockSymbol(symbol, protectedSymbols = DEFAULT_PROTECTED_STOCK_SYMBOLS) {
-  const normalized = String(symbol || '').trim().toUpperCase();
-  return normalized ? new Set(parseProtectedStockSymbols(protectedSymbols, [])).has(normalized) : false;
 }
 
 function firstPresent(...values) {
@@ -303,12 +281,7 @@ export function loadMoomooConfig(opts = {}) {
     optionExitStopLossPct: numberValue(opts.optionExitStopLossPct || process.env.MOOMOO_OPTION_EXIT_STOP_LOSS_PCT, 'MOOMOO_OPTION_EXIT_STOP_LOSS_PCT', exits.option_stop_loss_pct ?? 20),
     closeExitStartTimeEt: String(opts.closeExitStartTimeEt || process.env.MOOMOO_CLOSE_EXIT_START_TIME_ET || exits.close_exit_start_time_et || '15:45').trim(),
     forceCloseExitStartTimeEt: String(opts.forceCloseExitStartTimeEt || process.env.MOOMOO_FORCE_CLOSE_EXIT_START_TIME_ET || exits.force_close_exit_start_time_et || '15:55').trim(),
-    stockOrderSession: parseOrderSession(firstPresent(opts.stockOrderSession, opts.orderSession, process.env.STOCK_REBALANCE_ORDER_SESSION, process.env.MOOMOO_STOCK_ORDER_SESSION), SESSION_RTH),
-    stockFillOutsideRTH: boolValue(firstPresent(opts.stockFillOutsideRTH, opts.fillOutsideRTH, process.env.STOCK_REBALANCE_FILL_OUTSIDE_RTH, process.env.MOOMOO_STOCK_FILL_OUTSIDE_RTH), false),
-    stockLimitBufferPct: numberValue(firstPresent(opts.stockLimitBufferPct, process.env.STOCK_REBALANCE_LIMIT_BUFFER_PCT, process.env.MOOMOO_STOCK_LIMIT_BUFFER_PCT), 'MOOMOO_STOCK_LIMIT_BUFFER_PCT', 0.25),
-    stockBuyJpAccType: intValue(firstPresent(opts.stockBuyJpAccType, process.env.STOCK_REBALANCE_BUY_JP_ACC_TYPE, process.env.MOOMOO_STOCK_BUY_JP_ACC_TYPE), 'STOCK_REBALANCE_BUY_JP_ACC_TYPE'),
     allowRealTrading: boolValue(opts.allowRealTrading ?? process.env.MOOMOO_ALLOW_REAL_TRADING, false),
-    protectedStockSymbols: parseProtectedStockSymbols(opts.protectedStockSymbols ?? process.env.PROTECTED_STOCK_SYMBOLS),
     policy,
   };
 }
@@ -943,6 +916,12 @@ export function buildOptionExecutionQuote(snapshot, config) {
   }
   if (Number.isFinite(openInterest) && openInterest < Number(config.optionMinOpenInterest || 0)) {
     reasons.push(`open_interest_below_min:${openInterest}`);
+  }
+  if (config.optionRequireOpenInterestAndVolume && !Number.isFinite(dayVolume)) {
+    reasons.push('missing_option_day_volume');
+  }
+  if (config.optionRequireOpenInterestAndVolume && !Number.isFinite(openInterest)) {
+    reasons.push('missing_open_interest');
   }
 
   const hasBidAsk = Number.isFinite(bid) && Number.isFinite(ask) && bid > 0 && ask > 0 && ask >= bid;

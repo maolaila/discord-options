@@ -18,6 +18,8 @@ The system is simulation-only. `config/zero-dte-options-policy.json` sets `envir
 
 Nightwatch GEX and Heatmap are structural evidence. Moomoo SPY one-minute pushes are aggregated into completed five-minute bars for price, volume, and node-reaction confirmation. The strategy decides only after a five-minute bar closes. OI, Flow color, and a single Sweep are never standalone directional signals.
 
+The daily OI research layer reads `options.oi_change` and the optional `options.options_volume` aggregate once per open session. It preserves the activity trade date separately from the OI effective date, keeps unknown values as `null`, and builds exact-contract plus strike/right histories over 3, 5, and 10 sessions. This layer is settlement-lagged background only: it cannot create, confirm, reject, or resize an intraday trade. Its SQLite research database and redacted source snapshots remain local under `data/junk-oi-research/`; Broker recovery and exit reconciliation always run before any daily OI refresh.
+
 For automated Flow, green means Call, red means Put, and the buy label means execution on the ask side. None of these proves whether a position was opened or closed, or its final direction. Only live 0DTE SPX events from the configured guild, channel, and bot can add optional support after they pass lag, premium, OTM, Sweep, repeated-strike, and data-quality checks. SPY Flow is audit-only. REST backfill and stale events are not trade-eligible.
 
 ## Install and configure
@@ -90,13 +92,13 @@ npm run junk:gex:status
 npm run junk:gex:plan
 ```
 
-Use the supervisor for continuous simulated monitoring and trading:
+Use the top-level stack supervisor for continuous simulated monitoring and trading:
 
 ```powershell
-.\run-junk-gex.ps1
+.\run-junk-stack.ps1
 ```
 
-The supervisor enforces one instance per Windows session, checks the heartbeat, and restarts a failed watcher. For foreground debugging only:
+It verifies the real OpenD API login and simulated US-option account before starting JUNKMAN, restores the console and Discord capture, and delegates the strategy process to `run-junk-gex.ps1`. A scheduled one-minute keepalive is recommended so the top-level supervisor is recreated after a crash. For foreground debugging only:
 
 ```powershell
 npm run junk:gex:watch-sim
@@ -108,7 +110,15 @@ Start the local control console with:
 .\start-console.ps1
 ```
 
-Its default URL is `http://127.0.0.1:18766`. The console manages the browser, capture process, and OpenD checks needed by JUNKMAN, and displays JUNKMAN status. `run-junk-gex.ps1` remains the authoritative strategy supervisor.
+Its default URL is `http://127.0.0.1:18766`. The console manages the browser, capture process, and OpenD checks needed by JUNKMAN, and displays JUNKMAN status. `run-junk-gex.ps1` remains the authoritative strategy child supervisor.
+
+For unattended Windows operation, run the following once from an elevated PowerShell and approve UAC:
+
+```powershell
+.\ops\windows-unattended-hardening.ps1
+```
+
+This disables supported automatic updater services/tasks, keeps lid close and idle sleep from suspending the stack, and registers the top-level stack task. It deliberately retains thermal protection, critical-battery hibernation, Defender, and crash recovery. No software can guarantee continuity through power loss, hardware failure, or an unavailable network.
 
 ## Strategy and risk rules
 
@@ -116,7 +126,7 @@ The effective rules live in `config/zero-dte-options-policy.json`:
 
 - The strategy trades single-leg SPX 0DTE options in simulation only.
 - It allows at most one open position and three entries per day.
-- Each experiment line has USD 10,000 of simulated equity. Target allocation is 5% and the per-trade cap is 10%.
+- Each experiment line has USD 10,000 of simulated equity. Target allocation is 5% and 10% is a soft sizing target: when one contract costs more than 10% but no more than the full USD 10,000 line, the line buys the minimum one contract.
 - Positive Gamma is treated as range or magnet structure; the strategy does not chase a naked single leg in the center.
 - Negative Gamma acceleration requires a confirmed breakout and retest.
 - Entry requires stable GEX nodes, a completed five-minute price reaction, VWAP and volume confirmation, price between invalidation and target, and acceptable bid/ask, spread, OI, and option volume.
@@ -154,6 +164,8 @@ All JUNKMAN state uses the `zero-dte-options` prefix:
 - `logs/zero-dte-options-flow-events.ndjson`: automated Flow parsing and eligibility audit.
 - `logs/zero-dte-options-experiment-events.ndjson`: per-cohort and per-line events.
 - `logs/zero-dte-options-experiment-summary.json`: per-line realized and comparable PnL, win rate, and sample count.
+- `logs/zero-dte-options-oi-structure-background.json`: compact, non-directional OI research context used in decision audits.
+- `data/junk-oi-research/`: ignored local SQLite history and redacted daily source snapshots.
 
 Runtime data normally remains local. At explicit audit points, the repository may include a reviewed snapshot of `zero-dte-options-trades.ndjson`; other dynamic logs remain ignored. Trade records must not contain account IDs, API keys, Bearer values, cookies, or browser tokens.
 

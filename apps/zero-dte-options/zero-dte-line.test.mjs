@@ -5,20 +5,24 @@ import {
   apply_exit_cumulative_fill,
   apply_exit_management_update,
   apply_experiment_filled_management,
+  apply_junk_gex_freshness_gate,
   advance_junk_experiment_exit_latch,
   arm_junk_experiment_unpriced_force_close,
   block_unresolved_submission,
   broker_order_identity,
   broker_order_keys,
   build_exit_attempt_remark,
+  create_moomoo_runtime,
   expired_entry_without_broker_evidence,
   expired_settlement_missing,
   exit_owned_position,
   experiment_unpriced_incident_blocks_new_entry,
   fresh_last_gex_spot,
   has_broker_order_identity,
+  heatmap_summary,
   is_simulated_fill_history_unsupported,
   junk_experiment_entry_risk_state,
+  junk_oi_background_refresh_due,
   junk_experiment_ownership_rows,
   junk_experiment_ownership_invariant,
   junk_experiment_unpriced_emergency_window,
@@ -39,6 +43,7 @@ import {
   untrusted_state_requires_recovery_block,
   unresolved_exit_recovery_required,
 } from './zero-dte-line.mjs';
+import { apply_junk_v3_evidence } from './junk-trading-model-v2.mjs';
 import {
   apply_junk_experiment_exit_cumulative_fill,
   begin_junk_experiment_exit_batch,
@@ -75,6 +80,79 @@ function ny(date_key, minutes, weekday = 'Mon') {
   };
 }
 
+test('runtime GEX freshness assessment is a hard entry gate', () => {
+  const candidate = {
+    decision: 'trade',
+    action: 'buy_call',
+    reason_codes: ['valid_structure'],
+  };
+
+  assert.equal(
+    apply_junk_gex_freshness_gate(candidate, { readiness: 'ready', reason_codes: [] }),
+    candidate,
+  );
+
+  const missing_meta = apply_junk_gex_freshness_gate(candidate, {
+    readiness: 'not_ready',
+    reason_codes: ['missing_or_invalid_meta_freshness'],
+  });
+  assert.equal(missing_meta.decision, 'no_trade');
+  assert.equal(missing_meta.action, 'hold');
+  assert.ok(missing_meta.reason_codes.includes(
+    'gex_freshness_not_ready:missing_or_invalid_meta_freshness',
+  ));
+
+  const missing_assessment = apply_junk_gex_freshness_gate(candidate, null);
+  assert.equal(missing_assessment.decision, 'no_trade');
+  assert.ok(missing_assessment.reason_codes.includes(
+    'gex_freshness_not_ready:missing_assessment',
+  ));
+});
+
+test('JUNKMAN startup passes an explicit OpenD login timeout and closes cleanly', async () => {
+  let connect_options = null;
+  let connection_close_count = 0;
+  let quote_close_count = 0;
+  const account = { accID: 'sim-options', trdEnv: 0, simAccType: 4 };
+  const runtime = await create_moomoo_runtime({}, {
+    load_config: () => ({ trdEnv: 0 }),
+    connect: async (_config, options) => {
+      connect_options = options;
+      return {
+        client: {},
+        close: () => { connection_close_count += 1; },
+      };
+    },
+    fetch_accounts: async () => ({ s2c: { accList: [account] } }),
+    select_account: () => account,
+    create_quote_feed: () => ({
+      close: async () => { quote_close_count += 1; },
+    }),
+  });
+
+  assert.equal(connect_options.timeoutMs, 25_000);
+  await runtime.close();
+  assert.equal(quote_close_count, 1);
+  assert.equal(connection_close_count, 1);
+});
+
+test('JUNKMAN startup bounds GetAccList and releases OpenD on timeout', async () => {
+  let connection_close_count = 0;
+  await assert.rejects(
+    create_moomoo_runtime({}, {
+      load_config: () => ({ trdEnv: 0 }),
+      connect: async () => ({
+        client: {},
+        close: () => { connection_close_count += 1; },
+      }),
+      fetch_accounts: async () => new Promise(() => {}),
+      accounts_timeout_ms: 5,
+    }),
+    /JUNKMAN OpenD GetAccList startup timed out after 5ms/,
+  );
+  assert.equal(connection_close_count, 1);
+});
+
 function experimentRow({ filled_qty = 10 } = {}) {
   const lines = Array.from({ length: 7 }, (_, index) => ({
     line_id: `line_${index + 1}`,
@@ -107,6 +185,210 @@ function experimentRow({ filled_qty = 10 } = {}) {
     }, new Date('2026-08-10T14:30:00.000Z')),
   };
 }
+
+test('daily OI background refresh runs once per session and retries only on cadence', () => {
+  const schedule = market_schedule(policy, ny('2026-08-13', 10 * 60, 'Thu'));
+  const common = {
+    session_date_et: '2026-08-13',
+    ny: ny('2026-08-13', 10 * 60, 'Thu'),
+    schedule,
+    policy: {
+      enabled: true,
+      refresh_start_time_et: '08:30',
+      refresh_cutoff_time_et: '15:00',
+      refresh_retry_minutes: 15,
+    },
+    now_ms: Date.parse('2026-08-13T14:00:00.000Z'),
+  };
+  assert.deepEqual(junk_oi_background_refresh_due({
+    ...common,
+    background: null,
+    refresh_state: null,
+  }), { due: true, reason: 'current_session_context_missing' });
+  assert.deepEqual(junk_oi_background_refresh_due({
+    ...common,
+    background: { usable: true, oi_effective_date: '2026-08-13' },
+    refresh_state: null,
+  }), { due: false, reason: 'current_session_already_loaded' });
+  assert.deepEqual(junk_oi_background_refresh_due({
+    ...common,
+    background: null,
+    refresh_state: { attempted_at: '2026-08-13T13:50:00.000Z' },
+  }), { due: false, reason: 'retry_interval_not_elapsed' });
+  assert.deepEqual(junk_oi_background_refresh_due({
+    ...common,
+    ny: ny('2026-08-13', 15 * 60 + 1, 'Thu'),
+    background: null,
+    refresh_state: null,
+  }), { due: false, reason: 'outside_refresh_window' });
+});
+
+test('real heatmap cells aggregate across expirations by strike and rank by gross absolute GEX', () => {
+  const now_ms = Date.parse('2026-08-13T14:30:30.000Z');
+  const summary = heatmap_summary({
+    data: {
+      ticker: 'SPX',
+      generated_at: '2026-08-13T14:30:00.000Z',
+      session_date_et: '2026-08-13',
+      spot_usd: 7_800,
+      expirations: ['2026-08-13', '2026-08-14'],
+      cells: [
+        { expiration: '2026-08-13', strike_usd: 7_815, net_dealer_gex_usd: 100 },
+        { expiration: '2026-08-14', strike_usd: 7_815, net_dealer_gex_usd: -40 },
+        { expiration: '2026-08-13', strike_usd: 7_800, net_dealer_gex_usd: 90 },
+        { expiration: 'not-a-date', strike_usd: 7_790, net_dealer_gex_usd: 10_000 },
+        { expiration: '2026-08-13', strike_usd: 0, net_dealer_gex_usd: 10_000 },
+        { expiration: '2026-08-13', strike_usd: 7_790, net_dealer_gex_usd: null },
+      ],
+    },
+    _meta: { data_freshness_seconds: 30 },
+  }, { now_ms, max_age_ms: 600_000 });
+
+  assert.equal(summary.state, 'fresh');
+  assert.equal(summary.state_reason, 'heatmap_fresh');
+  assert.equal(summary.source_schema, 'cells');
+  assert.equal(summary.spot_usd, 7_800);
+  assert.deepEqual(summary.top_rows, [
+    {
+      strike_usd: 7_815,
+      row_net_wall_gex_usd: 60,
+      row_abs_wall_gex_usd: 140,
+      rank: 1,
+      expiration_count: 2,
+      cell_count: 2,
+      source_schema: 'cells',
+    },
+    {
+      strike_usd: 7_800,
+      row_net_wall_gex_usd: 90,
+      row_abs_wall_gex_usd: 90,
+      rank: 2,
+      expiration_count: 1,
+      cell_count: 1,
+      source_schema: 'cells',
+    },
+  ]);
+
+  const still_no_trade = apply_junk_v3_evidence({
+    core_decision: {
+      decision: 'no_trade',
+      action: 'hold',
+      reason_codes: ['snapshot_stale'],
+    },
+    heatmap_context: summary,
+    flow_evaluation: { decision: 'neutral' },
+    evidence_policy: { heatmap: { enabled: true, max_age_ms: 600_000 } },
+    now_ms,
+  });
+  assert.equal(still_no_trade.decision, 'no_trade');
+  assert.equal(still_no_trade.action, 'hold');
+  assert.ok(still_no_trade.reason_codes.includes('snapshot_stale'));
+  assert.deepEqual(still_no_trade.evidence_model.confirmations, []);
+});
+
+test('heatmap accepts the latest fixed sample through ten minutes and fails closed after it', () => {
+  const now_ms = Date.parse('2026-08-13T14:40:00.000Z');
+  const base = {
+    data: {
+      generated_at: '2026-08-13T14:30:00.000Z',
+      session_date_et: '2026-08-13',
+      spot_usd: 7_800,
+      cells: [{ expiration: '2026-08-13', strike_usd: 7_800, net_dealer_gex_usd: 100 }],
+    },
+  };
+  const boundary = heatmap_summary({
+    ...base,
+    _meta: { data_freshness_seconds: 600 },
+  }, { now_ms, max_age_ms: 600_000 });
+  assert.equal(boundary.state, 'fresh');
+
+  const stale_meta = heatmap_summary({
+    ...base,
+    _meta: { data_freshness_seconds: 600.001 },
+  }, { now_ms, max_age_ms: 600_000 });
+  assert.equal(stale_meta.state, 'stale');
+  assert.equal(stale_meta.state_reason, 'heatmap_age_exceeded');
+
+  const stale_timestamp = heatmap_summary({
+    data: { ...base.data, generated_at: '2026-08-13T14:29:59.999Z' },
+    _meta: { data_freshness_seconds: 1 },
+  }, { now_ms, max_age_ms: 600_000 });
+  assert.equal(stale_timestamp.state, 'stale');
+  assert.equal(stale_timestamp.state_reason, 'heatmap_age_exceeded');
+
+  const cross_session = heatmap_summary({
+    data: {
+      ...base.data,
+      generated_at: '2026-08-12T19:59:30.000Z',
+      session_date_et: '2026-08-12',
+      cells: [{ expiration: '2026-08-13', strike_usd: 7_800, net_dealer_gex_usd: 100 }],
+    },
+  }, { now_ms, max_age_ms: 24 * 60 * 60 * 1_000 });
+  assert.equal(cross_session.state, 'stale');
+  assert.equal(cross_session.state_reason, 'heatmap_cross_session');
+});
+
+test('legacy row_stacks stay compatible while malformed or missing heatmap rows remain neutral', () => {
+  const now_ms = Date.parse('2026-08-13T14:30:30.000Z');
+  const legacy = heatmap_summary({
+    data: {
+      generated_at: '2026-08-13T14:30:00.000Z',
+      session_date_et: '2026-08-13',
+      state: 'fresh',
+      spot_usd: 7_800,
+      row_stacks: [
+        { strike_usd: 7_810, row_net_wall_gex_usd: -25, row_abs_wall_gex_usd: 25, rank: 2 },
+        { strike_usd: 7_800, row_net_wall_gex_usd: 50, row_abs_wall_gex_usd: 50, rank: 1 },
+      ],
+    },
+  }, { now_ms, max_age_ms: 600_000 });
+  assert.equal(legacy.state, 'fresh');
+  assert.equal(legacy.source_schema, 'row_stacks');
+  assert.deepEqual(legacy.top_rows.map((row) => [row.strike_usd, row.rank]), [[7_800, 1], [7_810, 2]]);
+
+  const invalid = heatmap_summary({
+    data: {
+      generated_at: '2026-08-13T14:30:00.000Z',
+      session_date_et: '2026-08-13',
+      cells: [
+        { expiration: 'invalid', strike_usd: 7_800, net_dealer_gex_usd: 100 },
+        { expiration: '2026-08-13', strike_usd: 'bad', net_dealer_gex_usd: 100 },
+        { expiration: '2026-08-13', strike_usd: 7_800, net_dealer_gex_usd: null },
+      ],
+    },
+  }, { now_ms, max_age_ms: 600_000 });
+  assert.equal(invalid.state, 'invalid');
+  assert.equal(invalid.state_reason, 'heatmap_rows_invalid');
+  assert.deepEqual(invalid.top_rows, []);
+
+  const missing = heatmap_summary({
+    data: {
+      generated_at: '2026-08-13T14:30:00.000Z',
+      session_date_et: '2026-08-13',
+    },
+  }, { now_ms, max_age_ms: 600_000 });
+  assert.equal(missing.state, 'missing');
+  assert.equal(missing.state_reason, 'heatmap_rows_missing');
+  assert.equal(missing.top_rows, null);
+
+  const neutral = apply_junk_v3_evidence({
+    core_decision: {
+      decision: 'trade',
+      action: 'open_long_option',
+      reason_codes: ['gex_node_confirmed'],
+      tested_node: { strike_usd: 7_800 },
+    },
+    heatmap_context: invalid,
+    flow_evaluation: { decision: 'neutral' },
+    evidence_policy: {
+      heatmap: { enabled: true, max_age_ms: 600_000, require_ranked_node_when_fresh: true },
+    },
+    now_ms,
+  });
+  assert.equal(neutral.decision, 'trade');
+  assert.equal(neutral.evidence_model.heatmap.assessment, 'neutral');
+  assert.deepEqual(neutral.evidence_model.vetoes, []);
+});
 
 test('exit management state persists into the next round and arms only once', () => {
   const row = {
@@ -261,7 +543,8 @@ test('broker-first structure checks reject stale or cross-session GEX spot', () 
     ...state,
     last_gex: { ...state.last_gex, state: 'degraded' },
   }, new Date('2026-08-10T14:30:20.000Z')), null);
-  assert.equal(fresh_last_gex_spot(state, new Date('2026-08-10T14:31:00.000Z')), null);
+  assert.equal(fresh_last_gex_spot(state, new Date('2026-08-10T14:40:00.000Z')), 5000);
+  assert.equal(fresh_last_gex_spot(state, new Date('2026-08-10T14:40:00.001Z')), null);
   assert.equal(fresh_last_gex_spot(state, new Date('2026-08-11T14:30:10.000Z')), null);
 });
 

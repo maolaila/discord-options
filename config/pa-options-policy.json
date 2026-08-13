@@ -1,0 +1,89 @@
+{
+  "name": "pa_options_moomoo_simulation",
+  "version": 1,
+  "business_line": {
+    "id": "pa-options",
+    "status": "active",
+    "description": "PA Discord option-following simulation. This line is not 0DTE."
+  },
+  "execution": {
+    "broker": "moomoo_opend",
+    "environment": "simulate_only",
+    "real_trading_allowed": false,
+    "ai_decisioning_allowed": false,
+    "external_model_calls_allowed": false,
+    "decision_engine": "local_deterministic_program"
+  },
+  "signal_filter": {
+    "advice_format": "pa",
+    "action": "trade",
+    "full_plan_required": true,
+    "min_win_rate_pct": 60,
+    "min_confidence": null,
+    "max_risk_score": null,
+    "require_entry_target_stop": false,
+    "require_stock_stop": true,
+    "require_current_price_at_or_above_stop": true,
+    "direction_contract_match": {
+      "bull": "C",
+      "bear": "P"
+    },
+    "live_only": true,
+    "max_signal_age_seconds": 120,
+    "clock_skew_tolerance_seconds": 5,
+    "allowed_guild_id": "1434960637561409689",
+    "allowed_channel_ids": ["1467498779497201716", "1469972672514625749"],
+    "allowed_author_id": "1462345436852654295",
+    "require_bot_author": true,
+    "blocked_underlyings": ["SPX", "SPXW"]
+  },
+  "position_sizing": {
+    "paper_equity_usd": 10000,
+    "target_position_pct": 25,
+    "min_position_pct": 20,
+    "max_position_pct": 30,
+    "contract_multiplier_default": 100,
+    "quantity_rounding": "integer_contracts_nearest_target_without_exceeding_max"
+  },
+  "execution_quality": {
+    "quote_source": "opend_push_orderbook_with_snapshot_fallback",
+    "require_bid_ask": true,
+    "min_bid_price": 0.01,
+    "max_spread_pct_of_mid": 35,
+    "max_spread_abs": null,
+    "max_round_trip_loss_pct": 50,
+    "buy_limit_basis": "ask_plus_slippage_buffer",
+    "sell_estimate_basis": "bid_minus_slippage_buffer",
+    "slippage_ticks": 1,
+    "slippage_pct_of_spread": 10,
+    "cap_qty_by_visible_ask": true,
+    "max_qty_to_ask_volume_ratio": 10,
+    "min_open_interest": 50,
+    "min_option_day_volume": 1
+  },
+  "exit_rules": {
+    "price_basis": "option_entry_fill_price",
+    "take_profit_option_return_pct": 50,
+    "stop_loss_option_return_pct": 20,
+    "take_profit_underlying_move_pct": 50,
+    "stop_loss_underlying_move_pct": 20,
+    "option_price_exit": true,
+    "option_take_profit_pct": 50,
+    "option_stop_loss_pct": 20,
+    "stale_stock_line_behavior": "ignore_signal_stock_lines_use_option_20_50_and_close_exit",
+    "also_use_signal_stock_target": true,
+    "also_use_signal_stock_stop": true,
+    "exit_before_regular_session_close": true,
+    "close_exit_start_time_et": "15:45",
+    "force_close_exit_start_time_et": "15:55",
+    "no_overnight_holding": true,
+    "controlled_overnight": {
+      "enabled": true,
+      "max_positions": 1,
+      "min_dte": 5,
+      "max_loss_pct": 10,
+      "next_day_force_exit": true,
+      "next_day_exit_timing": "close_window"
+    }
+  }
+}

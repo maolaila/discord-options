@@ -11,6 +11,10 @@
   "scripts": {
     "capture": "powershell -NoProfile -ExecutionPolicy Bypass -File ./run-capture.ps1",
     "moomoo:check": "node ./apps/opend-check/moomoo-check.mjs",
+    "pa:options-simulate": "node ./apps/options-sim/moomoo-signal-trader.mjs --business-line pa-options --policy-file ./config/pa-options-policy.json --execute-simulate",
+    "pa:options-watch-sim": "node ./apps/options-sim/moomoo-signal-trader.mjs --business-line pa-options --policy-file ./config/pa-options-policy.json --watch --execute-simulate",
+    "pa:options-exit-once": "node ./apps/options-sim/moomoo-exit-monitor.mjs --business-line pa-options --policy-file ./config/pa-options-policy.json",
+    "pa:options-exit-watch": "node ./apps/options-sim/moomoo-exit-monitor.mjs --business-line pa-options --policy-file ./config/pa-options-policy.json --watch",
     "nightwatch:discover": "node ./apps/zero-dte-options/zero-dte-line.mjs --discover",
     "junk:gex:status": "node ./apps/zero-dte-options/zero-dte-line.mjs --status",
     "junk:gex:plan": "node ./apps/zero-dte-options/zero-dte-line.mjs --dry-run",

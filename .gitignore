@@ -12,10 +12,12 @@ logs/
 profile/
 analysis/
 signal-docs/
+data/junk-oi-research/
 
 # Local live-stock target sheet.
 stock-rebalance-targets.csv
 
 # Misc local output.
+.codex-tmp/
 *.log
 *.ndjson

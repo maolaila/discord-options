@@ -283,8 +283,11 @@ export function evaluate_junk_api_evidence({
   }
   if (source.evidence_kind === 'contract' && normalized_candidate_contract) {
     const record_contract = normalized_contract(selected?.contract);
+    const candidate_identity = parse_osi_contract(normalized_candidate_contract)?.contract
+      || normalized_candidate_contract;
+    const record_identity = parse_osi_contract(record_contract)?.contract || record_contract;
     if (!record_contract) reason_codes.push('candidate_contract_not_verified');
-    else if (record_contract !== normalized_candidate_contract) reason_codes.push('candidate_contract_mismatch');
+    else if (record_identity !== candidate_identity) reason_codes.push('candidate_contract_mismatch');
   }
 
   const summaries = selected
@@ -311,7 +314,8 @@ export function evaluate_junk_api_evidence({
     state: state_result.state,
     usable: reason_codes.length === 0,
     reason_codes: [...new Set(reason_codes)],
-    candidate_contract: normalized_candidate_contract,
+    candidate_contract: parse_osi_contract(normalized_candidate_contract)?.contract
+      || normalized_candidate_contract,
     ...summaries,
   };
 }
@@ -331,7 +335,7 @@ function unique_strings(values) {
 function parse_osi_contract(contract) {
   const normalized = normalized_contract(contract);
   if (!normalized) return null;
-  const match = normalized.match(/^([A-Z][A-Z0-9.]{0,9})(\d{2})(\d{2})(\d{2})([CP])(\d{8})$/);
+  const match = normalized.match(/^([A-Z][A-Z0-9.]{0,9})(\d{2})(\d{2})(\d{2})([CP])(\d{7,8})$/);
   if (!match) return null;
   const year = Number(match[2]);
   const month = Number(match[3]);
@@ -344,12 +348,13 @@ function parse_osi_contract(contract) {
     || parsed_date.getUTCMonth() + 1 !== month
     || parsed_date.getUTCDate() !== day
   ) return null;
+  const strike_digits = match[6].padStart(8, '0');
   return {
-    contract: normalized,
+    contract: `${match[1]}${match[2]}${match[3]}${match[4]}${match[5]}${strike_digits}`,
     root: match[1],
     expiration,
     right: match[5],
-    strike_usd: Number(match[6]) / 1_000,
+    strike_usd: Number(strike_digits) / 1_000,
   };
 }
 
@@ -366,6 +371,7 @@ function contract_audit_base({
   available_at = null,
   provider_call_count = 0,
 } = {}) {
+  const normalized_candidate = normalized_contract(candidate_contract);
   return {
     schema_version: 1,
     source: 'nightwatch_options_chain_snapshot',
@@ -379,7 +385,7 @@ function contract_audit_base({
     source_path,
     available_at,
     state: 'unknown',
-    candidate_contract: normalized_contract(candidate_contract),
+    candidate_contract: parse_osi_contract(normalized_candidate)?.contract || normalized_candidate,
     record_schema: 'unknown',
     evidence: null,
     reason_codes: [],
@@ -407,11 +413,12 @@ export function degraded_junk_contract_audit({
 function safe_candidate_record(response, candidate_contract) {
   const payload = payload_from_response(response);
   const candidate = normalized_contract(candidate_contract);
-  if (!candidate) return { record: null, record_schema: 'unknown', explicit_mismatch: null };
+  const candidate_identity = parse_osi_contract(candidate)?.contract;
+  if (!candidate_identity) return { record: null, record_schema: 'unknown', explicit_mismatch: null };
   if (Array.isArray(payload)) {
     const matches = payload.filter((row) => (
       row && typeof row === 'object' && !Array.isArray(row)
-      && normalized_contract(row.contract) === candidate
+      && parse_osi_contract(row.contract)?.contract === candidate_identity
     ));
     return matches.length === 1
       ? { record: matches[0], record_schema: 'data_array_exact_contract', explicit_mismatch: null }
@@ -420,10 +427,11 @@ function safe_candidate_record(response, candidate_contract) {
   if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
     const direct_contract = normalized_contract(payload.contract);
     if (direct_contract) {
+      const direct_identity = parse_osi_contract(direct_contract)?.contract;
       return {
         record: payload,
         record_schema: 'direct_data_object',
-        explicit_mismatch: direct_contract === candidate ? null : direct_contract,
+        explicit_mismatch: direct_identity === candidate_identity ? null : direct_contract,
       };
     }
   }
@@ -644,9 +652,10 @@ export function apply_junk_contract_audit({ decision, entry_plan, audit } = {}) 
 export function junk_contract_audit_cache_key({ signal_id, contract, expiration } = {}) {
   const signal = String(signal_id || '').trim();
   const normalized = normalized_contract(contract);
+  const contract_identity = parse_osi_contract(normalized)?.contract || normalized;
   const date = String(expiration || '').trim();
-  if (!signal || !normalized || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
-  return JSON.stringify([signal, normalized, date]);
+  if (!signal || !contract_identity || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  return JSON.stringify([signal, contract_identity, date]);
 }
 
 export function read_junk_contract_audit_cache({

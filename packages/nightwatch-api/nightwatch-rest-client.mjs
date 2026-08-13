@@ -304,6 +304,14 @@ export function create_nightwatch_rest_client({
       `/v1/options/atm-chains/${encodeURIComponent(normalized_ticker(ticker))}`,
       options,
     ),
+    get_options_oi_change: (ticker, options) => get_json(
+      `/v1/options/oi-change/${encodeURIComponent(normalized_ticker(ticker))}`,
+      options,
+    ),
+    get_options_options_volume: (ticker, options) => get_json(
+      `/v1/options/options-volume/${encodeURIComponent(normalized_ticker(ticker))}`,
+      options,
+    ),
     get_options_contract_intraday: (contract, options) => get_json(
       `/v1/options/contract-intraday/${encodeURIComponent(normalized_contract(contract))}`,
       options,

@@ -328,35 +328,54 @@ export function assertMoomooSuccess(response, label) {
   }
 }
 
-export async function connectMoomoo(config) {
+function closeMoomooClient(client) {
+  try { client.stop?.(); } catch { /* best-effort close only */ }
+  try { client.websock?.close?.(); } catch { /* best-effort close only */ }
+}
+
+export async function establishMoomooConnection(client, config, { timeoutMs = 25000 } = {}) {
+  const boundedTimeoutMs = Number.isFinite(Number(timeoutMs)) && Number(timeoutMs) > 0
+    ? Number(timeoutMs)
+    : 25000;
+  try {
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error(`Timed out connecting to Moomoo OpenD WebSocket after ${boundedTimeoutMs}ms.`)),
+        boundedTimeoutMs,
+      );
+      client.onlogin = (ok, message) => {
+        clearTimeout(timer);
+        if (ok) {
+          resolve();
+        } else {
+          reject(new Error(`Moomoo OpenD WebSocket login failed: ${JSON.stringify(normalizeForJson(message))}`));
+        }
+      };
+      try {
+        client.start(config.host, config.websocketPort, config.websocketSsl, config.websocketKey);
+      } catch (error) {
+        clearTimeout(timer);
+        reject(error);
+      }
+    });
+  } catch (error) {
+    closeMoomooClient(client);
+    throw error;
+  }
+  return client;
+}
+
+export async function connectMoomoo(config, options = {}) {
   if (typeof globalThis.WebSocket !== 'function') {
     globalThis.WebSocket = WebSocketModule.WebSocket || WebSocketModule.default || WebSocketModule;
   }
 
   const client = new MoomooWebsocket();
-  await new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('Timed out connecting to Moomoo OpenD WebSocket.')), 25000);
-    client.onlogin = (ok, message) => {
-      clearTimeout(timer);
-      if (ok) {
-        resolve();
-      } else {
-        reject(new Error(`Moomoo OpenD WebSocket login failed: ${JSON.stringify(normalizeForJson(message))}`));
-      }
-    };
-    client.start(config.host, config.websocketPort, config.websocketSsl, config.websocketKey);
-  });
+  await establishMoomooConnection(client, config, options);
 
   return {
     client,
-    close: () => {
-      try {
-        client.stop?.();
-        client.websock?.close?.();
-      } catch {
-        // Best-effort close only.
-      }
-    },
+    close: () => closeMoomooClient(client),
   };
 }
 
@@ -417,7 +436,7 @@ export function selectSimulatedUsOptionAccount(response) {
     const simAccType = Number(account.simAccType ?? 0);
     return Number(account.trdEnv) === TRD_ENV_SIMULATE
       && markets.includes(TRD_MARKET_US)
-      && (simAccType === 2 || simAccType === 4);
+      && simAccType === 4;
   }) || null;
 }
 

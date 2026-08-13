@@ -4,10 +4,30 @@ import {
   aggregate_closed_1m_bars,
   aggregate_closed_5m_bars,
   create_junk_gex_market_context,
+  gex_spot_alignment_at,
   map_spy_vwap_to_spx,
   normalize_spx_spot_sample,
   normalize_spy_quote_sample,
 } from '../apps/zero-dte-options/junk-gex-market-context.mjs';
+
+test('fixed-sample SPX spot aligns to the final archived minute without changing source identity', () => {
+  assert.equal(
+    gex_spot_alignment_at('2026-08-10T14:30:00.000Z'),
+    '2026-08-10T14:34:59.000Z',
+  );
+  assert.equal(
+    gex_spot_alignment_at('2026-08-10T14:31:12.000Z'),
+    '2026-08-10T14:31:12.000Z',
+  );
+
+  const normalized = normalize_spx_spot_sample({
+    ticker: 'SPX',
+    snapshot_at: '2026-08-10T14:30:00.000Z',
+    spot_usd: 6_000,
+  });
+  assert.equal(normalized.snapshot_at, '2026-08-10T14:30:00.000Z');
+  assert.equal(normalized.spot_alignment_at, '2026-08-10T14:34:59.000Z');
+});
 
 test('five-minute acceptance bars require five complete minutes and aggregate SPY volume', () => {
   const bars_1m = Array.from({ length: 5 }, (_value, index) => ({
@@ -140,6 +160,27 @@ test('moomoo SPY push samples form raw OHLC and map to SPX with one anchor ratio
   assert_snake_case_tree(state);
 });
 
+test('fixed-sample GEX spot uses a final-minute SPY anchor and keeps the live quote gate strict', () => {
+  const clock_ms = Date.parse('2026-08-10T14:35:01.000Z');
+  const context = create_junk_gex_market_context({ now_ms: () => clock_ms });
+  context.ingest_spy_sample(spy_quote('2026-08-10T14:30:00.000Z', 500));
+  context.ingest_spy_sample(spy_quote('2026-08-10T14:34:59.000Z', 600));
+  context.ingest_spy_sample(spy_quote('2026-08-10T14:35:00.000Z', 601, 590));
+
+  const market_context = context.build_market_context({
+    spx_snapshot: spx_anchor('2026-08-10T14:30:00.000Z', 6000),
+  });
+
+  assert.equal(market_context.anchor_snapshot_at, '2026-08-10T14:30:00.000Z');
+  assert.equal(market_context.anchor_spot_alignment_at, '2026-08-10T14:34:59.000Z');
+  assert.equal(market_context.anchor_spy_quote_received_at, '2026-08-10T14:34:59.000Z');
+  assert.equal(market_context.anchor_spy_gap_ms, 0);
+  assert.equal(market_context.latest_spy_quote_age_limit_ms, 3_000);
+  assert.equal(market_context.price_action_ready, true);
+  assert.equal(market_context.spy_to_spx_scale_ratio, 10);
+  assert.equal(market_context.last_price_usd, 6010);
+});
+
 test('a stale latest SPY quote fails closed even when anchor alignment is valid', () => {
   const clock_ms = Date.parse('2026-08-10T14:31:04.001Z');
   const context = create_junk_gex_market_context({ now_ms: () => clock_ms });
@@ -255,9 +296,12 @@ test('fifteen raw one-minute OHLCV bars reproduce the same three five-minute bar
     };
   });
   const base = create_junk_gex_market_context({
-    spx_anchor_samples: [spx_anchor('2026-08-10T14:45:00.000Z', 6000)],
+    // This persistence-focused fixture uses a legacy exact-time anchor rather
+    // than a documented fixed-bucket label (which would not yet exist at
+    // 14:45:02 for the 14:45-14:50 bucket).
+    spx_anchor_samples: [spx_anchor('2026-08-10T14:44:59.000Z', 6000)],
     spy_samples: [{
-      quote_received_at: '2026-08-10T14:45:00.000Z',
+      quote_received_at: '2026-08-10T14:44:59.000Z',
       cur_price_usd: 600,
       avg_price_usd: 599,
       cumulative_volume: 1_000_000,

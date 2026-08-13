@@ -287,6 +287,100 @@ test('production audit makes exactly one chain call only for an orderable trade 
   assert.equal(calls.length, 1, 'skipped candidates must not consume another API unit');
 });
 
+test('moomoo seven-digit strike code is normalized to the same strict OSI identity', async () => {
+  const calls = [];
+  const audit = await audit_junk_contract_candidate({
+    nightwatch: {
+      async get_options_chain_snapshot(ticker, options) {
+        calls.push({ ticker, options });
+        return contract_response({
+          contract: 'SPXW260812P07745000',
+          as_of: '2026-08-12T16:00:10.000Z',
+        });
+      },
+    },
+    decision: candidate_decision(),
+    entry_plan: entry_plan({
+      signal: {
+        signal_id: 'junk_gex_signal_real_20260812_120010_et',
+        ticker: 'SPX',
+        expiration: '2026-08-12',
+        option_type: 'P',
+      },
+      contract: {
+        code: 'SPXW260812P7745000',
+        expiration: '2026-08-12',
+      },
+    }),
+    now_ms: () => Date.parse('2026-08-12T16:00:11.000Z'),
+  });
+
+  assert.equal(audit.assessment, 'confirm');
+  assert.equal(audit.candidate_contract, 'SPXW260812P07745000');
+  assert.equal(audit.evidence.candidate_contract, 'SPXW260812P07745000');
+  assert.deepEqual(audit.reason_codes, ['nightwatch_contract_evidence_confirmed']);
+  assert.deepEqual(calls, [{
+    ticker: 'SPX',
+    options: { query: { expiration: '2026-08-12' } },
+  }]);
+
+  const moomoo_key = junk_contract_audit_cache_key({
+    signal_id: 'junk_gex_signal_real_20260812_120010_et',
+    contract: 'SPXW260812P7745000',
+    expiration: '2026-08-12',
+  });
+  const standard_osi_key = junk_contract_audit_cache_key({
+    signal_id: 'junk_gex_signal_real_20260812_120010_et',
+    contract: 'SPXW260812P07745000',
+    expiration: '2026-08-12',
+  });
+  assert.equal(moomoo_key, standard_osi_key);
+});
+
+test('seven-digit normalization still rejects every wrong contract identity dimension', async () => {
+  const mismatches = [
+    ['root', 'SPX260812P07745000', 'nightwatch_contract_identity_mismatch'],
+    ['expiration', 'SPXW260813P07745000', 'nightwatch_contract_expiration_mismatch'],
+    ['right', 'SPXW260812C07745000', 'nightwatch_contract_right_mismatch'],
+    ['strike', 'SPXW260812P07750000', 'nightwatch_contract_strike_mismatch'],
+  ];
+
+  for (const [dimension, observed_contract, expected_reason] of mismatches) {
+    let call_count = 0;
+    const audit = await audit_junk_contract_candidate({
+      nightwatch: {
+        async get_options_chain_snapshot() {
+          call_count += 1;
+          return contract_response({
+            contract: observed_contract,
+            as_of: '2026-08-12T16:00:10.000Z',
+          });
+        },
+      },
+      decision: candidate_decision(),
+      entry_plan: entry_plan({
+        signal: {
+          signal_id: `junk_gex_wrong_${dimension}`,
+          ticker: 'SPX',
+          expiration: '2026-08-12',
+          option_type: 'P',
+        },
+        contract: {
+          code: 'SPXW260812P7745000',
+          expiration: '2026-08-12',
+        },
+      }),
+      now_ms: () => Date.parse('2026-08-12T16:00:11.000Z'),
+    });
+
+    assert.equal(call_count, 1, `${dimension} mismatch must use exactly one audited response`);
+    assert.equal(audit.assessment, 'veto', `${dimension} mismatch must veto`);
+    assert.equal(audit.can_veto_candidate, true);
+    assert.ok(audit.reason_codes.includes('nightwatch_contract_identity_mismatch'));
+    assert.ok(audit.reason_codes.includes(expected_reason));
+  }
+});
+
 test('unknown chain schema is degraded-neutral while explicit identity mismatch and severe staleness veto', async () => {
   const unknown = await audit_junk_contract_candidate({
     nightwatch: {

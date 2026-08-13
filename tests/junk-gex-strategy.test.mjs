@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import {
   evaluate_junk_gex_strategy,
@@ -7,6 +8,10 @@ import {
 
 const now_iso = '2026-08-10T14:31:00.000Z';
 const now_ms = Date.parse(now_iso);
+const active_policy = JSON.parse(readFileSync(
+  new URL('../config/zero-dte-options-policy.json', import.meta.url),
+  'utf8',
+));
 
 function snapshot(overrides = {}) {
   return {
@@ -418,6 +423,54 @@ test('stale snapshots are blocked before any setup can trade', () => {
 
   assert.equal(result.decision, 'no_trade');
   assert.ok(result.reason_codes.includes('snapshot_stale'));
+});
+
+test('active policy follows the fixed five-minute sampling contract with an inclusive ten-minute boundary', () => {
+  assert.equal(active_policy.strategy.max_snapshot_age_ms, 600_000);
+  const policy = active_policy.strategy;
+  const at = (age_ms, meta_seconds = null) => evaluate_bullish({
+    gex_snapshot: {
+      data: snapshot({ snapshot_at: new Date(now_ms - age_ms).toISOString() }),
+      ...(meta_seconds === null ? {} : { _meta: { data_freshness_seconds: meta_seconds } }),
+    },
+    policy,
+  });
+
+  assert.ok(!at(300_000).reason_codes.includes('snapshot_stale'));
+  assert.ok(!at(599_999).reason_codes.includes('snapshot_stale'));
+  assert.ok(!at(600_000).reason_codes.includes('snapshot_stale'));
+  assert.ok(at(600_001).reason_codes.includes('snapshot_stale'));
+});
+
+test('provider freshness metadata cannot make a stale payload fresh or vice versa', () => {
+  const policy = active_policy.strategy;
+  const payload_fresh_meta_stale = evaluate_bullish({
+    gex_snapshot: {
+      data: snapshot({ snapshot_at: new Date(now_ms - 1_000).toISOString() }),
+      _meta: { data_freshness_seconds: 600.001 },
+    },
+    policy,
+  });
+  assert.ok(payload_fresh_meta_stale.reason_codes.includes('snapshot_meta_stale'));
+
+  const payload_stale_meta_fresh = evaluate_bullish({
+    gex_snapshot: {
+      data: snapshot({ snapshot_at: new Date(now_ms - 600_001).toISOString() }),
+      _meta: { data_freshness_seconds: 1 },
+    },
+    policy,
+  });
+  assert.ok(payload_stale_meta_fresh.reason_codes.includes('snapshot_stale'));
+  assert.ok(!payload_stale_meta_fresh.reason_codes.includes('snapshot_meta_stale'));
+
+  const meta_future = evaluate_bullish({
+    gex_snapshot: {
+      data: snapshot({ snapshot_at: new Date(now_ms - 1_000).toISOString() }),
+      _meta: { data_freshness_seconds: -5.001 },
+    },
+    policy,
+  });
+  assert.ok(meta_future.reason_codes.includes('snapshot_meta_from_future'));
 });
 
 test('closed bars require valid fresh continuous timestamps in one ET session', () => {

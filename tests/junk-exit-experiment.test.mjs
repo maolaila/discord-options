@@ -71,6 +71,42 @@ test('cohort multiplies only broker quantity and retains one common signal, cont
   assert.ok(cohort.order.remark.length <= 60);
 });
 
+test('soft 10% sizing fallback remains one contract per line and seven in the aggregate cohort', () => {
+  const manifest = load_junk_exit_experiment(policy);
+  for (const optionPrice of [10.30, 10.50]) {
+    const source = basePlan(1);
+    source.quote.buy_limit_price = optionPrice;
+    source.quote.ask_size_contracts = 3;
+    source.position_sizing = {
+      ...source.position_sizing,
+      qty: 1,
+      contract_cost_usd: optionPrice * 100,
+      estimated_position_usd: optionPrice * 100,
+      estimated_position_pct: optionPrice,
+      max_position_pct: 10,
+      max_position_is_soft_target: true,
+      reasons: ['minimum_contract_above_max_position_target'],
+    };
+    source.order.price = optionPrice;
+    source.order.qty = 1;
+
+    const cohort = build_junk_experiment_cohort(source, manifest);
+    assert.equal(cohort.gate.passed, true);
+    assert.equal(cohort.position_sizing.per_line_qty, 1);
+    assert.equal(cohort.position_sizing.aggregate_qty, 7);
+    assert.equal(cohort.order.qty, 7);
+  }
+
+  const insufficientDepth = basePlan(1);
+  insufficientDepth.quote.buy_limit_price = 10.50;
+  insufficientDepth.quote.ask_size_contracts = 2;
+  insufficientDepth.position_sizing.estimated_position_usd = 1_050;
+  insufficientDepth.order.price = 10.50;
+  const blocked = build_junk_experiment_cohort(insufficientDepth, manifest);
+  assert.equal(blocked.gate.passed, false);
+  assert.ok(blocked.gate.reasons.includes('experiment_aggregate_qty_exceeds_visible_ask_cap:7'));
+});
+
 test('aggregate visible ask cap fails closed instead of silently changing paired sizing', () => {
   const manifest = load_junk_exit_experiment(policy);
   const source = basePlan(3);

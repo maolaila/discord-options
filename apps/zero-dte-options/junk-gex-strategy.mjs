@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { JUNK_GEX_MAX_AGE_MS } from './junk-gex-freshness.mjs';
 
 const MINUTE_MS = 60_000;
 const FIVE_MINUTE_MS = 5 * MINUTE_MS;
@@ -8,7 +9,7 @@ export const DEFAULT_JUNK_GEX_POLICY = Object.freeze({
   execution_environment: 'simulate_only',
   real_trading_allowed: false,
   allowed_snapshot_states: Object.freeze(['fresh']),
-  max_snapshot_age_ms: 180_000,
+  max_snapshot_age_ms: JUNK_GEX_MAX_AGE_MS,
   max_nodes: 12,
   node_tolerance_points: 1.5,
   min_displacement_points: 1,
@@ -296,6 +297,10 @@ function base_result(snapshot, market_context, policy) {
     vwap_usd: finite_number(market_context?.vwap_usd),
     nodes: snapshot.nodes,
   };
+}
+
+function response_meta_freshness_seconds(gex_snapshot) {
+  return finite_number(gex_snapshot?._meta?.data_freshness_seconds);
 }
 
 function no_trade(base, reason_codes) {
@@ -689,6 +694,17 @@ export function evaluate_junk_gex_strategy({
     reason_codes.push('snapshot_stale');
   } else if (snapshot_at_ms > Number(now_ms) + 5_000) {
     reason_codes.push('snapshot_from_future');
+  }
+  // The provider exposes both the source timestamp and an independently
+  // calculated freshness value.  Treat either one exceeding the hard policy
+  // limit as stale; a provider-level `state: fresh` must never override age.
+  const meta_freshness_seconds = response_meta_freshness_seconds(gex_snapshot);
+  if (meta_freshness_seconds !== null) {
+    if (meta_freshness_seconds < -5) {
+      reason_codes.push('snapshot_meta_from_future');
+    } else if (meta_freshness_seconds * 1_000 > Number(resolved_policy.max_snapshot_age_ms)) {
+      reason_codes.push('snapshot_meta_stale');
+    }
   }
   if (snapshot.nodes.length < 2) reason_codes.push('insufficient_gex_nodes');
 

@@ -55,7 +55,7 @@ function config(overrides = {}) {
       },
       risk_limits: {
         max_signal_age_seconds: 60,
-        max_gex_snapshot_age_seconds: 30,
+        max_gex_snapshot_age_seconds: 600,
         max_open_positions: 1,
         max_trades_per_day: 3,
       },
@@ -214,6 +214,21 @@ test('stale GEX, duplicate signals, open-position cap, and Discord Flow dependen
   assert.ok(blocked.gate.reasons.includes('max_open_positions_reached:1'));
 });
 
+test('executor independently enforces the inclusive ten-minute fixed-sample boundary', () => {
+  const at = (snapshot_at) => buildZeroDteSimulatedEntryPlan({
+    signal: strategySignal({ snapshot_at }),
+    contract: contract(),
+    option_snapshot: optionSnapshot(),
+    config: config(),
+    now,
+  });
+  const boundary = at('2026-08-10T14:21:00.000Z');
+  const exceeded = at('2026-08-10T14:20:59.999Z');
+
+  assert.ok(!boundary.gate.reasons.some((reason) => reason.startsWith('gex_snapshot_stale:')));
+  assert.ok(exceeded.gate.reasons.some((reason) => reason.startsWith('gex_snapshot_stale:600001')));
+});
+
 test('entry window, cooldown, daily loss, contract identity, and non-none Flow source are hard gates', () => {
   const restrictedConfig = config();
   restrictedConfig.policy.strategy = {
@@ -258,7 +273,7 @@ test('entry window, cooldown, daily loss, contract identity, and non-none Flow s
   assert.ok(tooLate.gate.reasons.includes('after_entry_cutoff_time_et'));
 });
 
-test('quote and contract-cost gates block an untradeable option before submission', () => {
+test('quote quality gates block an untradeable option before submission', () => {
   const blocked = buildZeroDteSimulatedEntryPlan({
     signal: strategySignal(),
     contract: contract(),
@@ -283,7 +298,61 @@ test('quote and contract-cost gates block an untradeable option before submissio
   assert.ok(blocked.gate.reasons.some((reason) => reason.includes('spread_pct_above_gate')));
   assert.ok(blocked.gate.reasons.some((reason) => reason.includes('option_day_volume_below_min')));
   assert.ok(blocked.gate.reasons.some((reason) => reason.includes('open_interest_below_min')));
-  assert.ok(blocked.gate.reasons.includes('position_sizing:contract_cost_above_max_position'));
+});
+
+test('10% sizing is a soft target and $10.30/$10.50 contracts fall back to one unit per $10k line', () => {
+  for (const buyLimitPrice of [10.30, 10.50]) {
+    const highPremium = buildZeroDteSimulatedEntryPlan({
+      signal: strategySignal(),
+      contract: contract(),
+      option_snapshot: optionSnapshot({
+        basic: {
+          ...optionSnapshot().basic,
+          bidPrice: buyLimitPrice - 0.01,
+          askPrice: buyLimitPrice - 0.01,
+          bidVol: 8,
+          askVol: 3,
+          curPrice: buyLimitPrice - 0.01,
+          priceSpread: 0.01,
+        },
+      }),
+      config: config(),
+      now,
+    });
+
+    assert.equal(highPremium.gate.passed, true);
+    assert.equal(highPremium.quote.buy_limit_price, buyLimitPrice);
+    assert.equal(highPremium.position_sizing.qty, 1);
+    assert.equal(highPremium.position_sizing.contract_cost_usd, buyLimitPrice * 100);
+    assert.equal(highPremium.position_sizing.estimated_position_pct, buyLimitPrice);
+    assert.equal(highPremium.position_sizing.max_position_is_soft_target, true);
+    assert.ok(highPremium.position_sizing.estimated_position_pct > 10);
+    assert.ok(highPremium.position_sizing.reasons.includes('minimum_contract_above_max_position_target'));
+  }
+});
+
+test('one contract above the full $10k paper line still fails closed', () => {
+  const blocked = buildZeroDteSimulatedEntryPlan({
+    signal: strategySignal(),
+    contract: contract(),
+    option_snapshot: optionSnapshot({
+      basic: {
+        ...optionSnapshot().basic,
+        bidPrice: 100,
+        askPrice: 100.01,
+        bidVol: 8,
+        askVol: 10,
+        curPrice: 100,
+        priceSpread: 0.01,
+      },
+    }),
+    config: config(),
+    now,
+  });
+
+  assert.equal(blocked.gate.passed, false);
+  assert.equal(blocked.position_sizing.qty, 0);
+  assert.ok(blocked.gate.reasons.includes('position_sizing:contract_cost_above_paper_equity'));
 });
 
 test('JUNK execution can require OI and day-volume fields instead of treating missing data as liquid', () => {

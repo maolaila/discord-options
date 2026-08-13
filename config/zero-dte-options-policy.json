@@ -19,7 +19,6 @@
     "base_url": "https://api.yehangshe.com",
     "api_key_env": "YEHANGSHE_API_KEY",
     "ticker": "SPX",
-    "gex_snapshot_format": "full",
     "gex_snapshot_poll_seconds": 15,
     "heatmap_snapshot_poll_seconds": 60,
     "snapshot_min_interval_ms": 1000,
@@ -35,7 +34,7 @@
     "allowed_snapshot_states": [
       "fresh"
     ],
-    "max_snapshot_age_ms": 30000,
+    "max_snapshot_age_ms": 600000,
     "max_nodes": 16,
     "node_tolerance_points": 1.5,
     "min_displacement_points": 1,
@@ -65,7 +64,7 @@
   "evidence_gates": {
     "heatmap": {
       "enabled": true,
-      "max_age_ms": 120000,
+      "max_age_ms": 600000,
       "node_tolerance_points": 5,
       "conflict_veto_enabled": true,
       "require_ranked_node_when_fresh": true,
@@ -115,6 +114,32 @@
       "require_open_interest_and_volume": true,
       "flow_contract_is_never_auto_selected": true,
       "oi_is_not_intraday_directional_evidence": true
+    },
+    "oi_structure_background": {
+      "enabled": true,
+      "usage": "daily_settlement_context_and_research_only",
+      "ticker": "SPX",
+      "oi_change_endpoint": "options.oi_change",
+      "options_volume_endpoint": "options.options_volume",
+      "options_volume_enabled": true,
+      "chain_enrichment_enabled": false,
+      "refresh_start_time_et": "08:30",
+      "refresh_cutoff_time_et": "15:00",
+      "refresh_retry_minutes": 15,
+      "max_source_age_ms": 129600000,
+      "max_history_days": 60,
+      "rolling_windows": [
+        3,
+        5,
+        10
+      ],
+      "top_rows_in_decision": 5,
+      "settlement_lagged": true,
+      "intraday_directional_signal": false,
+      "can_trigger_trade": false,
+      "can_veto_candidate": false,
+      "unknown_values_are_not_zero": true,
+      "call_put_strike_aggregation_separate": true
     }
   },
   "market_calendar": {
@@ -145,7 +170,7 @@
       "SPX"
     ],
     "max_signal_age_seconds": 30,
-    "max_gex_snapshot_age_seconds": 30,
+    "max_gex_snapshot_age_seconds": 600,
     "max_future_clock_skew_seconds": 5,
     "max_open_positions": 1,
     "max_trades_per_day": 3,

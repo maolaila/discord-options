@@ -18,6 +18,7 @@ import {
   maskId,
   normalizeForJson,
   parseCliArgs,
+  PROJECT_ROOT,
   selectSimulatedUsOptionAccount,
 } from '../../packages/moomoo-opend/moomoo-opend.mjs';
 import {
@@ -33,6 +34,11 @@ import {
   evaluate_junk_gex_strategy,
   normalize_gex_snapshot,
 } from './junk-gex-strategy.mjs';
+import {
+  assess_junk_gex_freshness,
+  JUNK_GEX_MAX_AGE_MS,
+  NIGHTWATCH_FIXED_SAMPLE_MAX_AGE_MS,
+} from './junk-gex-freshness.mjs';
 import { create_junk_gex_market_context } from './junk-gex-market-context.mjs';
 import { create_junk_flow_context } from './junk-flow-context.mjs';
 import {
@@ -44,6 +50,13 @@ import {
   write_junk_contract_audit_cache,
 } from './junk-api-evidence.mjs';
 import { apply_junk_v3_evidence } from './junk-trading-model-v2.mjs';
+import {
+  attach_junk_oi_structure_background,
+} from './junk-oi-structure-background.mjs';
+import {
+  refresh_junk_oi_structure_background,
+} from './junk-oi-background-service.mjs';
+import { open_junk_oi_research_store } from './junk-oi-research-store.mjs';
 import {
   JUNK_GEX_STRATEGY,
   ZERO_DTE_BUSINESS_LINE,
@@ -90,10 +103,15 @@ const exit_plans_path = businessLineLogPath(business_line, 'exit-plans.ndjson');
 const trades_path = businessLineLogPath(business_line, 'trades.ndjson');
 const experiment_events_path = businessLineLogPath(business_line, 'experiment-events.ndjson');
 const experiment_summary_path = businessLineLogPath(business_line, 'experiment-summary.json');
+const oi_background_path = businessLineLogPath(business_line, 'oi-structure-background.json');
 const flow_events_path = businessLineLogPath(business_line, 'flow-events.ndjson');
 const capture_status_path = path.join(path.dirname(status_path), 'capture-status.json');
+const oi_research_db_path = path.join(PROJECT_ROOT, 'data', 'junk-oi-research', 'junk-oi-research.sqlite');
+const oi_research_raw_dir = path.join(PROJECT_ROOT, 'data', 'junk-oi-research', 'raw');
 const runtime_lock_path = businessLineLogPath(business_line, 'runtime.lock.json');
 const spy_security = Object.freeze({ market: QOT_MARKET_US_SECURITY, code: 'SPY' });
+const JUNK_MOOMOO_CONNECT_TIMEOUT_MS = 25_000;
+const JUNK_MOOMOO_ACCOUNTS_TIMEOUT_MS = 15_000;
 
 function flag(value) {
   if (value === undefined || value === null || value === false) return false;
@@ -437,6 +455,35 @@ function is_regular_session_window(ny, policy) {
   return market_schedule(policy, ny).market_open;
 }
 
+export function junk_oi_background_refresh_due({
+  background,
+  refresh_state,
+  session_date_et,
+  ny,
+  schedule,
+  policy = {},
+  now_ms = Date.now(),
+} = {}) {
+  if (policy.enabled === false) return { due: false, reason: 'disabled' };
+  if (!schedule || schedule.closed || !ny || ny.date_key !== session_date_et) {
+    return { due: false, reason: 'not_open_session_date' };
+  }
+  const start_minutes = parse_et_minutes(policy.refresh_start_time_et, 8 * 60 + 30);
+  const cutoff_minutes = parse_et_minutes(policy.refresh_cutoff_time_et, 15 * 60);
+  if (ny.minutes < start_minutes || ny.minutes >= cutoff_minutes) {
+    return { due: false, reason: 'outside_refresh_window' };
+  }
+  if (background?.usable === true && background?.oi_effective_date === session_date_et) {
+    return { due: false, reason: 'current_session_already_loaded' };
+  }
+  const attempted_at_ms = Date.parse(refresh_state?.attempted_at || '');
+  const retry_ms = Math.max(60_000, finite_number(policy.refresh_retry_minutes, 15) * 60_000);
+  if (Number.isFinite(attempted_at_ms) && Number(now_ms) - attempted_at_ms < retry_ms) {
+    return { due: false, reason: 'retry_interval_not_elapsed' };
+  }
+  return { due: true, reason: 'current_session_context_missing' };
+}
+
 function exit_config_for_schedule(config, schedule) {
   if (!schedule.early_close) return config;
   const calendar = config.policy?.market_calendar || {};
@@ -484,6 +531,9 @@ function default_state() {
     },
     quota: null,
     heatmap: null,
+    gex_freshness: null,
+    oi_structure_background: null,
+    oi_structure_background_refresh: null,
     contract_audit_cache: {},
     experiment_manifest: null,
   };
@@ -509,6 +559,21 @@ function normalized_state(state) {
     market_context: source.market_context && typeof source.market_context === 'object'
       ? source.market_context
       : base.market_context,
+    gex_freshness: source.gex_freshness
+      && typeof source.gex_freshness === 'object'
+      && !Array.isArray(source.gex_freshness)
+      ? source.gex_freshness
+      : null,
+    oi_structure_background: source.oi_structure_background
+      && typeof source.oi_structure_background === 'object'
+      && !Array.isArray(source.oi_structure_background)
+      ? source.oi_structure_background
+      : null,
+    oi_structure_background_refresh: source.oi_structure_background_refresh
+      && typeof source.oi_structure_background_refresh === 'object'
+      && !Array.isArray(source.oi_structure_background_refresh)
+      ? source.oi_structure_background_refresh
+      : null,
     contract_audit_cache: source.contract_audit_cache
       && typeof source.contract_audit_cache === 'object'
       && !Array.isArray(source.contract_audit_cache)
@@ -660,28 +725,164 @@ function quota_summary(discover_response) {
   };
 }
 
-function heatmap_summary(response) {
+function valid_date_key(value) {
+  const text = String(value || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return null;
+  const parsed = new Date(`${text}T00:00:00.000Z`);
+  if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== text) return null;
+  return text;
+}
+
+function normalized_legacy_heatmap_rows(row_stacks) {
+  if (!Array.isArray(row_stacks)) return null;
+  return row_stacks
+    .map((row) => ({
+      strike_usd: positive_number(row?.strike_usd),
+      row_net_wall_gex_usd: finite_number(row?.row_net_wall_gex_usd),
+      row_abs_wall_gex_usd: finite_number(row?.row_abs_wall_gex_usd),
+      rank: positive_number(row?.rank),
+      expiration_count: positive_number(row?.expiration_count),
+      cell_count: positive_number(row?.cell_count),
+      source_schema: 'row_stacks',
+    }))
+    .filter((row) => (
+      row.strike_usd !== null
+      && row.row_net_wall_gex_usd !== null
+      && row.row_abs_wall_gex_usd !== null
+      && row.row_abs_wall_gex_usd >= 0
+    ))
+    .sort((left, right) => (
+      (left.rank ?? Number.MAX_SAFE_INTEGER) - (right.rank ?? Number.MAX_SAFE_INTEGER)
+      || right.row_abs_wall_gex_usd - left.row_abs_wall_gex_usd
+      || left.strike_usd - right.strike_usd
+    ))
+    .slice(0, 10)
+    .map((row, index) => ({ ...row, rank: index + 1 }));
+}
+
+function aggregate_heatmap_cells(cells) {
+  if (!Array.isArray(cells)) return null;
+  const by_strike = new Map();
+  for (const cell of cells) {
+    const expiration = valid_date_key(cell?.expiration);
+    const strike_usd = positive_number(cell?.strike_usd);
+    const net_dealer_gex_usd = finite_number(cell?.net_dealer_gex_usd);
+    if (!expiration || strike_usd === null || net_dealer_gex_usd === null) continue;
+    const key = String(strike_usd);
+    const current = by_strike.get(key) || {
+      strike_usd,
+      row_net_wall_gex_usd: 0,
+      row_abs_wall_gex_usd: 0,
+      expirations: new Set(),
+      cell_count: 0,
+    };
+    current.row_net_wall_gex_usd += net_dealer_gex_usd;
+    current.row_abs_wall_gex_usd += Math.abs(net_dealer_gex_usd);
+    current.expirations.add(expiration);
+    current.cell_count += 1;
+    by_strike.set(key, current);
+  }
+  return [...by_strike.values()]
+    .sort((left, right) => (
+      right.row_abs_wall_gex_usd - left.row_abs_wall_gex_usd
+      || Math.abs(right.row_net_wall_gex_usd) - Math.abs(left.row_net_wall_gex_usd)
+      || left.strike_usd - right.strike_usd
+    ))
+    .slice(0, 10)
+    .map((row, index) => ({
+      strike_usd: row.strike_usd,
+      row_net_wall_gex_usd: row.row_net_wall_gex_usd,
+      row_abs_wall_gex_usd: row.row_abs_wall_gex_usd,
+      rank: index + 1,
+      expiration_count: row.expirations.size,
+      cell_count: row.cell_count,
+      source_schema: 'cells',
+    }));
+}
+
+function heatmap_freshness_state({
+  response,
+  data,
+  top_rows,
+  source_row_count,
+  now_ms,
+  max_age_ms,
+}) {
+  if (source_row_count === null) return { state: 'missing', reason: 'heatmap_rows_missing' };
+  if (source_row_count > 0 && (!Array.isArray(top_rows) || top_rows.length === 0)) {
+    return { state: 'invalid', reason: 'heatmap_rows_invalid' };
+  }
+  if (source_row_count === 0) return { state: 'missing', reason: 'heatmap_rows_empty' };
+
+  const explicit_state = String(data.state || '').trim().toLowerCase();
+  if (explicit_state && explicit_state !== 'fresh') {
+    return { state: explicit_state, reason: `provider_state_${explicit_state}` };
+  }
+  const generated_at_ms = Date.parse(String(data.generated_at || ''));
+  if (!Number.isFinite(generated_at_ms)) {
+    return { state: 'invalid', reason: 'heatmap_generated_at_invalid' };
+  }
+  const session_date_et = valid_date_key(data.session_date_et);
+  if (!session_date_et) return { state: 'invalid', reason: 'heatmap_session_date_invalid' };
+
+  const age_ms = Number(now_ms) - generated_at_ms;
+  if (age_ms < -5_000) return { state: 'future', reason: 'heatmap_generated_at_future' };
+  const current_session_date_et = ny_context(new Date(Number(now_ms))).date_key;
+  if (session_date_et !== current_session_date_et) {
+    return { state: 'stale', reason: 'heatmap_cross_session' };
+  }
+  const meta_freshness_seconds = finite_number(response?._meta?.data_freshness_seconds);
+  if (meta_freshness_seconds !== null && meta_freshness_seconds < -5) {
+    return { state: 'future', reason: 'heatmap_meta_freshness_future' };
+  }
+  if (
+    age_ms > max_age_ms
+    || (meta_freshness_seconds !== null && meta_freshness_seconds * 1_000 > max_age_ms)
+  ) {
+    return { state: 'stale', reason: 'heatmap_age_exceeded' };
+  }
+  return { state: 'fresh', reason: 'heatmap_fresh' };
+}
+
+export function heatmap_summary(response, {
+  now_ms = Date.now(),
+  max_age_ms = NIGHTWATCH_FIXED_SAMPLE_MAX_AGE_MS,
+} = {}) {
   const data = response?.data || response || {};
-  const row_stacks = Array.isArray(data.row_stacks) ? data.row_stacks : null;
+  const resolved_now_ms = Number(now_ms);
+  if (!Number.isFinite(resolved_now_ms)) throw new TypeError('heatmap now_ms must be finite');
+  const resolved_max_age_ms = Math.max(
+    1_000,
+    positive_number(max_age_ms, NIGHTWATCH_FIXED_SAMPLE_MAX_AGE_MS),
+  );
+  const legacy_rows = normalized_legacy_heatmap_rows(data.row_stacks);
+  const cell_rows = aggregate_heatmap_cells(data.cells);
+  const use_legacy = Array.isArray(data.row_stacks) && data.row_stacks.length > 0;
+  const top_rows = use_legacy ? legacy_rows : cell_rows;
+  const source_row_count = use_legacy
+    ? data.row_stacks.length
+    : (Array.isArray(data.cells) ? data.cells.length : null);
+  const freshness = heatmap_freshness_state({
+    response,
+    data,
+    top_rows,
+    source_row_count,
+    now_ms: resolved_now_ms,
+    max_age_ms: resolved_max_age_ms,
+  });
   return {
-    fetched_at: new Date().toISOString(),
+    fetched_at: new Date(resolved_now_ms).toISOString(),
     generated_at: data.generated_at || null,
     session_date_et: data.session_date_et || null,
     market_status: data.market_status || null,
-    state: data.state || null,
+    state: freshness.state,
+    state_reason: freshness.reason,
+    max_age_ms: resolved_max_age_ms,
+    data_freshness_seconds: finite_number(response?._meta?.data_freshness_seconds),
     spot_usd: finite_number(data.spot_usd),
-    top_rows: row_stacks === null
-      ? null
-      : row_stacks
-        .map((row) => ({
-          strike_usd: finite_number(row.strike_usd),
-          row_net_wall_gex_usd: finite_number(row.row_net_wall_gex_usd),
-          row_abs_wall_gex_usd: finite_number(row.row_abs_wall_gex_usd),
-          rank: finite_number(row.rank),
-        }))
-        .filter((row) => row.strike_usd !== null)
-        .sort((left, right) => (left.rank ?? 999) - (right.rank ?? 999))
-        .slice(0, 10),
+    source_schema: use_legacy ? 'row_stacks' : (Array.isArray(data.cells) ? 'cells' : 'missing'),
+    valid_row_count: Array.isArray(top_rows) ? top_rows.length : 0,
+    top_rows,
   };
 }
 
@@ -1623,7 +1824,7 @@ export function recompute_session_risk(state) {
   return risk_state(state);
 }
 
-export function fresh_last_gex_spot(state, now = new Date(), max_age_ms = 30_000) {
+export function fresh_last_gex_spot(state, now = new Date(), max_age_ms = JUNK_GEX_MAX_AGE_MS) {
   const resolved_now = now instanceof Date ? now : new Date(now);
   const snapshot_at_ms = Date.parse(state?.last_gex?.snapshot_at || '');
   const age_ms = resolved_now.getTime() - snapshot_at_ms;
@@ -1632,6 +1833,25 @@ export function fresh_last_gex_spot(state, now = new Date(), max_age_ms = 30_000
     || state?.last_gex?.session_date_et !== current_session
     || !Number.isFinite(age_ms) || age_ms < 0 || age_ms > max_age_ms) return null;
   return positive_number(state?.last_gex?.spot_usd);
+}
+
+export function apply_junk_gex_freshness_gate(decision, freshness) {
+  if (decision?.decision !== 'trade') return decision;
+  if (freshness?.readiness === 'ready') return decision;
+
+  const diagnostic_reasons = Array.isArray(freshness?.reason_codes)
+    ? freshness.reason_codes.map((reason) => String(reason || '').trim()).filter(Boolean)
+    : [];
+  const freshness_reasons = diagnostic_reasons.length > 0
+    ? diagnostic_reasons.map((reason) => `gex_freshness_not_ready:${reason}`)
+    : ['gex_freshness_not_ready:missing_assessment'];
+
+  return {
+    ...decision,
+    decision: 'no_trade',
+    action: 'hold',
+    reason_codes: [...new Set([...(decision.reason_codes || []), ...freshness_reasons])],
+  };
 }
 
 async function broker_contract_conflict(runtime, code) {
@@ -1671,24 +1891,49 @@ function safe_config(args) {
   return config;
 }
 
-async function create_moomoo_runtime(args) {
-  const config = safe_config(args);
-  const connection = await connectMoomoo(config);
+export async function create_moomoo_runtime(args, dependencies = {}) {
+  const load_config = dependencies.load_config || safe_config;
+  const open_connection = dependencies.connect || connectMoomoo;
+  const fetch_accounts = dependencies.fetch_accounts || fetchMoomooAccounts;
+  const select_account = dependencies.select_account || selectSimulatedUsOptionAccount;
+  const make_quote_feed = dependencies.create_quote_feed || createMoomooQuoteFeed;
+  const connect_timeout_ms = positive_number(
+    dependencies.connect_timeout_ms,
+    JUNK_MOOMOO_CONNECT_TIMEOUT_MS,
+  );
+  const accounts_timeout_ms = positive_number(
+    dependencies.accounts_timeout_ms,
+    JUNK_MOOMOO_ACCOUNTS_TIMEOUT_MS,
+  );
+  const config = load_config(args);
+  let connection = null;
   try {
-    const accounts = await fetchMoomooAccounts(connection.client);
-    const simulated_account = selectSimulatedUsOptionAccount(accounts);
+    connection = await with_timeout(
+      open_connection(config, { timeoutMs: connect_timeout_ms }),
+      connect_timeout_ms + 1_000,
+      'JUNKMAN OpenD connection startup',
+    );
+    const accounts = await with_timeout(
+      fetch_accounts(connection.client),
+      accounts_timeout_ms,
+      'JUNKMAN OpenD GetAccList startup',
+    );
+    const simulated_account = select_account(accounts);
     if (!simulated_account) throw new Error('No simulated US options account is available in OpenD.');
     const execution_config = {
       ...config,
       trdEnv: TRD_ENV_SIMULATE,
       accId: String(simulated_account.accID || ''),
     };
-    const quote_feed = createMoomooQuoteFeed(connection.client, execution_config);
+    const quote_feed = make_quote_feed(connection.client, execution_config);
     return {
       client: connection.client,
       close: async () => {
-        await quote_feed.close?.();
-        connection.close();
+        try {
+          await quote_feed.close?.();
+        } finally {
+          connection.close();
+        }
       },
       quote_feed,
       config: execution_config,
@@ -1699,7 +1944,7 @@ async function create_moomoo_runtime(args) {
       },
     };
   } catch (error) {
-    connection.close();
+    try { connection?.close?.(); } catch { /* best-effort startup cleanup */ }
     throw error;
   }
 }
@@ -3080,7 +3325,9 @@ function compact_decision(decision) {
       heatmap_assessment: decision.evidence_model.heatmap?.assessment || null,
       automated_flow_assessment: decision.evidence_model.automated_flow?.assessment || null,
       contract_confirmation_assessment: decision.evidence_model.contract_confirmation?.assessment || null,
+      oi_structure_background_state: decision.evidence_model.oi_structure_background?.state || null,
     } : null,
+    oi_structure_background: decision.oi_structure_background || null,
   };
 }
 
@@ -3135,10 +3382,16 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
   }
 
   const config = safe_config(args);
+  if (finite_number(config.policy?.strategy?.max_snapshot_age_ms) !== JUNK_GEX_MAX_AGE_MS) {
+    throw new Error(
+      `JUNKMAN max_snapshot_age_ms must remain exactly ${JUNK_GEX_MAX_AGE_MS} for the documented five-minute fixed-sample contract.`,
+    );
+  }
   const exit_experiment = load_junk_exit_experiment(config.policy);
   const provider = config.policy?.provider || {};
   const automated_flow_policy = config.policy?.evidence_gates?.automated_flow_alert || {};
   const contract_audit_policy = config.policy?.evidence_gates?.contract_confirmation || {};
+  const oi_background_policy = config.policy?.evidence_gates?.oi_structure_background || {};
   const locked_flow_identifiers = [
     ['guild_id', NIGHTWATCH_GUILD_ID],
     ['channel_id', NIGHTWATCH_ZERO_DTE_FLOW_CHANNEL_ID],
@@ -3202,6 +3455,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
   const execute_simulate = flag(args['execute-simulate']);
   const mode = execute_simulate ? 'execute_simulate' : 'dry_run';
   const release_runtime_lock = await acquire_runtime_lock();
+  let oi_research_store = null;
   let state = await load_runtime_state();
   state.experiment_manifest = exit_experiment;
   const restored_market_context = Number(state.market_context?.schema_version) === 2
@@ -3268,6 +3522,79 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
     await write_json(experiment_summary_path, summarize_junk_exit_experiment(state));
   }
 
+  async function maybe_refresh_oi_structure_background({ ny, schedule, now }) {
+    if (active_order_rows(state).length > 0 || risk_state(state).open_position_count > 0) {
+      return { due: false, reason: 'active_position_or_order_broker_first' };
+    }
+    const blocked_ms = provider_wait_ms(now.getTime());
+    if (blocked_ms > 0) {
+      return { due: false, reason: 'provider_backoff', retry_after_ms: blocked_ms };
+    }
+    const due = junk_oi_background_refresh_due({
+      background: state.oi_structure_background,
+      refresh_state: state.oi_structure_background_refresh,
+      session_date_et: state.session_date_et,
+      ny,
+      schedule,
+      policy: oi_background_policy,
+      now_ms: now.getTime(),
+    });
+    if (!due.due) return due;
+    state.oi_structure_background_refresh = {
+      attempted_at: now.toISOString(),
+      status: 'refreshing',
+      reason: due.reason,
+      error: null,
+    };
+    await persist_state();
+    try {
+      if (!oi_research_store) {
+        oi_research_store = open_junk_oi_research_store({
+          db_path: oi_research_db_path,
+          raw_dir: oi_research_raw_dir,
+        });
+      }
+      const refreshed = await refresh_junk_oi_structure_background({
+        nightwatch,
+        store: oi_research_store,
+        session_date_et: state.session_date_et,
+        market_calendar: config.policy?.market_calendar || {},
+        policy: oi_background_policy,
+        captured_at: now,
+      });
+      state.oi_structure_background = refreshed.compact;
+      state.oi_structure_background_refresh = {
+        attempted_at: now.toISOString(),
+        completed_at: new Date().toISOString(),
+        status: refreshed.background.usable ? 'usable_context' : 'invalid_fail_closed',
+        reason: due.reason,
+        error: null,
+        ingestion: refreshed.ingestion || null,
+      };
+      await write_json(oi_background_path, {
+        updated_at: new Date().toISOString(),
+        business_line: ZERO_DTE_BUSINESS_LINE,
+        strategy: JUNK_GEX_STRATEGY,
+        execution_environment: 'simulate_only',
+        ...refreshed.compact,
+      });
+      await persist_state();
+      return { due: true, refreshed: true, usable: refreshed.background.usable };
+    } catch (error) {
+      const retry_after_ms = apply_provider_backoff(error);
+      state.oi_structure_background_refresh = {
+        attempted_at: now.toISOString(),
+        completed_at: new Date().toISOString(),
+        status: 'degraded_neutral',
+        reason: due.reason,
+        error: sanitized_error(error),
+        retry_after_ms: retry_after_ms || null,
+      };
+      await persist_state();
+      return { due: true, refreshed: false, error: sanitized_error(error) };
+    }
+  }
+
   function experiment_status() {
     const manifest_conflicts = junk_experiment_manifest_conflicts(state, exit_experiment);
     return {
@@ -3285,6 +3612,13 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
       },
       aggregate: summarize_junk_exit_experiment(state),
       daily: daily_experiment_summary(state),
+    };
+  }
+
+  function oi_structure_background_status() {
+    return {
+      context: state.oi_structure_background,
+      refresh: state.oi_structure_background_refresh,
     };
   }
 
@@ -3376,6 +3710,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
         market_schedule: schedule,
         quota: state.quota,
         experiment: experiment_status(),
+        oi_structure_background: oi_structure_background_status(),
         risk: risk_state(state),
         active_orders: [],
         broker_recovery: state.broker_recovery,
@@ -3408,6 +3743,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
         market_schedule: schedule,
         quota: state.quota,
         experiment: experiment_status(),
+        oi_structure_background: oi_structure_background_status(),
         moomoo: {
           connected: true,
           account: runtime.simulated_account,
@@ -3422,6 +3758,14 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
       });
       return { idle: true, delay_ms: 60000 };
     }
+
+    // OI is a once-per-session research context. It must never sit ahead of
+    // broker recovery or position/exit reconciliation in the live cycle.
+    await maybe_refresh_oi_structure_background({
+      ny,
+      schedule,
+      now: new Date(),
+    });
 
     const blocked_ms_before_quota = provider_wait_ms();
     if (blocked_ms_before_quota > 0) {
@@ -3439,6 +3783,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
         },
         quota: state.quota,
         experiment: experiment_status(),
+        oi_structure_background: oi_structure_background_status(),
         risk: risk_state(state),
         active_orders: active_order_rows(state).map(compact_order),
         broker_recovery: state.broker_recovery,
@@ -3466,6 +3811,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
         },
         quota: state.quota,
         experiment: experiment_status(),
+        oi_structure_background: oi_structure_background_status(),
         risk: risk_state(state),
         active_orders: active_order_rows(state).map(compact_order),
         broker_recovery: state.broker_recovery,
@@ -3476,8 +3822,11 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
       return { idle: false, delay_ms: provider_backoff_cycle_delay(poll_ms, blocked_ms_after_quota) };
     }
 
-    const gex_response = await nightwatch.get_dealer_gex_snapshot(ticker, {
-      query: { format: provider.gex_snapshot_format || 'full' },
+    const gex_response = await nightwatch.get_dealer_gex_snapshot(ticker);
+    state.gex_freshness = assess_junk_gex_freshness({
+      response: gex_response,
+      observed_at: new Date(),
+      previous_observation: state.gex_freshness,
     });
     const gex_data = gex_response?.data || gex_response || {};
     state.provider_blocked_until = null;
@@ -3499,9 +3848,10 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
     const heatmap_age = context_build_at - Date.parse(state.heatmap?.fetched_at || '');
     if (!Number.isFinite(heatmap_age) || heatmap_age >= heatmap_poll_ms) {
       try {
-        state.heatmap = heatmap_summary(await nightwatch.get_heatmap_snapshot(ticker, {
-          query: { format: 'summary' },
-        }));
+        state.heatmap = heatmap_summary(await nightwatch.get_heatmap_snapshot(ticker), {
+          now_ms: Date.now(),
+          max_age_ms: config.policy?.evidence_gates?.heatmap?.max_age_ms,
+        });
         state.heatmap_error = null;
       } catch (error) {
         state.heatmap_error = sanitized_error(error);
@@ -3552,13 +3902,14 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
       execution_environment: 'simulate_only',
       real_trading_allowed: false,
     };
-    const core_decision = evaluate_junk_gex_strategy({
+    let core_decision = evaluate_junk_gex_strategy({
       gex_snapshot: gex_response,
       gex_node_history: state.gex_node_history,
       market_context,
       policy: strategy_policy,
       now_ms: market_context_at,
     });
+    core_decision = apply_junk_gex_freshness_gate(core_decision, state.gex_freshness);
     const flow_context = flow_context_reader.build_context({
       source_connected: await discord_flow_source_connected(market_context_at),
     });
@@ -3600,6 +3951,23 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
       evidence_policy: config.policy?.evidence_gates || {},
       now_ms: market_context_at,
     });
+    decision = attach_junk_oi_structure_background(
+      decision,
+      state.oi_structure_background || {
+        kind: 'junk_oi_structure_background',
+        version: 1,
+        state: state.oi_structure_background_refresh?.status || 'unavailable',
+        usable: false,
+        reason_codes: state.oi_structure_background_refresh?.error
+          ? ['oi_structure_background_refresh_unavailable']
+          : ['oi_structure_background_not_loaded'],
+        context_only: true,
+        can_trigger_trade: false,
+        can_veto_candidate: false,
+        intraday_directional_signal: false,
+        settlement_lagged: true,
+      },
+    );
     const quota_floor = positive_number(provider.quota_entry_safety_floor, 10_000);
     const quota_remaining = finite_number(state.quota?.monthly_remaining);
     const entry_pause_reasons = [];
@@ -3859,9 +4227,11 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
       provider: {
         name: 'nightwatch',
         last_gex: state.last_gex,
+        gex_freshness: state.gex_freshness,
         heatmap: state.heatmap,
         heatmap_error: state.heatmap_error || null,
       },
+      oi_structure_background: oi_structure_background_status(),
       automated_flow: {
         availability_status: flow_context.availability_status,
         source_connected: flow_context.source_connected,
@@ -3916,6 +4286,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
     process_id: process.pid,
     quota: state.quota,
     experiment: experiment_status(),
+    oi_structure_background: oi_structure_background_status(),
     risk: risk_state(state),
   });
 
@@ -3937,6 +4308,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
           process_id: process.pid,
           quota: state.quota,
           experiment: experiment_status(),
+          oi_structure_background: oi_structure_background_status(),
           risk: risk_state(state),
           active_orders: active_order_rows(state).map(compact_order),
           broker_recovery: state.broker_recovery,
@@ -3955,8 +4327,12 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
       await wait_with_price_sampling(Math.max(0, delay_ms - (Date.now() - cycle_started_at)));
     } while (!stop_requested);
   } finally {
-    await reset_moomoo();
-    await release_runtime_lock();
+    try {
+      await reset_moomoo();
+    } finally {
+      try { oi_research_store?.close(); } catch { /* research context is best effort */ }
+      await release_runtime_lock();
+    }
     process.removeListener('SIGINT', stop);
     process.removeListener('SIGTERM', stop);
   }
@@ -3968,6 +4344,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
       process_id: process.pid,
       quota: state.quota,
       experiment: experiment_status(),
+      oi_structure_background: oi_structure_background_status(),
       risk: risk_state(state),
       active_orders: active_order_rows(state).map(compact_order),
       last_decision: compact_decision(last_decision),

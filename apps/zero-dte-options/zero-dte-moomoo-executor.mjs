@@ -10,6 +10,7 @@ import {
   placeLimitBuyOrder,
   selectSimulatedUsOptionAccount,
 } from '../../packages/moomoo-opend/moomoo-opend.mjs';
+import { JUNK_GEX_MAX_AGE_MS } from './junk-gex-freshness.mjs';
 
 export const ZERO_DTE_BUSINESS_LINE = 'zero-dte-options';
 export const JUNK_GEX_STRATEGY = 'junk_gex_nodes_v3';
@@ -178,21 +179,31 @@ function calculatePositionSizing(optionPrice, contractMultiplier, quote, config)
   const contractCost = price * multiplier;
   const targetBudget = equity * targetPct / 100;
   const maxBudget = equity * maxPct / 100;
-  const maxQtyByBudget = Math.floor(maxBudget / contractCost);
-  if (maxQtyByBudget < 1) {
+  if (contractCost > equity) {
     return {
-      status: 'contract_cost_above_max_position',
+      status: 'contract_cost_above_paper_equity',
       qty: 0,
-      reasons: ['contract_cost_above_max_position'],
+      reasons: ['contract_cost_above_paper_equity'],
       option_price: price,
       contract_multiplier: multiplier,
       contract_cost_usd: Number(contractCost.toFixed(2)),
+      paper_equity_usd: equity,
       max_position_usd: Number(maxBudget.toFixed(2)),
     };
   }
 
-  let qty = Math.max(1, Math.round(targetBudget / contractCost));
-  qty = Math.min(qty, maxQtyByBudget);
+  const maxQtyByBudget = Math.floor(maxBudget / contractCost);
+  let qty;
+  if (maxQtyByBudget < 1) {
+    // Options trade in whole contracts. Treat max_position_pct as a sizing
+    // target, not a hard rejection: one contract may exceed that percentage
+    // while still remaining inside the complete $10k virtual line.
+    qty = 1;
+    reasons.push('minimum_contract_above_max_position_target');
+  } else {
+    qty = Math.max(1, Math.round(targetBudget / contractCost));
+    qty = Math.min(qty, maxQtyByBudget);
+  }
 
   const maxContracts = finitePositive(settings.max_contracts_per_trade);
   if (maxContracts !== null && qty > Math.floor(maxContracts)) {
@@ -228,6 +239,7 @@ function calculatePositionSizing(optionPrice, contractMultiplier, quote, config)
     target_position_pct: targetPct,
     min_position_pct: minPct,
     max_position_pct: maxPct,
+    max_position_is_soft_target: true,
     target_position_usd: Number(targetBudget.toFixed(2)),
     max_position_usd: Number(maxBudget.toFixed(2)),
     estimated_position_usd: Number(estimatedPosition.toFixed(2)),
@@ -385,7 +397,11 @@ function normalizeIdList(value) {
 function validateSignal(signal, config, riskState, now) {
   const reasons = [];
   const maxSignalAgeMs = firstFinite(riskLimit(config, 'max_signal_age_seconds', 60), 60) * 1000;
-  const maxGexAgeMs = firstFinite(riskLimit(config, 'max_gex_snapshot_age_seconds', 30), 30) * 1000;
+  const defaultGexAgeSeconds = JUNK_GEX_MAX_AGE_MS / 1_000;
+  const maxGexAgeMs = firstFinite(
+    riskLimit(config, 'max_gex_snapshot_age_seconds', defaultGexAgeSeconds),
+    defaultGexAgeSeconds,
+  ) * 1000;
   const maxFutureSkewMs = firstFinite(riskLimit(config, 'max_future_clock_skew_seconds', 5), 5) * 1000;
   const signalAge = ageMs(signal.generated_at, now);
   const gexAge = ageMs(signal.gex_snapshot_at, now);

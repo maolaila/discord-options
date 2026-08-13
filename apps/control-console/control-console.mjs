@@ -4,6 +4,7 @@ import http from 'node:http';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { deriveCaptureHealth } from './capture-health.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const HOST = process.env.CONTROL_CONSOLE_HOST || '127.0.0.1';
@@ -12,7 +13,6 @@ const DEFAULT_ENV_FILE = process.env.MOOMOO_CONTROL_ENV_FILE || path.join(ROOT, 
 const MAX_LOG_LINES = 300;
 const DEFAULT_RESTART_DELAY_MS = 15_000;
 const RUNTIME_HEARTBEAT_FRESH_MS = 90_000;
-const CAPTURE_HEARTBEAT_FRESH_MS = 90_000;
 
 const logsDir = path.join(ROOT, 'logs');
 const processes = new Map();
@@ -377,7 +377,9 @@ function statusPayload() {
   const experimentSummary = readJson(path.join(logsDir, 'zero-dte-options-experiment-summary.json'));
   const runtimeLock = readJson(path.join(logsDir, 'zero-dte-options-runtime.lock.json'));
   const moomooCheck = redactMoomooCheck(readJson(path.join(logsDir, 'moomoo-check.json')));
-  const captureHeartbeatAgeMs = ageMs(captureStatus?.updated_at);
+  const captureHealth = deriveCaptureHealth(captureStatus, {
+    processRunning: isRunning(processes.get('capture')),
+  });
 
   return {
     server: {
@@ -392,12 +394,7 @@ function statusPayload() {
     ),
     external_junk_runtime: externalJunkRuntime(junkStatus, runtimeLock),
     capture_status: captureStatus,
-    capture_health: {
-      healthy: captureStatus?.status === 'capturing'
-        && captureHeartbeatAgeMs !== null
-        && captureHeartbeatAgeMs <= CAPTURE_HEARTBEAT_FRESH_MS,
-      heartbeat_age_ms: captureHeartbeatAgeMs,
-    },
+    capture_health: captureHealth,
     junk_status: junkStatus,
     experiment_summary: experimentSummary,
     moomoo_check: moomooCheck,
@@ -685,7 +682,11 @@ function dashboardHtmlPage() {
       const status = data.junk_status || {};
       const watcher = data.external_junk_runtime?.watcher || {};
       const global = data.moomoo_check?.global_state || {};
-      el('capture').innerHTML = state(data.capture_health?.healthy, 'healthy', 'stale / stopped');
+      el('capture').innerHTML = state(
+        data.capture_health?.healthy,
+        data.capture_health?.state || 'healthy',
+        data.capture_health?.state || 'stale / stopped',
+      );
       el('watcher').innerHTML = state(watcher.running && watcher.heartbeat_fresh, 'running', 'degraded / stopped');
       el('phase').textContent = status.phase || '-';
       el('opend').innerHTML = state(global.qot_logined && global.trd_logined, 'connected', 'unchecked / disconnected');

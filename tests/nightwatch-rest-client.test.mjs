@@ -91,6 +91,8 @@ test('paid options, heatmap, and stock methods use the official GET paths and sn
 
   await client.get_options_chain_snapshot('spx', { query: { expiration: '2026-08-11' } });
   await client.get_options_atm_chains('spy', { query: { expiration: '2026-08-11' } });
+  await client.get_options_oi_change('spx', { query: { expiration: '2026-08-11' } });
+  await client.get_options_options_volume('spy', { query: { min_volume: 1000 } });
   await client.get_options_contract_intraday('spy260811c00775000');
   await client.get_options_contract_greeks_series('spy260811c00775000', {
     query: {
@@ -109,6 +111,8 @@ test('paid options, heatmap, and stock methods use the official GET paths and sn
   assert.deepEqual(requests.map((request) => request.url), [
     'https://api.yehangshe.com/v1/options/chain-snapshot/SPX?expiration=2026-08-11',
     'https://api.yehangshe.com/v1/options/atm-chains/SPY?expiration=2026-08-11',
+    'https://api.yehangshe.com/v1/options/oi-change/SPX?expiration=2026-08-11',
+    'https://api.yehangshe.com/v1/options/options-volume/SPY?min_volume=1000',
     'https://api.yehangshe.com/v1/options/contract-intraday/SPY260811C00775000',
     'https://api.yehangshe.com/v1/options/contract-greeks-series/SPY260811C00775000?from=2026-08-11T09%3A30%3A00-04%3A00&to=2026-08-11T10%3A00%3A00-04%3A00&interval=1m',
     'https://api.yehangshe.com/v1/options/contract-volume-profile/SPY260811C00775000',
@@ -118,6 +122,65 @@ test('paid options, heatmap, and stock methods use the official GET paths and sn
   ]);
   assert.ok(requests.every((request) => request.options.method === 'GET'));
   assert.ok(requests.every((request) => request.options.headers.authorization === 'Bearer test_token'));
+});
+
+test('daily options methods normalize and percent-encode ticker path segments', async () => {
+  const requests = [];
+  const client = create_nightwatch_rest_client({
+    api_key: 'test_token',
+    fetch_impl: async (url) => {
+      requests.push(String(url));
+      return json_response(200, { data: [] });
+    },
+  });
+
+  await client.get_options_oi_change(' ^spx ');
+  await client.get_options_options_volume(' ^ndx ');
+
+  assert.deepEqual(requests, [
+    'https://api.yehangshe.com/v1/options/oi-change/%5ESPX',
+    'https://api.yehangshe.com/v1/options/options-volume/%5ENDX',
+  ]);
+});
+
+test('daily options methods reject invalid ticker path input before sending credentials', () => {
+  let calls = 0;
+  const client = create_nightwatch_rest_client({
+    api_key: 'secret_test_token',
+    fetch_impl: async () => {
+      calls += 1;
+      return json_response(200, {});
+    },
+  });
+
+  assert.throws(
+    () => client.get_options_oi_change('../SPX'),
+    /ticker is invalid/,
+  );
+  assert.throws(
+    () => client.get_options_options_volume('SPX/../../secret'),
+    /ticker is invalid/,
+  );
+  assert.equal(calls, 0);
+});
+
+test('daily options HTTP errors expose the exact sanitized request path', async () => {
+  const client = create_nightwatch_rest_client({
+    api_key: 'secret_test_token',
+    fetch_impl: async () => json_response(503, { error: 'upstream failed' }),
+  });
+
+  await assert.rejects(
+    () => client.get_options_oi_change('spx'),
+    (error) => {
+      assert.ok(error instanceof NightwatchRestError);
+      assert.equal(error.status, 503);
+      assert.equal(error.path, '/v1/options/oi-change/SPX');
+      assert.equal(error.message, 'Nightwatch request returned HTTP 503');
+      assert.equal(error.message.includes('secret_test_token'), false);
+      return true;
+    },
+  );
 });
 
 test('chain-snapshot is treated as a snapshot and shares the one-second limiter', async () => {

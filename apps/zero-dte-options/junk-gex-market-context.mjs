@@ -66,6 +66,25 @@ function snapshot_payload(snapshot) {
   return snapshot && typeof snapshot === 'object' ? snapshot : {};
 }
 
+const FIXED_SAMPLE_INTERVAL_MS = 5 * 60_000;
+const FIXED_SAMPLE_LAST_ARCHIVE_OFFSET_MS = FIXED_SAMPLE_INTERVAL_MS - 1_000;
+
+/**
+ * Public fixed-sample snapshots label a bucket with its start time even though
+ * spot_usd is the last archived version from the bucket's final minute. Keep
+ * the source timestamp for GEX identity/history and derive a separate SPY
+ * alignment time at the end of that final minute. Legacy non-boundary
+ * timestamps retain their original alignment semantics.
+ */
+export function gex_spot_alignment_at(snapshot_at) {
+  const source_ms = timestamp_ms(snapshot_at);
+  if (source_ms === null) return null;
+  const alignment_ms = source_ms % FIXED_SAMPLE_INTERVAL_MS === 0
+    ? source_ms + FIXED_SAMPLE_LAST_ARCHIVE_OFFSET_MS
+    : source_ms;
+  return new Date(alignment_ms).toISOString();
+}
+
 /**
  * Normalize a Nightwatch dealer-GEX SPX snapshot into the small, secret-free
  * anchor shape persisted by this business line. These anchors never create
@@ -97,6 +116,7 @@ export function normalize_spx_spot_sample(snapshot) {
   return {
     ticker: 'SPX',
     snapshot_at,
+    spot_alignment_at: gex_spot_alignment_at(snapshot_at),
     spot_usd,
   };
 }
@@ -590,13 +610,14 @@ export function create_junk_gex_market_context({
       max_bars_5m: Math.max(3, Math.floor(resolved_max_bars / 5)),
     });
     const anchor_ms = timestamp_ms(anchor?.snapshot_at);
-    const anchor_spy = anchor_ms === null
+    const anchor_spot_alignment_ms = timestamp_ms(anchor?.spot_alignment_at ?? anchor?.snapshot_at);
+    const anchor_spy = anchor_spot_alignment_ms === null
       ? null
       : spy_rows
         .filter((row) => timestamp_ms(row.quote_received_at) <= resolved_at_ms)
         .map((row) => ({
           row,
-          gap_ms: Math.abs(timestamp_ms(row.quote_received_at) - anchor_ms),
+          gap_ms: Math.abs(timestamp_ms(row.quote_received_at) - anchor_spot_alignment_ms),
         }))
         .sort((left, right) => left.gap_ms - right.gap_ms)[0] || null;
 
@@ -643,6 +664,7 @@ export function create_junk_gex_market_context({
       source_snapshot_at: anchor?.snapshot_at || null,
       anchor_source: 'nightwatch_dealer_gex_spx_spot',
       anchor_snapshot_at: anchor?.snapshot_at || null,
+      anchor_spot_alignment_at: anchor?.spot_alignment_at || null,
       anchor_spot_usd: anchor?.spot_usd ?? null,
       anchor_age_ms: anchor_ms === null ? null : resolved_at_ms - anchor_ms,
       anchor_spy_quote_received_at: anchor_spy?.row.quote_received_at || null,

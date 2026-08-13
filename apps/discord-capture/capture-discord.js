@@ -6,9 +6,21 @@ const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 const {
+  buildOrderIntent,
+  formatSignalLine,
+  parseOptionSignal,
+} = require('../../packages/option-signals/option-signal-utils');
+const {
+  appendSignalDocument,
+  resolveTimeZone,
+  stampSignalLogTimes,
+} = require('../../packages/option-signals/signal-document-writer');
+const {
   NIGHTWATCH_ZERO_DTE_FLOW_CHANNEL_ID,
   parseNightwatchZeroDteFlowAlerts,
 } = require('../../packages/option-signals/nightwatch-0dte-flow-alert.cjs');
+const { createGatewayHealthTracker } = require('./gateway-health.cjs');
+const { recoverGatewayCaptureAfterAttach } = require('./startup-recovery.cjs');
 
 let chromium;
 try {
@@ -21,11 +33,20 @@ try {
 const ROOT = path.resolve(__dirname, '../..');
 const LOG_DIR = path.join(ROOT, 'logs');
 const MESSAGE_LOG = path.join(LOG_DIR, 'messages.ndjson');
+const LIVE_SIGNAL_LOG = path.join(LOG_DIR, 'live-signals.ndjson');
+const OPTION_SIGNAL_LOG = path.join(LOG_DIR, 'option-signals.ndjson');
+const ORDER_INTENT_LOG = path.join(LOG_DIR, 'order-intents.ndjson');
 const HISTORY_MESSAGE_LOG = path.join(LOG_DIR, 'history-messages.ndjson');
 const RAW_EVENT_LOG = path.join(LOG_DIR, 'raw-events.ndjson');
 const REST_LOG = path.join(LOG_DIR, 'rest-responses.ndjson');
 const ZERO_DTE_FLOW_EVENT_LOG = path.join(LOG_DIR, 'zero-dte-options-flow-events.ndjson');
 const STATUS_FILE = path.join(LOG_DIR, 'capture-status.json');
+const SIGNAL_DOC_DIR = path.join(ROOT, 'signal-docs');
+const PA_GUILD_ID = '1434960637561409689';
+const PA_BOT_AUTHOR_ID = '1462345436852654295';
+const PA_CHANNEL_IDS = new Set(['1467498779497201716', '1469972672514625749']);
+const PA_MAX_CAPTURE_LAG_MS = 120_000;
+const PA_CLOCK_SKEW_TOLERANCE_MS = 5_000;
 
 const UTF8_BOM = Buffer.from([0xef, 0xbb, 0xbf]);
 const ZLIB_SUFFIX = Buffer.from([0x00, 0x00, 0xff, 0xff]);
@@ -38,10 +59,18 @@ function parseArgs(argv) {
     channelId: '',
     historyMessageIds: new Set(),
     historyMessageLog: HISTORY_MESSAGE_LOG,
+    liveSignalIds: new Set(),
+    liveSignalLog: LIVE_SIGNAL_LOG,
+    optionSignalKeys: new Set(),
+    optionSignalLog: OPTION_SIGNAL_LOG,
+    orderIntentIds: new Set(),
+    orderIntentLog: ORDER_INTENT_LOG,
     zeroDteFlowEventIds: new Set(),
     zeroDteFlowEventLog: ZERO_DTE_FLOW_EVENT_LOG,
     printAllMessages: false,
     rest: false,
+    signalDocDir: SIGNAL_DOC_DIR,
+    signalDocTimeZone: process.env.SIGNAL_DOC_TIMEZONE || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -51,6 +80,7 @@ function parseArgs(argv) {
     else if (arg === '--channel-id') args.channelId = argv[++i] || '';
     else if (arg === '--print-all-messages') args.printAllMessages = true;
     else if (arg === '--rest') args.rest = true;
+    else if (arg === '--signal-doc-tz') args.signalDocTimeZone = argv[++i] || args.signalDocTimeZone;
     else if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
@@ -81,6 +111,7 @@ Options:
   --channel-id <id> Optional: only keep REST message observations for this channel
   --print-all-messages Print non-signal chat messages to console too
   --rest            Also log Discord REST API JSON responses
+  --signal-doc-tz <tz> Time zone used for daily PA signal documents
   -h, --help        Show this help
 `.trim());
 }
@@ -112,7 +143,11 @@ function ensureFile(file) {
 
 function ensureDirs(options) {
   fs.mkdirSync(LOG_DIR, { recursive: true });
+  fs.mkdirSync(options.signalDocDir, { recursive: true });
   ensureFile(MESSAGE_LOG);
+  ensureFile(options.liveSignalLog);
+  ensureFile(options.optionSignalLog);
+  ensureFile(options.orderIntentLog);
   ensureFile(options.zeroDteFlowEventLog);
   ensureFile(options.historyMessageLog);
   ensureFile(RAW_EVENT_LOG);
@@ -140,18 +175,6 @@ function writeStatus(patch) {
     ...patch,
     updated_at: new Date().toISOString(),
   };
-  for (const legacyField of [
-    'signal_doc_dir',
-    'signal_doc_timezone',
-    'last_option_signal_at',
-    'last_option_signal_message_id',
-    'last_option_signal_title',
-    'last_option_signal_channel_id',
-    'last_option_signal_received_at',
-    'last_order_intent_message_id',
-  ]) {
-    delete status[legacyField];
-  }
   fs.writeFileSync(STATUS_FILE, `${JSON.stringify(status, null, 2)}\n`, 'utf8');
 }
 
@@ -458,6 +481,86 @@ function isNightwatchZeroDteFlowChannel(record) {
   );
 }
 
+function appendLiveSignal(record, options) {
+  if (!options.liveSignalLog) return false;
+  if (record.id && options.liveSignalIds.has(String(record.id))) return false;
+  appendJsonLine(options.liveSignalLog, record);
+  if (record.id) options.liveSignalIds.add(String(record.id));
+  return true;
+}
+
+function appendOptionSignal(signal, options) {
+  if (!options.optionSignalLog) return false;
+  if (signal.signal_key && options.optionSignalKeys.has(signal.signal_key)) return false;
+  stampSignalLogTimes(signal, new Date().toISOString(), 'live_capture');
+  appendJsonLine(options.optionSignalLog, signal);
+  if (signal.signal_key) options.optionSignalKeys.add(signal.signal_key);
+  return true;
+}
+
+function appendOrderIntent(intent, options) {
+  if (!intent || !options.orderIntentLog) return false;
+  if (intent.message_id && options.orderIntentIds.has(String(intent.message_id))) return false;
+  appendJsonLine(options.orderIntentLog, intent);
+  if (intent.message_id) options.orderIntentIds.add(String(intent.message_id));
+  return true;
+}
+
+function processPaOptionAdvice(record, observedVia, options) {
+  // The automatic Nightwatch flow channel is context-only for JUNKMAN and must
+  // never be converted into a PA order intent.
+  if (isNightwatchZeroDteFlowChannel(record)) return false;
+  const signal = parseOptionSignal(record, observedVia);
+  if (!signal) return false;
+
+  const lagMs = Number(record.capture_lag_ms);
+  const authenticatedSource = String(record.guild_id || '') === PA_GUILD_ID
+    && PA_CHANNEL_IDS.has(String(record.channel_id || ''))
+    && String(record.author?.id || '') === PA_BOT_AUTHOR_ID
+    && record.author?.bot === true;
+  const liveEligible = observedVia === 'LIVE_SIGNAL'
+    && record.source === 'discord_gateway_websocket'
+    && record.event_type === 'MESSAGE_CREATE'
+    && authenticatedSource
+    && Number.isFinite(lagMs)
+    && lagMs >= -PA_CLOCK_SKEW_TOLERANCE_MS
+    && lagMs <= PA_MAX_CAPTURE_LAG_MS;
+  signal.live_eligible = liveEligible;
+  signal.source_authenticated = authenticatedSource;
+  signal.live_eligibility_reason = liveEligible
+    ? 'authenticated_fresh_gateway_message_create'
+    : 'archive_or_untrusted_or_stale';
+
+  const added = appendOptionSignal(signal, options);
+  if (observedVia === 'LIVE_SIGNAL') appendLiveSignal(record, options);
+  if (added) {
+    const intent = liveEligible ? buildOrderIntent(signal) : null;
+    if (appendOrderIntent(intent, options)) {
+      console.log(`[${intent.created_at}] PA_ORDER_INTENT ${intent.action} ${intent.ticker} ${intent.expiration} ${intent.strike}${intent.option_type} status=${intent.status}`);
+    }
+    const docFile = appendSignalDocument({
+      signal,
+      record,
+      intent,
+      signalDocDir: options.signalDocDir,
+      timeZone: options.signalDocTimeZone,
+    });
+    writeStatus({
+      status: 'capturing',
+      last_option_signal_at: signal.logged_at,
+      last_option_signal_message_id: signal.message_id,
+      last_option_signal_title: signal.title,
+      last_option_signal_channel_id: signal.channel_id,
+      last_option_signal_received_at: signal.received_at,
+      last_order_intent_message_id: intent ? intent.message_id : null,
+      last_pa_live_eligible: liveEligible,
+    });
+    console.log(formatSignalLine(signal));
+    console.log(`[${signal.logged_at}] SIGNAL_DOC ${displayPath(docFile)} received_to_logged=${signal.received_to_logged_lag_ms}ms id=${signal.message_id}`);
+  }
+  return true;
+}
+
 function appendNightwatchZeroDteFlowEvent(event, options) {
   if (!event || !options.zeroDteFlowEventLog) return false;
   if (event.sub_event_id && options.zeroDteFlowEventIds.has(String(event.sub_event_id))) return false;
@@ -528,6 +631,7 @@ function handleRestMessagesPayload(parsed, meta, options) {
 
   let newCount = 0;
   let newZeroDteFlowCount = 0;
+  let newPaSignalCount = 0;
   for (const message of messages) {
     if (!message || typeof message !== 'object') continue;
     const record = normalizeRestChannelMessage(message, meta);
@@ -535,6 +639,9 @@ function handleRestMessagesPayload(parsed, meta, options) {
       newCount += 1;
       const flowResult = processNightwatchZeroDteFlow(record, 'rest_archive', options);
       newZeroDteFlowCount += flowResult.added_count;
+      if (!flowResult.handled && processPaOptionAdvice(record, 'REST_ARCHIVE', options)) {
+        newPaSignalCount += 1;
+      }
     }
   }
 
@@ -542,6 +649,10 @@ function handleRestMessagesPayload(parsed, meta, options) {
   if (newZeroDteFlowCount) {
     const channel = meta.channel_request && meta.channel_request.channel_id ? meta.channel_request.channel_id : 'embedded';
     console.log(`[${new Date().toISOString()}] REST_ZERO_DTE_FLOW_COUNT channel=${channel} new_events=${newZeroDteFlowCount}`);
+  }
+  if (newPaSignalCount) {
+    const channel = meta.channel_request && meta.channel_request.channel_id ? meta.channel_request.channel_id : 'embedded';
+    console.log(`[${new Date().toISOString()}] REST_PA_SIGNAL_COUNT channel=${channel} new_signals=${newPaSignalCount}`);
   }
 }
 
@@ -581,7 +692,8 @@ function handleGatewayPayload(payload, url, options) {
       last_message_event_type: messageRecord.event_type,
     });
     const flowResult = processNightwatchZeroDteFlow(messageRecord, 'live_gateway', options);
-    if (!flowResult.handled && options.printAllMessages) {
+    const paHandled = !flowResult.handled && processPaOptionAdvice(messageRecord, 'LIVE_SIGNAL', options);
+    if (!flowResult.handled && !paHandled && options.printAllMessages) {
       printMessage(messageRecord);
     }
   } else if (options.allEvents) {
@@ -589,30 +701,32 @@ function handleGatewayPayload(payload, url, options) {
   }
 }
 
-async function attachNetworkCapture(context, page, options) {
+async function attachNetworkCapture(context, page, options, gatewayTracker, captureScopeId) {
   const client = await context.newCDPSession(page);
   await client.send('Network.enable');
 
   const websocketUrls = new Map();
   const decoders = new Map();
   const restResponses = new Map();
+  const gatewayConnectionId = (requestId) => `${captureScopeId}:${requestId}`;
 
   client.on('Network.webSocketCreated', ({ requestId, url }) => {
     websocketUrls.set(requestId, url);
     if (isDiscordGateway(url)) {
       decoders.set(requestId, new GatewayZlibDecoder());
-      writeStatus({
-        status: 'capturing',
-        last_gateway_connected_at: new Date().toISOString(),
-        last_gateway_url: url,
-      });
+      gatewayTracker.registerConnection(gatewayConnectionId(requestId), url);
       console.log(`Discord gateway connected: ${url}`);
     }
   });
 
   client.on('Network.webSocketClosed', ({ requestId }) => {
+    gatewayTracker.closeConnection(gatewayConnectionId(requestId));
     websocketUrls.delete(requestId);
     decoders.delete(requestId);
+  });
+
+  client.on('Network.webSocketFrameError', ({ requestId, errorMessage }) => {
+    gatewayTracker.observeFrameError(gatewayConnectionId(requestId), errorMessage);
   });
 
   client.on('Network.webSocketFrameReceived', async ({ requestId, response }) => {
@@ -621,6 +735,7 @@ async function attachNetworkCapture(context, page, options) {
 
     if (response.opcode === 1) {
       const payload = safeParseJson(response.payloadData);
+      gatewayTracker.observePayload(gatewayConnectionId(requestId), payload, knownUrl);
       handleGatewayPayload(payload, knownUrl, options);
       return;
     }
@@ -636,6 +751,7 @@ async function attachNetworkCapture(context, page, options) {
     const frameBuffer = Buffer.from(response.payloadData || '', 'base64');
     const payloads = await decoder.decode(frameBuffer);
     for (const payload of payloads) {
+      gatewayTracker.observePayload(gatewayConnectionId(requestId), payload, knownUrl);
       handleGatewayPayload(payload, knownUrl, options);
     }
   });
@@ -700,16 +816,29 @@ async function attachNetworkCapture(context, page, options) {
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
+  options.signalDocTimeZone = resolveTimeZone(options.signalDocTimeZone);
   ensureDirs(options);
   writeStatus({
     status: 'starting',
     started_at: new Date().toISOString(),
     cdp_endpoint: options.cdpEndpoint,
-    note: 'Refresh Discord after this listener is attached so the compressed gateway websocket starts from the beginning.',
+    signal_doc_dir: displayPath(options.signalDocDir),
+    signal_doc_timezone: options.signalDocTimeZone,
+    gateway_state: 'disconnected',
+    active_gateway_count: 0,
+    gateway_heartbeat_interval_ms: null,
+    last_gateway_activity_at: null,
+    last_gateway_heartbeat_ack_at: null,
+    last_gateway_connected_at: null,
+    last_gateway_disconnected_at: null,
+    note: 'Attaching to Discord network events; if an existing logged-in page predates CDP attach, capture may reload that page once to observe Gateway creation.',
   });
   if (options.zeroDteFlowEventLog) {
     options.zeroDteFlowEventIds = readExistingFieldValues(options.zeroDteFlowEventLog, 'sub_event_id');
   }
+  if (options.liveSignalLog) options.liveSignalIds = readExistingMessageIds(options.liveSignalLog);
+  if (options.optionSignalLog) options.optionSignalKeys = readExistingFieldValues(options.optionSignalLog, 'signal_key');
+  if (options.orderIntentLog) options.orderIntentIds = readExistingFieldValues(options.orderIntentLog, 'message_id');
   if (options.historyMessageLog) {
     options.historyMessageIds = readExistingMessageIds(options.historyMessageLog);
   }
@@ -717,8 +846,11 @@ async function main() {
   console.log(`CDP endpoint: ${options.cdpEndpoint}`);
   console.log(`Message log: ${displayPath(MESSAGE_LOG)}`);
   console.log(`Nightwatch 0DTE Flow event log: ${displayPath(options.zeroDteFlowEventLog)}`);
+  console.log(`PA option signal log: ${displayPath(options.optionSignalLog)}`);
+  console.log(`PA order intent log: ${displayPath(options.orderIntentLog)}`);
+  console.log(`Daily PA signal documents: ${displayPath(options.signalDocDir)}/*.md timezone=${options.signalDocTimeZone}`);
   console.log(`History message API log: ${displayPath(options.historyMessageLog)}`);
-  console.log('Console output: strict Nightwatch 0DTE Flow events only. Use --print-all-messages to also print ordinary chat.');
+  console.log('Console output: Nightwatch 0DTE Flow context plus PA option advice. Use --print-all-messages for ordinary chat.');
   if (options.channelId) {
     console.log(`History API channel filter: ${options.channelId}`);
   } else {
@@ -737,11 +869,20 @@ async function main() {
     process.exit(1);
   }
   const attachedPages = new WeakSet();
+  const gatewayTracker = createGatewayHealthTracker({ writeStatus });
+  let captureScopeSequence = 0;
 
   const attachPage = async (context, page) => {
     if (attachedPages.has(page)) return;
     attachedPages.add(page);
-    await attachNetworkCapture(context, page, options);
+    captureScopeSequence += 1;
+    await attachNetworkCapture(
+      context,
+      page,
+      options,
+      gatewayTracker,
+      `cdp-session-${captureScopeSequence}`,
+    );
   };
 
   for (const context of browser.contexts()) {
@@ -756,11 +897,22 @@ async function main() {
   }
 
   const pageCount = browser.contexts().reduce((count, context) => count + context.pages().length, 0);
+  const gatewaySnapshot = gatewayTracker.snapshot();
   writeStatus({
-    status: 'attached',
+    ...gatewaySnapshot,
+    status: gatewaySnapshot.active_gateway_count > 0 ? 'capturing' : 'attached',
     attached_at: new Date().toISOString(),
     attached_page_count: pageCount,
   });
+  const attachedPageList = browser.contexts().flatMap((context) => context.pages());
+  const startupRecovery = await recoverGatewayCaptureAfterAttach({
+    pages: attachedPageList,
+    gatewayTracker,
+    writeStatus,
+  });
+  if (startupRecovery.attempted) {
+    console.log(`Gateway startup recovery: ${startupRecovery.outcome}`);
+  }
   console.log(`Attached to ${pageCount} existing page(s). Press Ctrl+C to stop.`);
   process.stdin.resume();
 

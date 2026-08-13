@@ -6,7 +6,9 @@ import {
   MODIFY_ORDER_OP_CANCEL,
   buildCancelOrderRequest,
   buildOptionExecutionQuote,
+  establishMoomooConnection,
   loadMoomooConfig,
+  selectSimulatedUsOptionAccount,
 } from '../packages/moomoo-opend/moomoo-opend.mjs';
 import {
   businessLineLogPath,
@@ -35,6 +37,47 @@ const quoteGateConfig = {
   optionMinOpenInterest: 50,
   optionMinDayVolume: 1,
 };
+
+test('OpenD login timeout closes the partially-started websocket client', async () => {
+  let stop_count = 0;
+  let socket_close_count = 0;
+  const client = {
+    start() {},
+    stop() { stop_count += 1; },
+    websock: { close() { socket_close_count += 1; } },
+  };
+
+  await assert.rejects(
+    establishMoomooConnection(client, {
+      host: '127.0.0.1',
+      websocketPort: 33333,
+      websocketSsl: false,
+      websocketKey: '[test-redacted]',
+    }, { timeoutMs: 5 }),
+    /Timed out connecting to Moomoo OpenD WebSocket after 5ms/,
+  );
+  assert.equal(stop_count, 1);
+  assert.equal(socket_close_count, 1);
+});
+
+test('OpenD rejected login closes the websocket client immediately', async () => {
+  let stop_count = 0;
+  const client = {
+    start() { queueMicrotask(() => this.onlogin(false, { reason: 'rejected' })); },
+    stop() { stop_count += 1; },
+  };
+
+  await assert.rejects(
+    establishMoomooConnection(client, {
+      host: '127.0.0.1',
+      websocketPort: 33333,
+      websocketSsl: false,
+      websocketKey: '[test-redacted]',
+    }),
+    /Moomoo OpenD WebSocket login failed/,
+  );
+  assert.equal(stop_count, 1);
+});
 
 test('fixed absolute spread gate can be enabled or disabled', () => {
   const blocked = buildOptionExecutionQuote(snapshot, {
@@ -75,7 +118,7 @@ test('entry quote blocks immediate round-trip loss beyond the option stop', () =
   assert.ok(quote.reasons.includes('immediate_round_trip_loss_pct_above_stop_loss:27.78>25'));
 });
 
-test('JUNKMAN is the only business line and the default policy is simulation-only', () => {
+test('JUNKMAN remains the default while PA is an independent simulation-only business line', () => {
   assert.equal(path.basename(DEFAULT_POLICY_PATH), 'zero-dte-options-policy.json');
   const aliases = [undefined, '0dte', 'zero-dte', 'junk-gex', 'junkman'];
   for (const alias of aliases) {
@@ -94,6 +137,24 @@ test('JUNKMAN is the only business line and the default policy is simulation-onl
   assert.equal(config.policyExecutionEnvironment, 'simulate_only');
   assert.equal(path.basename(config.policyPath), 'zero-dte-options-policy.json');
   assert.equal(path.basename(businessLineLogPath(line, 'trades.ndjson')), 'zero-dte-options-trades.ndjson');
+
+  for (const alias of ['pa-options', 'pa', 'pa-option', 'pa-options-sim', 'options', 'options-sim', 'moomoo']) {
+    const paLine = resolveBusinessLine(alias);
+    assert.equal(paLine.key, 'pa-options');
+    assert.equal(paLine.enabled, true);
+    const paConfig = loadMoomooConfig({
+      ...moomooConfigOptionsForBusinessLine(paLine, { env: './__missing_test_env__' }),
+    });
+    assert.equal(paConfig.businessLine, 'pa-options');
+    assert.equal(paConfig.requiredAdviceFormat, 'pa');
+    assert.equal(paConfig.policyRealTradingAllowed, false);
+    assert.equal(paConfig.policyExecutionEnvironment, 'simulate_only');
+    assert.equal(path.basename(paConfig.policyPath), 'pa-options-policy.json');
+  }
+  assert.equal(
+    path.basename(businessLineLogPath(resolveBusinessLine('pa'), 'trades.ndjson')),
+    'pa-options-trades.ndjson',
+  );
 });
 
 test('cancel order request carries the broker order identity', () => {
@@ -109,4 +170,11 @@ test('cancel order request carries the broker order identity', () => {
   assert.equal(request.c2s.orderID, 0);
   assert.equal(request.c2s.orderIDEx, 'SIM-ABC123');
   assert.equal(request.c2s.header.accID, '123456');
+});
+
+test('option simulation account selection only accepts simAccType 4', () => {
+  const stock = { accID: 'stock', trdEnv: 0, trdMarketAuthList: [2], simAccType: 2 };
+  const options = { accID: 'options', trdEnv: 0, trdMarketAuthList: [2], simAccType: 4 };
+  assert.equal(selectSimulatedUsOptionAccount({ s2c: { accList: [stock, options] } }), options);
+  assert.equal(selectSimulatedUsOptionAccount({ s2c: { accList: [stock] } }), null);
 });

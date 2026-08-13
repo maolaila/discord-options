@@ -1,4 +1,5 @@
 import { evaluate_junk_gex_strategy } from './junk-gex-strategy.mjs';
+import { NIGHTWATCH_FIXED_SAMPLE_MAX_AGE_MS } from './junk-gex-freshness.mjs';
 
 const MODEL_ID = 'junk_gex_evidence_v3';
 
@@ -74,7 +75,10 @@ export function evaluate_junk_heatmap_evidence({
   }
 
   const generated_ms = timestamp_ms(heatmap_context.generated_at);
-  const max_age_ms = Math.max(1_000, finite_number(policy.max_age_ms) ?? 120_000);
+  const max_age_ms = Math.max(
+    1_000,
+    finite_number(policy.max_age_ms) ?? NIGHTWATCH_FIXED_SAMPLE_MAX_AGE_MS,
+  );
   if (generated_ms === null) return { ...base, reason_codes: ['heatmap_timestamp_invalid_neutral'] };
   const age_ms = Number(now_ms) - generated_ms;
   if (age_ms < -5_000) return { ...base, reason_codes: ['heatmap_from_future_neutral'] };

@@ -108,13 +108,13 @@ npm run junk:gex:status
 npm run junk:gex:plan
 ```
 
-Use the supervisor for continuous simulated trading:
+Use the top-level stack supervisor for continuous simulated trading:
 
 ```powershell
-.\run-junk-gex.ps1
+.\run-junk-stack.ps1
 ```
 
-The supervisor enforces one instance per Windows session and restarts the watcher after an abnormal exit or stale heartbeat. For foreground debugging only:
+It verifies OpenD API authentication and the simulated US-option account, restores capture/console dependencies, and starts the single-instance strategy child supervisor. For foreground debugging only:
 
 ```powershell
 npm run junk:gex:watch-sim
@@ -127,6 +127,14 @@ Start the local console with:
 ```
 
 The default URL is `http://127.0.0.1:18766`.
+
+For unattended use, approve UAC once from an elevated PowerShell:
+
+```powershell
+.\ops\windows-unattended-hardening.ps1
+```
+
+The script registers a logon/keepalive stack task and disables supported automatic updater services/tasks without disabling thermal protection, critical-battery hibernation, Defender, or crash recovery.
 
 Verify runtime state and recent records:
 

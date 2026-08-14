@@ -22,11 +22,12 @@ import { fileURLToPath } from 'node:url';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-const identityKeyPattern = /^(?:acc_?id|account_?id|simulated_account_id|guild_id|channel_id|message_id|source_message_id)$/i;
-const identityCollectionKeyPattern = /^(?:source_message_ids|decision_source_message_ids|evidence_source_message_ids)$/i;
+const identityKeyPattern = /^(?:(?:trd_?)?acc(?:ount)?_?id|simulated_account_id|guild_?id|channel_?id|message_?id|source_message_?id|(?:bot_?)?author_?id|user_?id|user_?name)$/i;
+const identityCollectionKeyPattern = /^(?:source_message_ids|decision_source_message_ids|evidence_source_message_ids|author_ids|user_ids)$/i;
+const compositeIdentityKeyPattern = /^(?:source_signal_key|signal_key|trade_key|(?:_pa_)?execution_key)$/i;
 const secretKeyPattern = /(?:authorization|cookie|password|secret|token|websocket.*key|ws_?key)/i;
 
-function stableRedaction(value, kind = 'id') {
+export function stableRedaction(value, kind = 'id') {
   const digest = createHash('sha256').update(String(value)).digest('hex').slice(0, 12);
   return `[redacted_${kind}_${digest}]`;
 }
@@ -37,7 +38,22 @@ function sanitizeString(value) {
     .replace(/D:\\discord-options/gi, '<repo>');
 }
 
-function sanitizeValue(value, key = '') {
+function sanitizeCompositeIdentity(value) {
+  if (value === null || value === undefined || value === '') return value;
+  return String(value).replace(
+    /(?<!\d)\d{17,20}(?!\d)/g,
+    (identifier) => stableRedaction(identifier),
+  );
+}
+
+function sanitizeRemark(value) {
+  if (typeof value !== 'string') return value;
+  const discordMatch = value.match(/^discord:(\d{6,20})$/i);
+  if (discordMatch) return `discord:${stableRedaction(discordMatch[1])}`;
+  return sanitizeString(value);
+}
+
+export function sanitizeValue(value, key = '') {
   if (secretKeyPattern.test(key)) return '[redacted_secret]';
   if (identityKeyPattern.test(key)) {
     if (value === null || value === undefined || value === '') return value;
@@ -47,6 +63,8 @@ function sanitizeValue(value, key = '') {
     if (!Array.isArray(value)) return stableRedaction(value);
     return value.map((item) => stableRedaction(item));
   }
+  if (compositeIdentityKeyPattern.test(key)) return sanitizeCompositeIdentity(value);
+  if (/^remark$/i.test(key)) return sanitizeRemark(value);
   if (Array.isArray(value)) return value.map((item) => sanitizeValue(item));
   if (value && typeof value === 'object') {
     return Object.fromEntries(
@@ -259,4 +277,6 @@ async function main() {
   }));
 }
 
-await main();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  await main();
+}

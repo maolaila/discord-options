@@ -6,10 +6,10 @@
   "source": "moomoo-exit-monitor",
   "mode": "execute_simulate",
   "lifecycle_status": "waiting_buy_fill",
-  "trade_key": "1536437496462704692:META260814C595000:253622",
+  "trade_key": "[redacted_id_2a070c1d57eb]:META260814C595000:253622",
   "source_buy_order_id_ex": "253622",
   "signal": {
-    "source_signal_key": "1536437496462704692|MESSAGE_UPDATE|META_2026-08-14_595C|trade|bull|595|600|592",
+    "source_signal_key": "[redacted_id_2a070c1d57eb]|MESSAGE_UPDATE|META_2026-08-14_595C|trade|bull|595|600|592",
     "message_id": "[redacted_id_2a070c1d57eb]",
     "channel_id": "[redacted_id_943646586e7e]",
     "observed_via": "LIVE_SIGNAL",
@@ -160,7 +160,7 @@
         "day_volume_contracts": 3491,
         "open_interest": 524
       },
-      "remark": "discord:496462704692",
+      "remark": "discord:[redacted_id_3346c80e4b29]",
       "request": {
         "c2s": {
           "header": {
@@ -175,7 +175,7 @@
           "qty": 3,
           "price": 9.45,
           "secMarket": 2,
-          "remark": "discord:496462704692",
+          "remark": "discord:[redacted_id_3346c80e4b29]",
           "timeInForce": 0,
           "session": 1
         }

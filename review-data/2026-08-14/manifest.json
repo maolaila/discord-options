@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-14T14:25:02.197Z",
+  "generated_at": "2026-08-14T20:21:48.996Z",
   "snapshot_date_jst": "2026-08-14",
   "public_repository_safe_export": true,
   "redaction": {
@@ -40,10 +40,10 @@
       "source": "logs/zero-dte-options-decisions.ndjson",
       "output": "review-data/2026-08-14/junk/zero-dte-options-decisions.ndjson.gz",
       "encoding": "gzip_ndjson",
-      "source_bytes": 39901302,
-      "output_bytes": 1836470,
-      "sha256": "64dd6e8044ef718694e2c61cb4946103bbc0ebc0b2824a26a11f25e232cc19da",
-      "record_count": 3468,
+      "source_bytes": 60488970,
+      "output_bytes": 2114424,
+      "sha256": "5c8d01653542923baa0066862adb31298beedf62772480bccac3a7263403f78f",
+      "record_count": 4804,
       "invalid_line_count": 0
     },
     {
@@ -72,7 +72,7 @@
       "encoding": "json",
       "source_bytes": 756,
       "output_bytes": 756,
-      "sha256": "92ad6117f05b0423f24ddcdcf47a24ec562271d6bc4ec8eb4a5691aa0eb7fc38",
+      "sha256": "5939804a69b8016c2dbed7bd5ee6802cb254f0e962987bff1c077c0db2b97705",
       "record_count": 1,
       "invalid_line_count": 0
     },
@@ -100,9 +100,9 @@
       "source": "logs/zero-dte-options-post-deploy-summary.json",
       "output": "review-data/2026-08-14/junk/zero-dte-options-post-deploy-summary.json",
       "encoding": "json",
-      "source_bytes": 2806,
-      "output_bytes": 2806,
-      "sha256": "025d15a6eb60c52ba556aa43f6a0f5bf6125f84559474529fb01be0cd3627b2e",
+      "source_bytes": 3056,
+      "output_bytes": 3056,
+      "sha256": "2c02c6d08d068620e96b47fe1a7c296d0714f23c195088174700b1f51d9109b4",
       "record_count": 1,
       "invalid_line_count": 0
     },
@@ -110,9 +110,9 @@
       "source": "logs/zero-dte-options-runtime-state.json",
       "output": "review-data/2026-08-14/junk/zero-dte-options-runtime-state.json",
       "encoding": "json",
-      "source_bytes": 344056,
-      "output_bytes": 344043,
-      "sha256": "c28baa87203c3eba51fd45d27eee793af03af964837dc524e4e88cf54753a2ea",
+      "source_bytes": 522874,
+      "output_bytes": 522861,
+      "sha256": "ae7de23dfa4dc5ebf5ccd6a313477b676b9cf4c29a0578d71898e13ad5f4b92c",
       "record_count": 1,
       "invalid_line_count": 0
     },
@@ -120,9 +120,9 @@
       "source": "logs/zero-dte-options-status.json",
       "output": "review-data/2026-08-14/junk/zero-dte-options-status.json",
       "encoding": "json",
-      "source_bytes": 43164,
-      "output_bytes": 43191,
-      "sha256": "dd6737f79a4d88afed1a32690fb56049afda22098c143b6adbf24fc39033b4ff",
+      "source_bytes": 33197,
+      "output_bytes": 33184,
+      "sha256": "5f061671772eb88f5de0c70fe32e8a12dbdc0c811cb601d820cce8152b7e5fcf",
       "record_count": 1,
       "invalid_line_count": 0
     },
@@ -141,8 +141,8 @@
       "output": "review-data/2026-08-14/legacy/moomoo-executions.ndjson",
       "encoding": "ndjson",
       "source_bytes": 169032,
-      "output_bytes": 170544,
-      "sha256": "e7c9c2001a0ba6ff8a02e68fa8fb15de9758c143eb9242a973da1819e9dcc7db",
+      "output_bytes": 171279,
+      "sha256": "ab5dec5ba30451a76abf2e8176ed17a8bca6febc07a806e95b2be1290436148d",
       "record_count": 21,
       "invalid_line_count": 0
     },
@@ -151,8 +151,8 @@
       "output": "review-data/2026-08-14/legacy/moomoo-exit-orders.ndjson",
       "encoding": "ndjson",
       "source_bytes": 67658,
-      "output_bytes": 68304,
-      "sha256": "ace90e752ac9a322a96efc05fb98e9d467873bc3014abfae4acc885952d9f243",
+      "output_bytes": 68437,
+      "sha256": "67030d6003804095f42fb8e8f99ef42ad1f07a69261bd936de74caff8b1d60dd",
       "record_count": 19,
       "invalid_line_count": 0
     },
@@ -171,8 +171,8 @@
       "output": "review-data/2026-08-14/legacy/moomoo-order-plans.ndjson.gz",
       "encoding": "gzip_ndjson",
       "source_bytes": 600011,
-      "output_bytes": 64699,
-      "sha256": "5179f80a0856d4709e73ba838f8634f023b1c96feeef6918c98304270b161a3d",
+      "output_bytes": 63567,
+      "sha256": "1e89f9024031ea9bf8c6773bb93cff87b05122c05525fcbc387298996caf82d3",
       "record_count": 276,
       "invalid_line_count": 0
     },
@@ -181,8 +181,8 @@
       "output": "review-data/2026-08-14/legacy/trade-journal-latest.json",
       "encoding": "json",
       "source_bytes": 8903,
-      "output_bytes": 8956,
-      "sha256": "b3231f97701e981a33c743447113091b65e760056b1e610159e5c033597f9d76",
+      "output_bytes": 8998,
+      "sha256": "2faacf6a41417430b566f0384b7e577e1f02341083af4c6dae99dab18459471e",
       "record_count": 1,
       "invalid_line_count": 0
     },
@@ -192,7 +192,7 @@
       "encoding": "json",
       "source_bytes": 273,
       "output_bytes": 273,
-      "sha256": "3ea711da662a27402fbcda21c80e402a9a6a11751403dc7649e0ee5618c3c877",
+      "sha256": "aacb2966adec24199470b9d013e16714d6da8c26d2768dbc3cba0f1fead1c618",
       "record_count": 1,
       "invalid_line_count": 0
     },
@@ -202,7 +202,7 @@
       "encoding": "json",
       "source_bytes": 605,
       "output_bytes": 605,
-      "sha256": "df2db45f0537f001d289a2c66699ab0ce4d4d86b4741a688ee5c9d7139fc6c82",
+      "sha256": "00713f15db98f8d3c4e037ffede6e530cb97dbd19f0dfd77c2f044fe7eadbb9f",
       "record_count": 1,
       "invalid_line_count": 0
     },
@@ -211,8 +211,8 @@
       "output": "review-data/2026-08-14/pa/pa-options-executions.ndjson",
       "encoding": "ndjson",
       "source_bytes": 677516,
-      "output_bytes": 682059,
-      "sha256": "cb9a3e757fe95c70e9c3d4c155f4fd9f7927b9e630ecc7d5eea549126cc55aec",
+      "output_bytes": 684754,
+      "sha256": "d1dfaeb4fdb818623e669b891843547eb7673818e4016c997084ed0cdc56b67e",
       "record_count": 77,
       "invalid_line_count": 0
     },
@@ -221,8 +221,8 @@
       "output": "review-data/2026-08-14/pa/pa-options-exit-orders.ndjson",
       "encoding": "ndjson",
       "source_bytes": 301853,
-      "output_bytes": 304471,
-      "sha256": "5ac1dbb867839556176e562a3a1001e6627642a166b353df8792be08a5898d51",
+      "output_bytes": 305010,
+      "sha256": "22baf78476c385997b301ffdb164365ad59d087997023c12e8f0c72cf86658e3",
       "record_count": 77,
       "invalid_line_count": 0
     },
@@ -232,7 +232,7 @@
       "encoding": "json",
       "source_bytes": 122325,
       "output_bytes": 122325,
-      "sha256": "7489643abb80b38ccf0da0397fdffe9329dcb7143749fe56eeacfda599990d9d",
+      "sha256": "dbd52928c38d0cf4ad10d1b826ea6f5077aa7055fd9ac193f49582917ae7a32e",
       "record_count": 1,
       "invalid_line_count": 0
     },
@@ -240,9 +240,9 @@
       "source": "logs/pa-options-exit-status.json",
       "output": "review-data/2026-08-14/pa/pa-options-exit-status.json",
       "encoding": "json",
-      "source_bytes": 803,
-      "output_bytes": 803,
-      "sha256": "cfb4fd31256323b55c443f4f7b55fc10d96f83fb9cb4291fe0164c60e369a3fa",
+      "source_bytes": 804,
+      "output_bytes": 804,
+      "sha256": "27872b3e15701a1899ba3fd9fa173da50b1dd59325ba7e5ae37a8b3f9f22a49c",
       "record_count": 1,
       "invalid_line_count": 0
     },
@@ -251,8 +251,8 @@
       "output": "review-data/2026-08-14/pa/pa-options-order-plans.ndjson.gz",
       "encoding": "gzip_ndjson",
       "source_bytes": 1630068,
-      "output_bytes": 177712,
-      "sha256": "706ae80cf58c9ba726d34d7c649c74761981b73ca841d3fed12ea156e30ab40f",
+      "output_bytes": 177652,
+      "sha256": "a0a29bac2fdbc2c81dade71d669f39a17af073f0f3d52d8c4e4cb13250e28817",
       "record_count": 228,
       "invalid_line_count": 0
     }

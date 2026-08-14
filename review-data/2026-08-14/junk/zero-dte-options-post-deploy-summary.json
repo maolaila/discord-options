@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-14T14:25:01.873Z",
+  "generated_at": "2026-08-14T20:21:48.644Z",
   "business_line": "zero-dte-options",
   "strategy": "junk_gex_nodes_v3",
   "execution_environment": "simulate_only",
@@ -13,16 +13,21 @@
     "replacement_age_cutoff_added": false
   },
   "decisions": {
-    "total_records": 3468,
+    "total_records": 4804,
     "invalid_lines": 0,
-    "records_after_cutoff": 50,
+    "records_after_cutoff": 1386,
     "first_at": "2026-08-14T14:12:37.674Z",
-    "last_at": "2026-08-14T14:24:52.576Z",
-    "max_gap_ms": 16283,
-    "snapshot_bucket_count": 3,
+    "last_at": "2026-08-14T19:59:56.563Z",
+    "max_gap_ms": 31459,
+    "snapshot_bucket_count": 70,
     "trade_decision_count": 0,
     "reason_counts": {
-      "waiting_for_node_confirmation": 50
+      "current_price_lost_tested_node": 10,
+      "insufficient_stable_gex_node_history": 20,
+      "missing_put_gex_option_node": 10,
+      "positive_gamma_pin_requires_defined_risk_structure": 99,
+      "snapshot_stale": 1,
+      "waiting_for_node_confirmation": 1246
     },
     "removed_reason_count": 0
   },
@@ -32,32 +37,32 @@
     "trades": 0
   },
   "final_health": {
-    "status_updated_at": "2026-08-14T14:24:52.617Z",
+    "status_updated_at": "2026-08-14T20:21:11.305Z",
     "process_id": 23404,
-    "phase": "watching_simulation",
+    "phase": "idle_market_closed",
     "mode": "execute_simulate",
     "real_trading_allowed": false,
-    "market_open": true,
-    "entry_open": true,
-    "gex_readiness": "ready",
-    "price_action_ready": true,
-    "moomoo_connected": true,
-    "simulated_us_options_account_ready": true,
+    "market_open": false,
+    "entry_open": false,
+    "gex_readiness": null,
+    "price_action_ready": null,
+    "moomoo_connected": null,
+    "simulated_us_options_account_ready": null,
     "broker_recovery": "complete",
     "open_position_count": 0,
     "active_order_count": 0,
     "runtime_order_count": 3,
     "last_decision": "no_trade",
     "last_reason_codes": [
-      "waiting_for_node_confirmation"
+      "positive_gamma_pin_requires_defined_risk_structure"
     ],
     "last_error": null
   },
   "sources": [
     {
       "path": "logs/zero-dte-options-decisions.ndjson",
-      "bytes": 39901302,
-      "sha256": "2750103e2586e5caabaffbeeba5a465676577911cfbde04a14d9b0353f83e5a8"
+      "bytes": 60488970,
+      "sha256": "0d89e4dcddb1ccfde901b82e64193b62b039aaf95ad7aa829b14afdc8b8fa9b1"
     },
     {
       "path": "logs/zero-dte-options-entry-plans.ndjson",
@@ -76,13 +81,13 @@
     },
     {
       "path": "logs/zero-dte-options-status.json",
-      "bytes": 43164,
-      "sha256": "f9a9b5a62e5b4b1bd5acbf454b21f20dd7daa158a2035420b2e6275e8d4ffdb9"
+      "bytes": 33197,
+      "sha256": "ccbe12dfeceec0848f992d5a5a4c368e35f3d15b10553fdee5fab67aca203999"
     },
     {
       "path": "logs/zero-dte-options-runtime-state.json",
-      "bytes": 344056,
-      "sha256": "8c409a86f689be5ef589c8da91cbc75a518a82a108038e84a789ea0f51825cbe"
+      "bytes": 522874,
+      "sha256": "a1d7239ce76c4ebe81b0fdae06c2425f9d6c22d0a58c9b232c5d1a917672f2a3"
     },
     {
       "path": "logs/zero-dte-options-supervisor.log",

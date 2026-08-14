@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-08-14T14:25:03.392Z",
+  "updated_at": "2026-08-14T20:21:48.392Z",
   "business_line": "pa-options",
   "phase": "ok",
   "mode": "execute_simulate",
@@ -16,16 +16,16 @@
     "degraded": false,
     "source": "cache",
     "orders": [],
-    "fetched_at": "2026-08-14T14:24:41.352Z",
-    "fetched_at_ms": 1786717481352,
-    "age_ms": 21910,
-    "next_allowed_at": "2026-08-14T14:24:52.352Z",
+    "fetched_at": "2026-08-14T20:21:22.632Z",
+    "fetched_at_ms": 1786738882632,
+    "age_ms": 25643,
+    "next_allowed_at": "2026-08-14T20:21:33.632Z",
     "backoff_until": null
   },
   "quote_feed": {
     "mode": "push_plus_snapshot_fallback",
     "subscribed_security_count": 0,
-    "push_count": 4,
+    "push_count": 12,
     "cached_snapshot_count": 0,
     "recent_errors": []
   }

@@ -112,6 +112,7 @@ async function main() {
   const trades = await scanNdjson('logs/zero-dte-options-trades.ndjson', cutoffMs);
   const status = JSON.parse(await readFile(path.join(projectRoot, 'logs/zero-dte-options-status.json'), 'utf8'));
   const runtimeState = JSON.parse(await readFile(path.join(projectRoot, 'logs/zero-dte-options-runtime-state.json'), 'utf8'));
+  const simulatedAccount = status.moomoo?.account ?? null;
 
   const sourcePaths = [
     'logs/zero-dte-options-decisions.ndjson',
@@ -162,8 +163,9 @@ async function main() {
       gex_readiness: status.provider?.gex_freshness?.readiness ?? null,
       price_action_ready: status.market_context?.price_action_ready ?? null,
       moomoo_connected: status.moomoo?.connected ?? null,
-      simulated_us_options_account_ready: status.moomoo?.account?.trd_env === 0
-        && status.moomoo?.account?.sim_acc_type === 4,
+      simulated_us_options_account_ready: simulatedAccount
+        ? simulatedAccount.trd_env === 0 && simulatedAccount.sim_acc_type === 4
+        : null,
       broker_recovery: status.broker_recovery?.status ?? null,
       open_position_count: status.risk?.open_position_count ?? null,
       active_order_count: Array.isArray(status.active_orders) ? status.active_orders.length : null,

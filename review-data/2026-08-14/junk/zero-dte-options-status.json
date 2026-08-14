@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-08-14T14:24:52.617Z",
+  "updated_at": "2026-08-14T20:21:11.305Z",
   "business_line": "zero-dte-options",
   "strategy": "junk_gex_nodes_v3",
   "strategy_label": "JUNKMAN",
@@ -9,7 +9,7 @@
   "execution_environment": "simulate_only",
   "real_trading_allowed": false,
   "paper_equity_usd": 10000,
-  "phase": "watching_simulation",
+  "phase": "idle_market_closed",
   "mode": "execute_simulate",
   "process_id": 23404,
   "session_date_et": "2026-08-14",
@@ -23,159 +23,207 @@
     "session_close_minutes": 960,
     "entry_start_minutes": 585,
     "entry_cutoff_minutes": 915,
-    "market_open": true,
-    "entry_open": true
+    "market_open": false,
+    "entry_open": false
   },
-  "provider": {
-    "name": "nightwatch",
-    "fixed_sample_interval_ms": 300000,
-    "expected_bucket_at": "2026-08-14T14:15:00.000Z",
-    "last_gex": {
-      "snapshot_at": "2026-08-14T14:15:00.000Z",
-      "session_date_et": "2026-08-14",
-      "state": "fresh",
-      "spot_usd": 7800.69,
-      "data_freshness_seconds": 308
-    },
-    "gex_freshness": {
-      "observed_at": "2026-08-14T14:24:52.110Z",
-      "source_snapshot_at": "2026-08-14T14:15:00.000Z",
-      "session_date_et": "2026-08-14",
-      "current_session_date_et": "2026-08-14",
-      "provider_state": "fresh",
-      "max_age_ms": 600000,
-      "future_tolerance_ms": 5000,
-      "source_age_ms": 592110,
-      "meta_age_ms": 308000,
-      "effective_age_ms": 592110,
-      "cache_hit": false,
-      "readiness": "ready",
-      "reason_codes": [],
-      "consecutive_same_snapshot_count": 20,
-      "last_advanced_at": "2026-08-14T14:20:08.074Z",
-      "source_stalled": true
-    },
-    "gex_schedule": {
-      "bucket_at": "2026-08-14T14:15:00.000Z",
-      "attempt_count": 1,
-      "status": "succeeded",
-      "retry_due_at": null,
-      "last_success_bucket_at": "2026-08-14T14:15:00.000Z"
-    },
-    "gex_error": null,
-    "heatmap": {
-      "fetched_at": "2026-08-14T14:20:08.072Z",
-      "generated_at": "2026-08-14T14:15:00.000Z",
-      "session_date_et": "2026-08-14",
-      "market_status": null,
-      "state": "fresh",
-      "state_reason": "heatmap_fresh",
-      "max_age_ms": 600000,
-      "data_freshness_seconds": 309,
-      "spot_usd": 7800.56,
-      "source_schema": "cells",
-      "valid_row_count": 10,
-      "top_rows": [
-        {
-          "strike_usd": 7800,
-          "row_net_wall_gex_usd": -3506709248,
-          "row_abs_wall_gex_usd": 3705697400,
-          "rank": 1,
-          "expiration_count": 27,
-          "cell_count": 27,
-          "source_schema": "cells"
-        },
-        {
-          "strike_usd": 7900,
-          "row_net_wall_gex_usd": -315962087,
-          "row_abs_wall_gex_usd": 2081574613,
-          "rank": 2,
-          "expiration_count": 21,
-          "cell_count": 21,
-          "source_schema": "cells"
-        },
-        {
-          "strike_usd": 7950,
-          "row_net_wall_gex_usd": -618061972,
-          "row_abs_wall_gex_usd": 1344556486,
-          "rank": 3,
-          "expiration_count": 12,
-          "cell_count": 12,
-          "source_schema": "cells"
-        },
-        {
-          "strike_usd": 7700,
-          "row_net_wall_gex_usd": 498239240,
-          "row_abs_wall_gex_usd": 1322716966,
-          "rank": 4,
-          "expiration_count": 21,
-          "cell_count": 21,
-          "source_schema": "cells"
-        },
-        {
-          "strike_usd": 7650,
-          "row_net_wall_gex_usd": 448288919,
-          "row_abs_wall_gex_usd": 1068291387,
-          "rank": 5,
-          "expiration_count": 14,
-          "cell_count": 14,
-          "source_schema": "cells"
-        },
-        {
-          "strike_usd": 7775,
-          "row_net_wall_gex_usd": -542951649,
-          "row_abs_wall_gex_usd": 989365847,
-          "rank": 6,
-          "expiration_count": 17,
-          "cell_count": 17,
-          "source_schema": "cells"
-        },
-        {
-          "strike_usd": 7875,
-          "row_net_wall_gex_usd": -40314637,
-          "row_abs_wall_gex_usd": 789433255,
-          "rank": 7,
-          "expiration_count": 12,
-          "cell_count": 12,
-          "source_schema": "cells"
-        },
-        {
-          "strike_usd": 8000,
-          "row_net_wall_gex_usd": 232670085,
-          "row_abs_wall_gex_usd": 788615373,
-          "rank": 8,
-          "expiration_count": 15,
-          "cell_count": 15,
-          "source_schema": "cells"
-        },
-        {
-          "strike_usd": 7825,
-          "row_net_wall_gex_usd": -461781649,
-          "row_abs_wall_gex_usd": 759616819,
-          "rank": 9,
-          "expiration_count": 16,
-          "cell_count": 16,
-          "source_schema": "cells"
-        },
-        {
-          "strike_usd": 7850,
-          "row_net_wall_gex_usd": -24989347,
-          "row_abs_wall_gex_usd": 748031939,
-          "rank": 10,
-          "expiration_count": 20,
-          "cell_count": 20,
-          "source_schema": "cells"
+  "quota": {
+    "api_version": "v1",
+    "monthly_limit": 100000,
+    "monthly_remaining": 76839,
+    "monthly_reset_at": "2026-09-01T00:00:00-04:00",
+    "rpm_limit": 60,
+    "in_flight_max": 5,
+    "capabilities_count": 93,
+    "checked_at": "2026-08-14T19:30:24.562Z"
+  },
+  "experiment": {
+    "manifest": {
+      "enabled": true,
+      "experiment_id": "junk_exit_grid_v1",
+      "version": 1,
+      "paired_entry": true,
+      "broker_execution_mode": "aggregate_single_position",
+      "paper_equity_usd_per_line": 10000,
+      "shared_exit_rules": {
+        "price_basis": "option_entry_fill_price",
+        "option_price_exit": true,
+        "breakeven_activation_pct": 20,
+        "breakeven_floor_pct": 0,
+        "setup_time_stop_enabled": true,
+        "setup_time_stop_minutes": 5,
+        "setup_time_stop_requires_nonpositive_return": true,
+        "setup_time_stop_setup_types": [
+          "breakout_retest",
+          "node_rejection",
+          "range_mean_reversion"
+        ],
+        "structural_target_partial_exit_enabled": true,
+        "structural_target_partial_exit_ratio": 0.5,
+        "structural_target_profit_floor_pct": 0,
+        "use_underlying_node_invalidation": true,
+        "use_next_gex_node_target": true,
+        "exit_before_regular_session_close": true,
+        "close_exit_start_time_et": "15:30",
+        "force_close_exit_start_time_et": "15:45",
+        "no_overnight_holding": true,
+        "controlled_overnight": {
+          "enabled": false
         }
-      ]
+      },
+      "shared_exit_rules_hash": "4dd0493ee5a66c14",
+      "execution_quality": {
+        "cap_qty_by_visible_ask": true,
+        "max_qty_to_ask_volume_ratio": 3
+      },
+      "lines": [
+        {
+          "line_id": "control_sl15_tp_off",
+          "label": "Control SL15 TP off",
+          "control": true,
+          "paper_equity_usd": 10000,
+          "exit_profile": {
+            "catastrophic_stop_loss_pct": 15,
+            "option_stop_loss_pct": 15,
+            "option_take_profit_enabled": false,
+            "option_take_profit_pct": 25
+          },
+          "exit_profile_hash": "4cd710f1efa2bf62"
+        },
+        {
+          "line_id": "sl10_tp_off",
+          "label": "SL10 TP off",
+          "control": false,
+          "paper_equity_usd": 10000,
+          "exit_profile": {
+            "catastrophic_stop_loss_pct": 10,
+            "option_stop_loss_pct": 10,
+            "option_take_profit_enabled": false,
+            "option_take_profit_pct": 25
+          },
+          "exit_profile_hash": "23cf6d869ad9789c"
+        },
+        {
+          "line_id": "sl10_tp20",
+          "label": "SL10 TP20",
+          "control": false,
+          "paper_equity_usd": 10000,
+          "exit_profile": {
+            "catastrophic_stop_loss_pct": 10,
+            "option_stop_loss_pct": 10,
+            "option_take_profit_enabled": true,
+            "option_take_profit_pct": 20
+          },
+          "exit_profile_hash": "c1d9421dfd88b163"
+        },
+        {
+          "line_id": "sl10_tp30",
+          "label": "SL10 TP30",
+          "control": false,
+          "paper_equity_usd": 10000,
+          "exit_profile": {
+            "catastrophic_stop_loss_pct": 10,
+            "option_stop_loss_pct": 10,
+            "option_take_profit_enabled": true,
+            "option_take_profit_pct": 30
+          },
+          "exit_profile_hash": "805a9fbe9f413011"
+        },
+        {
+          "line_id": "sl15_tp20",
+          "label": "SL15 TP20",
+          "control": false,
+          "paper_equity_usd": 10000,
+          "exit_profile": {
+            "catastrophic_stop_loss_pct": 15,
+            "option_stop_loss_pct": 15,
+            "option_take_profit_enabled": true,
+            "option_take_profit_pct": 20
+          },
+          "exit_profile_hash": "c0507eacd503db17"
+        },
+        {
+          "line_id": "sl15_tp30",
+          "label": "SL15 TP30",
+          "control": false,
+          "paper_equity_usd": 10000,
+          "exit_profile": {
+            "catastrophic_stop_loss_pct": 15,
+            "option_stop_loss_pct": 15,
+            "option_take_profit_enabled": true,
+            "option_take_profit_pct": 30
+          },
+          "exit_profile_hash": "3daea578d60df044"
+        },
+        {
+          "line_id": "sl12p5_tp25",
+          "label": "SL12.5 TP25",
+          "control": false,
+          "paper_equity_usd": 10000,
+          "exit_profile": {
+            "catastrophic_stop_loss_pct": 12.5,
+            "option_stop_loss_pct": 12.5,
+            "option_take_profit_enabled": true,
+            "option_take_profit_pct": 25
+          },
+          "exit_profile_hash": "84f742491fd1bd9b"
+        }
+      ],
+      "manifest_hash": "a7772a64827e419cfcd5",
+      "line_count": 7,
+      "total_paper_equity_usd": 70000,
+      "control_line_id": "control_sl15_tp_off"
     },
-    "heatmap_schedule": {
-      "bucket_at": "2026-08-14T14:15:00.000Z",
-      "attempt_count": 1,
-      "status": "succeeded",
-      "retry_due_at": null,
-      "last_success_bucket_at": "2026-08-14T14:15:00.000Z"
+    "manifest_transition": {
+      "status": "current",
+      "new_entries_blocked": false,
+      "active_conflicting_cohort_ids": []
     },
-    "heatmap_error": null
+    "aggregate": {
+      "experiment_id": null,
+      "enabled": false,
+      "cohort_count": 0,
+      "lines": [],
+      "aggregate_realized_pnl_usd": 0,
+      "aggregate_realized_pnl_to_date_usd": 0,
+      "unallocated_realized_pnl_usd": 0,
+      "unallocated_closed_cohort_count": 0,
+      "unallocated_open_contract_qty": 0,
+      "comparison_pairing_issue_count": 0,
+      "physical_realized_pnl_usd": 0,
+      "physical_realized_pnl_to_date_usd": 0,
+      "session_date_et": "2026-08-14",
+      "session_cohort_count": 0,
+      "session_lines": [],
+      "session_aggregate_realized_pnl_usd": 0,
+      "session_aggregate_realized_pnl_to_date_usd": 0,
+      "session_unallocated_realized_pnl_usd": 0,
+      "session_physical_realized_pnl_usd": 0,
+      "session_physical_realized_pnl_to_date_usd": 0,
+      "generated_at": "2026-08-14T20:21:11.305Z"
+    },
+    "daily": {
+      "experiment_id": null,
+      "enabled": false,
+      "cohort_count": 0,
+      "lines": [],
+      "aggregate_realized_pnl_usd": 0,
+      "aggregate_realized_pnl_to_date_usd": 0,
+      "unallocated_realized_pnl_usd": 0,
+      "unallocated_closed_cohort_count": 0,
+      "unallocated_open_contract_qty": 0,
+      "comparison_pairing_issue_count": 0,
+      "physical_realized_pnl_usd": 0,
+      "physical_realized_pnl_to_date_usd": 0,
+      "session_date_et": "2026-08-14",
+      "session_cohort_count": 0,
+      "session_lines": [],
+      "session_aggregate_realized_pnl_usd": 0,
+      "session_aggregate_realized_pnl_to_date_usd": 0,
+      "session_unallocated_realized_pnl_usd": 0,
+      "session_physical_realized_pnl_usd": 0,
+      "session_physical_realized_pnl_to_date_usd": 0,
+      "generated_at": "2026-08-14T20:21:11.305Z"
+    }
   },
   "oi_structure_background": {
     "context": {
@@ -911,380 +959,6 @@
       }
     }
   },
-  "automated_flow": {
-    "availability_status": "active",
-    "source_connected": true,
-    "accepted_event_count": 9,
-    "isolated_event_count": 135,
-    "deduplicated_event_count": 11,
-    "isolation_reason_counts": {
-      "not_live_eligible": 46,
-      "not_current_et_session": 133,
-      "nonzero_dte": 34
-    },
-    "windows": {
-      "window_60s": {
-        "window_seconds": 60,
-        "event_count": 0,
-        "source_message_ids": [],
-        "source_event_ids": [],
-        "tickers": {
-          "spx": {
-            "event_count": 0,
-            "sweep_count": 0,
-            "call_event_count": 0,
-            "put_event_count": 0,
-            "call_sweep_count": 0,
-            "put_sweep_count": 0,
-            "call_premium_usd": 0,
-            "put_premium_usd": 0,
-            "total_premium_usd": 0,
-            "net_call_premium_usd": 0,
-            "imbalance": 0,
-            "directional_bias": "flat",
-            "source_message_ids": [],
-            "source_event_ids": [],
-            "event_records": []
-          },
-          "spy": {
-            "event_count": 0,
-            "sweep_count": 0,
-            "call_event_count": 0,
-            "put_event_count": 0,
-            "call_sweep_count": 0,
-            "put_sweep_count": 0,
-            "call_premium_usd": 0,
-            "put_premium_usd": 0,
-            "total_premium_usd": 0,
-            "net_call_premium_usd": 0,
-            "imbalance": 0,
-            "directional_bias": "flat",
-            "source_message_ids": [],
-            "source_event_ids": [],
-            "event_records": []
-          }
-        }
-      },
-      "window_180s": {
-        "window_seconds": 180,
-        "event_count": 1,
-        "source_message_ids": [
-          "[redacted_id_ddcd38cc614f]"
-        ],
-        "source_event_ids": [
-          "nw0dte:a7690b54ca15e695fa83d18b9a56fdab"
-        ],
-        "tickers": {
-          "spx": {
-            "event_count": 0,
-            "sweep_count": 0,
-            "call_event_count": 0,
-            "put_event_count": 0,
-            "call_sweep_count": 0,
-            "put_sweep_count": 0,
-            "call_premium_usd": 0,
-            "put_premium_usd": 0,
-            "total_premium_usd": 0,
-            "net_call_premium_usd": 0,
-            "imbalance": 0,
-            "directional_bias": "flat",
-            "source_message_ids": [],
-            "source_event_ids": [],
-            "event_records": []
-          },
-          "spy": {
-            "event_count": 1,
-            "sweep_count": 0,
-            "call_event_count": 0,
-            "put_event_count": 1,
-            "call_sweep_count": 0,
-            "put_sweep_count": 0,
-            "call_premium_usd": 0,
-            "put_premium_usd": 144650,
-            "total_premium_usd": 144650,
-            "net_call_premium_usd": -144650,
-            "imbalance": -1,
-            "directional_bias": "put",
-            "source_message_ids": [
-              "[redacted_id_ddcd38cc614f]"
-            ],
-            "source_event_ids": [
-              "nw0dte:a7690b54ca15e695fa83d18b9a56fdab"
-            ],
-            "event_records": [
-              {
-                "event_at": "2026-08-14T14:23:18.607Z",
-                "ticker": "SPY",
-                "option_right": "put",
-                "dte": 0,
-                "aggressor": "ask_buy",
-                "premium_usd": 144650,
-                "strike_usd": 777,
-                "contract_count": 2000,
-                "avg_option_price": 0.72,
-                "execution_type": "unspecified",
-                "is_sweep": false,
-                "live_eligible": true,
-                "parse_valid": true,
-                "premium_consistent": true,
-                "source_message_id": "[redacted_id_ddcd38cc614f]",
-                "source_event_id": "nw0dte:a7690b54ca15e695fa83d18b9a56fdab"
-              }
-            ]
-          }
-        }
-      }
-    }
-  },
-  "quota": {
-    "api_version": "v1",
-    "monthly_limit": 100000,
-    "monthly_remaining": 76967,
-    "monthly_reset_at": "2026-09-01T00:00:00-04:00",
-    "rpm_limit": 60,
-    "in_flight_max": 5,
-    "capabilities_count": 93,
-    "checked_at": "2026-08-14T13:30:01.888Z"
-  },
-  "experiment": {
-    "manifest": {
-      "enabled": true,
-      "experiment_id": "junk_exit_grid_v1",
-      "version": 1,
-      "paired_entry": true,
-      "broker_execution_mode": "aggregate_single_position",
-      "paper_equity_usd_per_line": 10000,
-      "shared_exit_rules": {
-        "price_basis": "option_entry_fill_price",
-        "option_price_exit": true,
-        "breakeven_activation_pct": 20,
-        "breakeven_floor_pct": 0,
-        "setup_time_stop_enabled": true,
-        "setup_time_stop_minutes": 5,
-        "setup_time_stop_requires_nonpositive_return": true,
-        "setup_time_stop_setup_types": [
-          "breakout_retest",
-          "node_rejection",
-          "range_mean_reversion"
-        ],
-        "structural_target_partial_exit_enabled": true,
-        "structural_target_partial_exit_ratio": 0.5,
-        "structural_target_profit_floor_pct": 0,
-        "use_underlying_node_invalidation": true,
-        "use_next_gex_node_target": true,
-        "exit_before_regular_session_close": true,
-        "close_exit_start_time_et": "15:30",
-        "force_close_exit_start_time_et": "15:45",
-        "no_overnight_holding": true,
-        "controlled_overnight": {
-          "enabled": false
-        }
-      },
-      "shared_exit_rules_hash": "4dd0493ee5a66c14",
-      "execution_quality": {
-        "cap_qty_by_visible_ask": true,
-        "max_qty_to_ask_volume_ratio": 3
-      },
-      "lines": [
-        {
-          "line_id": "control_sl15_tp_off",
-          "label": "Control SL15 TP off",
-          "control": true,
-          "paper_equity_usd": 10000,
-          "exit_profile": {
-            "catastrophic_stop_loss_pct": 15,
-            "option_stop_loss_pct": 15,
-            "option_take_profit_enabled": false,
-            "option_take_profit_pct": 25
-          },
-          "exit_profile_hash": "4cd710f1efa2bf62"
-        },
-        {
-          "line_id": "sl10_tp_off",
-          "label": "SL10 TP off",
-          "control": false,
-          "paper_equity_usd": 10000,
-          "exit_profile": {
-            "catastrophic_stop_loss_pct": 10,
-            "option_stop_loss_pct": 10,
-            "option_take_profit_enabled": false,
-            "option_take_profit_pct": 25
-          },
-          "exit_profile_hash": "23cf6d869ad9789c"
-        },
-        {
-          "line_id": "sl10_tp20",
-          "label": "SL10 TP20",
-          "control": false,
-          "paper_equity_usd": 10000,
-          "exit_profile": {
-            "catastrophic_stop_loss_pct": 10,
-            "option_stop_loss_pct": 10,
-            "option_take_profit_enabled": true,
-            "option_take_profit_pct": 20
-          },
-          "exit_profile_hash": "c1d9421dfd88b163"
-        },
-        {
-          "line_id": "sl10_tp30",
-          "label": "SL10 TP30",
-          "control": false,
-          "paper_equity_usd": 10000,
-          "exit_profile": {
-            "catastrophic_stop_loss_pct": 10,
-            "option_stop_loss_pct": 10,
-            "option_take_profit_enabled": true,
-            "option_take_profit_pct": 30
-          },
-          "exit_profile_hash": "805a9fbe9f413011"
-        },
-        {
-          "line_id": "sl15_tp20",
-          "label": "SL15 TP20",
-          "control": false,
-          "paper_equity_usd": 10000,
-          "exit_profile": {
-            "catastrophic_stop_loss_pct": 15,
-            "option_stop_loss_pct": 15,
-            "option_take_profit_enabled": true,
-            "option_take_profit_pct": 20
-          },
-          "exit_profile_hash": "c0507eacd503db17"
-        },
-        {
-          "line_id": "sl15_tp30",
-          "label": "SL15 TP30",
-          "control": false,
-          "paper_equity_usd": 10000,
-          "exit_profile": {
-            "catastrophic_stop_loss_pct": 15,
-            "option_stop_loss_pct": 15,
-            "option_take_profit_enabled": true,
-            "option_take_profit_pct": 30
-          },
-          "exit_profile_hash": "3daea578d60df044"
-        },
-        {
-          "line_id": "sl12p5_tp25",
-          "label": "SL12.5 TP25",
-          "control": false,
-          "paper_equity_usd": 10000,
-          "exit_profile": {
-            "catastrophic_stop_loss_pct": 12.5,
-            "option_stop_loss_pct": 12.5,
-            "option_take_profit_enabled": true,
-            "option_take_profit_pct": 25
-          },
-          "exit_profile_hash": "84f742491fd1bd9b"
-        }
-      ],
-      "manifest_hash": "a7772a64827e419cfcd5",
-      "line_count": 7,
-      "total_paper_equity_usd": 70000,
-      "control_line_id": "control_sl15_tp_off"
-    },
-    "manifest_transition": {
-      "status": "current",
-      "new_entries_blocked": false,
-      "active_conflicting_cohort_ids": []
-    },
-    "aggregate": {
-      "experiment_id": null,
-      "enabled": false,
-      "cohort_count": 0,
-      "lines": [],
-      "aggregate_realized_pnl_usd": 0,
-      "aggregate_realized_pnl_to_date_usd": 0,
-      "unallocated_realized_pnl_usd": 0,
-      "unallocated_closed_cohort_count": 0,
-      "unallocated_open_contract_qty": 0,
-      "comparison_pairing_issue_count": 0,
-      "physical_realized_pnl_usd": 0,
-      "physical_realized_pnl_to_date_usd": 0,
-      "session_date_et": "2026-08-14",
-      "session_cohort_count": 0,
-      "session_lines": [],
-      "session_aggregate_realized_pnl_usd": 0,
-      "session_aggregate_realized_pnl_to_date_usd": 0,
-      "session_unallocated_realized_pnl_usd": 0,
-      "session_physical_realized_pnl_usd": 0,
-      "session_physical_realized_pnl_to_date_usd": 0,
-      "generated_at": "2026-08-14T14:24:52.617Z"
-    },
-    "daily": {
-      "experiment_id": null,
-      "enabled": false,
-      "cohort_count": 0,
-      "lines": [],
-      "aggregate_realized_pnl_usd": 0,
-      "aggregate_realized_pnl_to_date_usd": 0,
-      "unallocated_realized_pnl_usd": 0,
-      "unallocated_closed_cohort_count": 0,
-      "unallocated_open_contract_qty": 0,
-      "comparison_pairing_issue_count": 0,
-      "physical_realized_pnl_usd": 0,
-      "physical_realized_pnl_to_date_usd": 0,
-      "session_date_et": "2026-08-14",
-      "session_cohort_count": 0,
-      "session_lines": [],
-      "session_aggregate_realized_pnl_usd": 0,
-      "session_aggregate_realized_pnl_to_date_usd": 0,
-      "session_unallocated_realized_pnl_usd": 0,
-      "session_physical_realized_pnl_usd": 0,
-      "session_physical_realized_pnl_to_date_usd": 0,
-      "generated_at": "2026-08-14T14:24:52.617Z"
-    }
-  },
-  "moomoo": {
-    "connected": true,
-    "account": {
-      "acc_id": "[redacted_id_e4af88a7aebc]",
-      "trd_env": 0,
-      "sim_acc_type": 4
-    },
-    "quote_feed": {
-      "mode": "push_plus_snapshot_fallback",
-      "subscribed_security_count": 1,
-      "push_count": 3199,
-      "cached_snapshot_count": 1,
-      "recent_errors": []
-    }
-  },
-  "market_context": {
-    "price_action_source": "moomoo_spy_push_mapped_to_spx",
-    "price_action_ready": true,
-    "readiness_reason_code": "ready",
-    "last_price_usd": 7797.0194,
-    "vwap_usd": 7804.3024,
-    "closed_bars_1m": 49,
-    "closed_bars_5m": 9,
-    "latest_closed_bar": {
-      "timestamp": "2026-08-14T14:23:00.000Z",
-      "minute_start_at": "2026-08-14T14:23:00.000Z",
-      "minute_end_at": "2026-08-14T14:24:00.000Z",
-      "open_usd": 7797.922,
-      "high_usd": 7799.5367,
-      "low_usd": 7797.4306,
-      "close_usd": 7797.5309,
-      "sample_count": 59,
-      "volume": 62903,
-      "first_sample_at": "2026-08-14T14:23:00.821Z",
-      "last_sample_at": "2026-08-14T14:23:59.578Z"
-    },
-    "latest_closed_bar_5m": {
-      "timestamp": "2026-08-14T14:15:00.000Z",
-      "minute_start_at": "2026-08-14T14:15:00.000Z",
-      "minute_end_at": "2026-08-14T14:20:00.000Z",
-      "open_usd": 7805.5541,
-      "high_usd": 7805.9552,
-      "low_usd": 7800.2888,
-      "close_usd": 7800.69,
-      "sample_count": 313,
-      "volume": 345014,
-      "first_sample_at": "2026-08-14T14:15:01.094Z",
-      "last_sample_at": "2026-08-14T14:19:59.014Z"
-    }
-  },
   "risk": {
     "executed_signal_ids": [],
     "open_position_count": 0,
@@ -1305,25 +979,19 @@
     "experiment_entry_price_failures": [],
     "orphan_experiment_entry_failures": []
   },
-  "reconcile": {
-    "watched": 0,
-    "submitted_exits": 0,
-    "quote_error": null,
-    "broker_first": true
-  },
   "last_decision": {
-    "generated_at": "2026-08-14T14:24:52.576Z",
+    "generated_at": "2026-08-14T19:59:56.563Z",
     "decision": "no_trade",
     "action": "hold",
     "reason_codes": [
-      "waiting_for_node_confirmation"
+      "positive_gamma_pin_requires_defined_risk_structure"
     ],
     "direction": null,
     "signal_type": null,
-    "snapshot_at": "2026-08-14T14:15:00.000Z",
+    "snapshot_at": "2026-08-14T19:50:00.000Z",
     "snapshot_state": "fresh",
-    "spot_usd": 7800.69,
-    "vwap_usd": 7804.3024,
+    "spot_usd": 7783.25,
+    "vwap_usd": 7787.7263,
     "tested_node": null,
     "target_underlying_usd": null,
     "stop_underlying_usd": null,

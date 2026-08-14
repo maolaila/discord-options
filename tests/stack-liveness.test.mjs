@@ -8,6 +8,12 @@ import { fileURLToPath } from 'node:url';
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const stackScriptPath = path.join(repositoryRoot, 'run-junk-stack.ps1');
+const runtimeContractFiles = [
+  'run-junk-stack.ps1',
+  'run-junk-gex.ps1',
+  'run-pa-options.ps1',
+  path.join('ops', 'recover-opend-websocket-auth.ps1'),
+];
 const powershellPath = path.join(
   process.env.SystemRoot || 'C:\\Windows',
   'System32',
@@ -47,24 +53,23 @@ if ($errors.Count -gt 0) {
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
 });
 
-test('pending Windows shutdown protection runs once at stack startup, outside the health loop', () => {
-  const source = readFileSync(stackScriptPath, 'utf8');
-  const startupCalls = [
-    ...source.matchAll(/^\s*\$null = Cancel-PendingWindowsShutdown\s*$/gm),
-  ];
-  const mainLoopIndex = source.indexOf('  while ($true) {');
+test('repository startup contract rejects runtimes older than Node 24.15', () => {
+  const packageJson = JSON.parse(readFileSync(path.join(repositoryRoot, 'package.json'), 'utf8'));
+  const packageLock = JSON.parse(readFileSync(path.join(repositoryRoot, 'package-lock.json'), 'utf8'));
 
-  assert.equal(startupCalls.length, 1, 'shutdown protection must have one startup call');
-  assert.ok(mainLoopIndex >= 0, 'top-level health supervision loop was not found');
-  assert.ok(
-    startupCalls[0].index < mainLoopIndex,
-    'shutdown protection must run before the health supervision loop',
-  );
-  assert.doesNotMatch(
-    source.slice(mainLoopIndex),
-    /Cancel-PendingWindowsShutdown/,
-    'the health supervision loop must not continuously abort Windows shutdowns',
-  );
+  assert.equal(packageJson.engines?.node, '>=24.15.0');
+  assert.equal(packageLock.packages?.['']?.engines?.node, packageJson.engines.node);
+  for (const relativePath of runtimeContractFiles) {
+    const source = readFileSync(path.join(repositoryRoot, relativePath), 'utf8');
+    assert.match(source, /24\.15\.0/, `${relativePath} does not enforce the Node runtime floor`);
+    assert.doesNotMatch(source, /Node\.js 20 or newer/, `${relativePath} retains the obsolete Node 20 contract`);
+  }
+});
+
+test('stack supervisor does not interfere with pending Windows shutdowns', () => {
+  const source = readFileSync(stackScriptPath, 'utf8');
+  assert.doesNotMatch(source, /Cancel-PendingWindowsShutdown/);
+  assert.doesNotMatch(source, /shutdown\.exe[\s\S]*?\/a/);
 });
 
 test('JUNK watcher liveness is fresh-contract gated and stale recycling is exposure safe', () => {

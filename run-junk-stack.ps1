@@ -259,14 +259,20 @@ function Wait-BoundedProcess {
   }
 }
 
-function Get-ExecutableMajorVersion {
+function Get-ExecutableNodeVersion {
   param([Parameter(Mandatory = $true)][string]$ExecutablePath)
 
   try {
     $versionText = (& $ExecutablePath --version 2>$null | Select-Object -First 1)
-    if ($versionText -match 'v?(\d+)') { return [int]$Matches[1] }
+    if ($versionText -match '^v?(\d+)\.(\d+)\.(\d+)') {
+      return [version]::new(
+        [int]$Matches[1],
+        [int]$Matches[2],
+        [int]$Matches[3]
+      )
+    }
   } catch { }
-  return 0
+  return [version]::new(0, 0, 0)
 }
 
 function Resolve-NodePath {
@@ -290,11 +296,11 @@ function Resolve-NodePath {
 
   foreach ($candidate in @($candidates | Select-Object -Unique)) {
     if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) { continue }
-    if ((Get-ExecutableMajorVersion -ExecutablePath $candidate) -ge 20) {
+    if ((Get-ExecutableNodeVersion -ExecutablePath $candidate) -ge [version]'24.15.0') {
       return (Resolve-Path -LiteralPath $candidate).Path
     }
   }
-  throw 'Node.js 20 or newer was not found. JUNKMAN was not started.'
+  throw 'Node.js 24.15 or newer was not found. JUNKMAN requires the built-in node:sqlite release-candidate API.'
 }
 
 function Restore-ProcessMoomooWebSocketKey {
@@ -520,25 +526,6 @@ function Invoke-OpenDAuthRecovery {
     # narrow OCR screenshot and all recovery output here as a second boundary.
     Remove-OpenDAuthRecoveryArtifacts
   }
-}
-
-function Cancel-PendingWindowsShutdown {
-  # A successful abort is logged; the normal "no shutdown pending" response is
-  # discarded. This cannot stop power loss, a kernel crash, or an immediate
-  # non-abortable restart.
-  $previousErrorAction = $ErrorActionPreference
-  try {
-    $ErrorActionPreference = 'SilentlyContinue'
-    & "$env:SystemRoot\System32\shutdown.exe" /a 1>$null 2>$null
-    $shutdownExitCode = $LASTEXITCODE
-  } finally {
-    $ErrorActionPreference = $previousErrorAction
-  }
-  if ($shutdownExitCode -eq 0) {
-    Write-StackLog -Level 'WARN' -Message 'A pending Windows shutdown or restart countdown was aborted to preserve the simulation stack.'
-    return $true
-  }
-  return $false
 }
 
 function Get-DotEnvValue {
@@ -1505,13 +1492,8 @@ try {
   $resolvedOpenDPath = Resolve-OpenDExecutable -ExplicitPath $OpenDPath
 
   Write-StackLog -Message 'JUNKMAN stack supervisor started; execution is locked to moomoo simulation.'
-  Write-StackLog -Message ("Runtime dependencies resolved: node_major={0}; OpenD executable found." -f (Get-ExecutableMajorVersion -ExecutablePath $nodePath))
+  Write-StackLog -Message ("Runtime dependencies resolved: node_version={0}; OpenD executable found." -f (Get-ExecutableNodeVersion -ExecutablePath $nodePath))
   Write-StackHeartbeat -Phase 'starting'
-  # Check for an already-pending Windows shutdown/restart once when this
-  # top-level stack starts. Do not keep aborting later operator-initiated or
-  # update-initiated shutdowns from the trading-health supervision loop.
-  $null = Cancel-PendingWindowsShutdown
-
   while ($true) {
     Write-StackHeartbeat
     $openDHealthy = $false

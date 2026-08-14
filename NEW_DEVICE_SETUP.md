@@ -7,7 +7,7 @@ This guide deploys the JUNKMAN SPX 0DTE simulation system on another Windows com
 Install:
 
 - Git
-- Node.js 20 or newer
+- Node.js 24.15 or newer (use the latest Node 24 LTS patch release)
 - Chrome or Edge
 - Moomoo desktop and OpenD, logged in with the WebSocket API enabled
 
@@ -134,7 +134,7 @@ For unattended use, approve UAC once from an elevated PowerShell:
 .\ops\windows-unattended-hardening.ps1
 ```
 
-The script registers a logon/keepalive stack task and disables supported automatic updater services/tasks without disabling thermal protection, critical-battery hibernation, Defender, or crash recovery.
+The script registers a sign-in-only stack task and disables supported automatic updater services/tasks without disabling thermal protection, critical-battery hibernation, Defender, or crash recovery. Continuous health checks run inside the long-lived stack supervisor, without a repeating PowerShell task.
 
 Verify runtime state and recent records:
 

@@ -19,16 +19,17 @@ $logDirectory = Join-Path $RepoRoot 'logs'
 $stdoutPath = Join-Path $logDirectory '.opend-auth-recovery.stdout.log'
 $stderrPath = Join-Path $logDirectory '.opend-auth-recovery.stderr.log'
 
-function Get-Node20Path {
+function Get-Node24Path {
   foreach ($command in @(Get-Command node -All -ErrorAction SilentlyContinue)) {
     try {
       $version = & $command.Source --version 2>$null
-      if ($version -match '^v(\d+)' -and [int]$Matches[1] -ge 20) {
+      if ($version -match '^v?(\d+)\.(\d+)\.(\d+)$' -and
+          [version]::new([int]$Matches[1], [int]$Matches[2], [int]$Matches[3]) -ge [version]'24.15.0') {
         return [string]$command.Source
       }
     } catch { }
   }
-  throw 'Node.js 20 or newer was not found.'
+  throw 'Node.js 24.15 or newer was not found.'
 }
 
 function Await-WindowsRuntimeOperation {
@@ -82,7 +83,7 @@ if (-not (Test-Path -LiteralPath $checkScript -PathType Leaf)) {
 }
 
 New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
-$nodePath = Get-Node20Path
+$nodePath = Get-Node24Path
 $openDProcessIds = [System.Collections.Generic.HashSet[uint32]]::new()
 foreach ($process in @(Get-Process -Name 'moomoo_OpenD' -ErrorAction Stop)) {
   $openDProcessIds.Add([uint32]$process.Id) | Out-Null

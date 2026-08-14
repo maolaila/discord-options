@@ -27,7 +27,7 @@ For automated Flow, green means Call, red means Put, and the buy label means exe
 Requirements:
 
 - Windows
-- Node.js 20 or newer
+- Node.js 24.15 or newer (Node 24 LTS is recommended; JUNKMAN uses the built-in `node:sqlite` module)
 - Chrome or Edge
 - Moomoo desktop and OpenD, logged in with the WebSocket API enabled
 
@@ -98,7 +98,7 @@ Use the top-level stack supervisor for continuous simulated monitoring and tradi
 .\run-junk-stack.ps1
 ```
 
-It verifies the real OpenD API login and simulated US-option account before starting JUNKMAN, restores the console and Discord capture, and delegates the strategy process to `run-junk-gex.ps1`. A scheduled one-minute keepalive is recommended so the top-level supervisor is recreated after a crash. For foreground debugging only:
+It verifies the real OpenD API login and simulated US-option account before starting JUNKMAN, restores the console and Discord capture, and delegates the strategy process to `run-junk-gex.ps1`. The unattended setup starts the top-level supervisor once at sign-in; the supervisor then performs continuous health checks without a repeating PowerShell task. For foreground debugging only:
 
 ```powershell
 npm run junk:gex:watch-sim
@@ -118,7 +118,7 @@ For unattended Windows operation, run the following once from an elevated PowerS
 .\ops\windows-unattended-hardening.ps1
 ```
 
-This disables supported automatic updater services/tasks, keeps lid close and idle sleep from suspending the stack, and registers the top-level stack task. It deliberately retains thermal protection, critical-battery hibernation, Defender, and crash recovery. No software can guarantee continuity through power loss, hardware failure, or an unavailable network.
+This disables supported automatic updater services/tasks, keeps lid close and idle sleep from suspending the stack, and registers a sign-in-only top-level stack task. It deliberately retains thermal protection, critical-battery hibernation, Defender, and crash recovery. No software can guarantee continuity through power loss, hardware failure, or an unavailable network.
 
 ## Strategy and risk rules
 

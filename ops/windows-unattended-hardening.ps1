@@ -216,10 +216,9 @@ foreach ($source in @('AC', 'DC')) {
 & powercfg.exe /setactive SCHEME_CURRENT
 if ($LASTEXITCODE -ne 0) { throw 'Unable to reactivate the current power scheme.' }
 
-# Run a short keepalive at every interactive sign-in and once per minute. The
-# keepalive owns no trading rules; it starts or replaces the top-level watchdog
-# when its process/heartbeat is missing or stale, then exits successfully. This
-# avoids IgnoreNew false errors and also detects a hung watchdog.
+# Run a short keepalive once at interactive sign-in. The long-running top-level
+# supervisor owns continuous health checks, so a repeating scheduled PowerShell
+# task is unnecessary and can flash a console window on some Windows setups.
 # If a limited-user fallback task is already running, stop only its exact
 # top-level process first. Child services are intentionally left alive.
 Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
@@ -238,14 +237,8 @@ Start-Sleep -Seconds 2
 $taskAction = New-ScheduledTaskAction `
   -Execute (Join-Path $PSHOME 'powershell.exe') `
   -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$keepaliveScript`" -RepoRoot `"$RepoRoot`""
-$keepaliveTrigger = New-ScheduledTaskTrigger `
-  -Once `
-  -At (Get-Date).AddMinutes(1) `
-  -RepetitionInterval (New-TimeSpan -Minutes 1) `
-  -RepetitionDuration (New-TimeSpan -Days 3650)
 $taskTriggers = @(
-  (New-ScheduledTaskTrigger -AtLogOn -User $result.user),
-  $keepaliveTrigger
+  (New-ScheduledTaskTrigger -AtLogOn -User $result.user)
 )
 $taskPrincipal = New-ScheduledTaskPrincipal `
   -UserId $result.user `

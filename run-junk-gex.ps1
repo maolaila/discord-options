@@ -325,9 +325,13 @@ try {
   Remove-Variable nightwatchKey
 
   $nodeCommand = Get-Command node -ErrorAction Stop
-  $nodeMajor = [int] ((& $nodeCommand.Source --version).TrimStart('v').Split('.')[0])
-  if ($nodeMajor -lt 20) {
-    throw 'JUNKMAN requires Node.js 20 or newer.'
+  $nodeVersionText = (& $nodeCommand.Source --version).Trim()
+  if ($nodeVersionText -notmatch '^v?(\d+)\.(\d+)\.(\d+)$') {
+    throw "JUNKMAN could not parse the Node.js version: $nodeVersionText"
+  }
+  $nodeVersion = [version]::new([int]$Matches[1], [int]$Matches[2], [int]$Matches[3])
+  if ($nodeVersion -lt [version]'24.15.0') {
+    throw 'JUNKMAN requires Node.js 24.15 or newer for the built-in node:sqlite release-candidate API.'
   }
   $logDirectory = Join-Path $PSScriptRoot 'logs'
   $supervisorPath = Join-Path $logDirectory 'zero-dte-options-supervisor.log'

@@ -47,16 +47,17 @@ function Get-DotEnvValue {
   return $null
 }
 
-function Resolve-Node20Path {
+function Resolve-Node24Path {
   foreach ($command in @(Get-Command node -All -ErrorAction SilentlyContinue)) {
     try {
       $version = & $command.Source --version 2>$null
-      if ($version -match '^v(\d+)' -and [int]$Matches[1] -ge 20) {
+      if ($version -match '^v?(\d+)\.(\d+)\.(\d+)$' -and
+          [version]::new([int]$Matches[1], [int]$Matches[2], [int]$Matches[3]) -ge [version]'24.15.0') {
         return [string]$command.Source
       }
     } catch { }
   }
-  throw 'Node.js 20 or newer was not found.'
+  throw 'Node.js 24.15 or newer was not found.'
 }
 
 function Assert-PaSimulationOnly {
@@ -131,7 +132,7 @@ function Start-PaChild {
 }
 
 Assert-PaSimulationOnly
-$nodePath = Resolve-Node20Path
+$nodePath = Resolve-Node24Path
 $nodeDirectory = Split-Path -Parent $nodePath
 if (($env:PATH -split ';') -notcontains $nodeDirectory) {
   $env:PATH = "$nodeDirectory;$env:PATH"

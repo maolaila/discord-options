@@ -12,7 +12,7 @@ const SOURCE_PATTERNS = Object.freeze([
   }),
   Object.freeze({
     evidence_kind: 'structure',
-    pattern: /^\/v1\/derived\/(?:dealer-gex|heatmap)\/[A-Z0-9._^-]{1,24}\/(?:snapshot|cell-history)$/,
+    pattern: /^\/v1\/derived\/(?:dealer-gex|heatmap)\/[A-Z]{1,5}\/(?:snapshot|history)$/,
   }),
   Object.freeze({
     evidence_kind: 'structure',

@@ -426,6 +426,11 @@ test('stale snapshots are blocked before any setup can trade', () => {
 });
 
 test('active policy follows the fixed five-minute sampling contract with an inclusive ten-minute boundary', () => {
+  assert.equal(active_policy.provider.broker_reconcile_poll_seconds, 15);
+  assert.equal(active_policy.provider.fixed_sample_interval_seconds, 300);
+  assert.equal(active_policy.provider.read_model_max_attempts_per_bucket, 3);
+  assert.equal('gex_snapshot_poll_seconds' in active_policy.provider, false);
+  assert.equal('heatmap_snapshot_poll_seconds' in active_policy.provider, false);
   assert.equal(active_policy.strategy.max_snapshot_age_ms, 600_000);
   const policy = active_policy.strategy;
   const at = (age_ms, meta_seconds = null) => evaluate_bullish({

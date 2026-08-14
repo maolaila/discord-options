@@ -13,6 +13,7 @@ import {
   broker_order_keys,
   build_exit_attempt_remark,
   create_moomoo_runtime,
+  classify_nightwatch_fixed_sample_error,
   expired_entry_without_broker_evidence,
   expired_settlement_missing,
   exit_owned_position,
@@ -36,6 +37,7 @@ import {
   market_schedule,
   observed_exit_attempt_no,
   provider_backoff_cycle_delay,
+  provider_account_backoff_ms,
   prove_junk_experiment_unpriced_force_close_ownership,
   recovery_source_on_load,
   recompute_session_risk,
@@ -309,6 +311,10 @@ test('heatmap accepts the latest fixed sample through ten minutes and fails clos
   assert.equal(stale_meta.state, 'stale');
   assert.equal(stale_meta.state_reason, 'heatmap_age_exceeded');
 
+  const missing_meta = heatmap_summary(base, { now_ms, max_age_ms: 600_000 });
+  assert.equal(missing_meta.state, 'invalid');
+  assert.equal(missing_meta.state_reason, 'heatmap_meta_freshness_invalid');
+
   const stale_timestamp = heatmap_summary({
     data: { ...base.data, generated_at: '2026-08-13T14:29:59.999Z' },
     _meta: { data_freshness_seconds: 1 },
@@ -328,7 +334,7 @@ test('heatmap accepts the latest fixed sample through ten minutes and fails clos
   assert.equal(cross_session.state_reason, 'heatmap_cross_session');
 });
 
-test('legacy row_stacks stay compatible while malformed or missing heatmap rows remain neutral', () => {
+test('undocumented legacy rows and malformed or missing official cells remain neutral', () => {
   const now_ms = Date.parse('2026-08-13T14:30:30.000Z');
   const legacy = heatmap_summary({
     data: {
@@ -342,9 +348,9 @@ test('legacy row_stacks stay compatible while malformed or missing heatmap rows 
       ],
     },
   }, { now_ms, max_age_ms: 600_000 });
-  assert.equal(legacy.state, 'fresh');
-  assert.equal(legacy.source_schema, 'row_stacks');
-  assert.deepEqual(legacy.top_rows.map((row) => [row.strike_usd, row.rank]), [[7_800, 1], [7_810, 2]]);
+  assert.equal(legacy.state, 'missing');
+  assert.equal(legacy.source_schema, 'missing');
+  assert.equal(legacy.top_rows, null);
 
   const invalid = heatmap_summary({
     data: {
@@ -695,6 +701,28 @@ test('provider Retry-After never slows broker-first exit cadence below the confi
   assert.equal(provider_backoff_cycle_delay(15_000, 120_000), 15_000);
   assert.equal(provider_backoff_cycle_delay(15_000, 5_000), 5_000);
   assert.equal(provider_backoff_cycle_delay(15_000, 0), 15_000);
+});
+
+test('fixed-sample errors branch on the official stable machine code', () => {
+  assert.equal(classify_nightwatch_fixed_sample_error({
+    status: 503,
+    error_code: 'READ_MODEL_UNAVAILABLE',
+  }), 'read_model_unavailable');
+  assert.equal(classify_nightwatch_fixed_sample_error({
+    status: 503,
+    error_code: 'SERVICE_DISABLED',
+  }), 'service_disabled');
+  assert.equal(classify_nightwatch_fixed_sample_error({
+    status: 429,
+    error_code: 'RATE_LIMITED',
+  }), 'account_backoff');
+  assert.equal(classify_nightwatch_fixed_sample_error({ status: 503 }), 'error');
+});
+
+test('account-level 429 never falls into a hot retry when Retry-After is absent', () => {
+  assert.equal(provider_account_backoff_ms({ status: 429, retry_after_ms: 30_000 }), 30_000);
+  assert.equal(provider_account_backoff_ms({ status: 429, retry_after_ms: null }), 300_000);
+  assert.equal(provider_account_backoff_ms({ status: 503, retry_after_ms: null }), 0);
 });
 
 test('experiment entry allocation waits for terminal buy state and finalizes equal complete rounds once', () => {

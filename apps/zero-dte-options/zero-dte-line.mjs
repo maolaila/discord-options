@@ -39,6 +39,14 @@ import {
   JUNK_GEX_MAX_AGE_MS,
   NIGHTWATCH_FIXED_SAMPLE_MAX_AGE_MS,
 } from './junk-gex-freshness.mjs';
+import {
+  create_fixed_sample_tracker,
+  fixed_sample_bucket_matches,
+  fixed_sample_request_due,
+  NIGHTWATCH_FIXED_SAMPLE_INTERVAL_MS,
+  NIGHTWATCH_READ_MODEL_MAX_ATTEMPTS,
+  record_fixed_sample_outcome,
+} from './nightwatch-fixed-sample-scheduler.mjs';
 import { create_junk_gex_market_context } from './junk-gex-market-context.mjs';
 import { create_junk_flow_context } from './junk-flow-context.mjs';
 import {
@@ -524,13 +532,21 @@ function default_state() {
       source_state: 'new',
     },
     provider_blocked_until: null,
+    provider_schedule: {
+      gex: create_fixed_sample_tracker(),
+      heatmap: create_fixed_sample_tracker(),
+    },
+    last_gex_response: null,
     gex_node_history: [],
     market_context: {
       samples: [],
       bars_1m: [],
     },
     quota: null,
+    quota_checked_at: null,
     heatmap: null,
+    heatmap_error: null,
+    gex_error: null,
     gex_freshness: null,
     oi_structure_background: null,
     oi_structure_background_refresh: null,
@@ -563,6 +579,19 @@ function normalized_state(state) {
       && typeof source.gex_freshness === 'object'
       && !Array.isArray(source.gex_freshness)
       ? source.gex_freshness
+      : null,
+    provider_schedule: source.provider_schedule
+      && typeof source.provider_schedule === 'object'
+      && !Array.isArray(source.provider_schedule)
+      ? {
+        gex: source.provider_schedule.gex ?? create_fixed_sample_tracker(),
+        heatmap: source.provider_schedule.heatmap ?? create_fixed_sample_tracker(),
+      }
+      : base.provider_schedule,
+    last_gex_response: source.last_gex_response
+      && typeof source.last_gex_response === 'object'
+      && !Array.isArray(source.last_gex_response)
+      ? source.last_gex_response
       : null,
     oi_structure_background: source.oi_structure_background
       && typeof source.oi_structure_background === 'object'
@@ -733,33 +762,6 @@ function valid_date_key(value) {
   return text;
 }
 
-function normalized_legacy_heatmap_rows(row_stacks) {
-  if (!Array.isArray(row_stacks)) return null;
-  return row_stacks
-    .map((row) => ({
-      strike_usd: positive_number(row?.strike_usd),
-      row_net_wall_gex_usd: finite_number(row?.row_net_wall_gex_usd),
-      row_abs_wall_gex_usd: finite_number(row?.row_abs_wall_gex_usd),
-      rank: positive_number(row?.rank),
-      expiration_count: positive_number(row?.expiration_count),
-      cell_count: positive_number(row?.cell_count),
-      source_schema: 'row_stacks',
-    }))
-    .filter((row) => (
-      row.strike_usd !== null
-      && row.row_net_wall_gex_usd !== null
-      && row.row_abs_wall_gex_usd !== null
-      && row.row_abs_wall_gex_usd >= 0
-    ))
-    .sort((left, right) => (
-      (left.rank ?? Number.MAX_SAFE_INTEGER) - (right.rank ?? Number.MAX_SAFE_INTEGER)
-      || right.row_abs_wall_gex_usd - left.row_abs_wall_gex_usd
-      || left.strike_usd - right.strike_usd
-    ))
-    .slice(0, 10)
-    .map((row, index) => ({ ...row, rank: index + 1 }));
-}
-
 function aggregate_heatmap_cells(cells) {
   if (!Array.isArray(cells)) return null;
   const by_strike = new Map();
@@ -832,6 +834,9 @@ function heatmap_freshness_state({
     return { state: 'stale', reason: 'heatmap_cross_session' };
   }
   const meta_freshness_seconds = finite_number(response?._meta?.data_freshness_seconds);
+  if (meta_freshness_seconds === null) {
+    return { state: 'invalid', reason: 'heatmap_meta_freshness_invalid' };
+  }
   if (meta_freshness_seconds !== null && meta_freshness_seconds < -5) {
     return { state: 'future', reason: 'heatmap_meta_freshness_future' };
   }
@@ -855,13 +860,9 @@ export function heatmap_summary(response, {
     1_000,
     positive_number(max_age_ms, NIGHTWATCH_FIXED_SAMPLE_MAX_AGE_MS),
   );
-  const legacy_rows = normalized_legacy_heatmap_rows(data.row_stacks);
   const cell_rows = aggregate_heatmap_cells(data.cells);
-  const use_legacy = Array.isArray(data.row_stacks) && data.row_stacks.length > 0;
-  const top_rows = use_legacy ? legacy_rows : cell_rows;
-  const source_row_count = use_legacy
-    ? data.row_stacks.length
-    : (Array.isArray(data.cells) ? data.cells.length : null);
+  const top_rows = cell_rows;
+  const source_row_count = Array.isArray(data.cells) ? data.cells.length : null;
   const freshness = heatmap_freshness_state({
     response,
     data,
@@ -880,7 +881,7 @@ export function heatmap_summary(response, {
     max_age_ms: resolved_max_age_ms,
     data_freshness_seconds: finite_number(response?._meta?.data_freshness_seconds),
     spot_usd: finite_number(data.spot_usd),
-    source_schema: use_legacy ? 'row_stacks' : (Array.isArray(data.cells) ? 'cells' : 'missing'),
+    source_schema: Array.isArray(data.cells) ? 'cells' : 'missing',
     valid_row_count: Array.isArray(top_rows) ? top_rows.length : 0,
     top_rows,
   };
@@ -1791,6 +1792,24 @@ export function provider_backoff_cycle_delay(poll_ms, blocked_ms) {
   const cadence = Math.max(1000, finite_number(poll_ms, 15_000));
   const remaining = Math.max(0, finite_number(blocked_ms, 0));
   return Math.max(1000, Math.min(cadence, remaining || cadence));
+}
+
+export function classify_nightwatch_fixed_sample_error(error) {
+  if (Number(error?.status) === 429) return 'account_backoff';
+  const code = String(error?.code ?? error?.error_code ?? '');
+  if (code === 'READ_MODEL_UNAVAILABLE') {
+    return 'read_model_unavailable';
+  }
+  if (code === 'SERVICE_DISABLED') return 'service_disabled';
+  return 'error';
+}
+
+export function provider_account_backoff_ms(error) {
+  if (Number(error?.status) !== 429) return 0;
+  const requested_ms = finite_number(error?.retry_after_ms);
+  return requested_ms !== null && requested_ms > 0
+    ? requested_ms
+    : NIGHTWATCH_FIXED_SAMPLE_INTERVAL_MS;
 }
 
 function risk_state(state) {
@@ -3431,8 +3450,21 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
     throw new Error('JUNKMAN Nightwatch api_key_env is locked to YEHANGSHE_API_KEY.');
   }
   const ticker = String(provider.ticker || 'SPX').trim().toUpperCase();
-  const poll_ms = Math.max(1000, positive_number(provider.gex_snapshot_poll_seconds, 15) * 1000);
-  const heatmap_poll_ms = Math.max(1000, positive_number(provider.heatmap_snapshot_poll_seconds, 60) * 1000);
+  const poll_ms = Math.max(
+    1_000,
+    positive_number(provider.broker_reconcile_poll_seconds, 15) * 1_000,
+  );
+  if (poll_ms !== 15_000) {
+    throw new Error('JUNKMAN broker-first reconcile cadence must remain exactly 15 seconds.');
+  }
+  if (finite_number(provider.fixed_sample_interval_seconds) * 1_000
+    !== NIGHTWATCH_FIXED_SAMPLE_INTERVAL_MS) {
+    throw new Error('JUNKMAN Nightwatch fixed_sample_interval_seconds must remain exactly 300.');
+  }
+  if (finite_number(provider.read_model_max_attempts_per_bucket)
+    !== NIGHTWATCH_READ_MODEL_MAX_ATTEMPTS) {
+    throw new Error('JUNKMAN Nightwatch READ_MODEL_UNAVAILABLE attempts must remain exactly 3 per bucket.');
+  }
   const nightwatch = create_nightwatch_rest_client({
     base_url: 'https://api.yehangshe.com',
     api_key_env: 'YEHANGSHE_API_KEY',
@@ -3628,7 +3660,10 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
   }
 
   function apply_provider_backoff(error, at_ms = Date.now()) {
-    const retry_after_ms = Math.max(0, finite_number(error?.retry_after_ms, 0));
+    // Account/IP 429 responses are shared across all provider endpoints.
+    // Endpoint-specific 503 handling belongs to each fixed-sample tracker.
+    if (Number(error?.status) !== 429) return 0;
+    const retry_after_ms = provider_account_backoff_ms(error);
     if (retry_after_ms <= 0) return 0;
     const blocked_until_ms = at_ms + retry_after_ms;
     const existing_ms = Date.parse(state.provider_blocked_until || '');
@@ -3656,16 +3691,68 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
   }
 
   async function refresh_quota(force = false) {
-    const age = Date.now() - Date.parse(state.quota?.checked_at || '');
+    const age = Date.now() - Date.parse(state.quota_checked_at || state.quota?.checked_at || '');
     if (!force && Number.isFinite(age) && age < 60 * 60 * 1000) return;
     if (provider_wait_ms() > 0) return;
     try {
       state.quota = quota_summary(await nightwatch.discover_datasets());
+      state.quota_checked_at = state.quota.checked_at;
       state.quota_error = null;
     } catch (error) {
+      state.quota_checked_at = new Date().toISOString();
       state.quota_error = sanitized_error(error);
       apply_provider_backoff(error);
     }
+  }
+
+  function compact_fixed_sample_error(error, at_ms = Date.now()) {
+    return {
+      at: new Date(at_ms).toISOString(),
+      status: finite_number(error?.status),
+      error_code: String(error?.code ?? error?.error_code ?? '').trim() || null,
+      recoverable: typeof error?.recoverable === 'boolean' ? error.recoverable : null,
+      retry_after_ms: finite_number(error?.retry_after_ms),
+      message: sanitized_error(error),
+    };
+  }
+
+  function record_fixed_sample_error(feed, request_plan, error, at_ms = Date.now()) {
+    const classification = classify_nightwatch_fixed_sample_error(error);
+    state[`${feed}_error`] = compact_fixed_sample_error(error, at_ms);
+    if (classification === 'account_backoff') {
+      apply_provider_backoff(error, at_ms);
+      return classification;
+    }
+    state.provider_schedule[feed] = record_fixed_sample_outcome({
+      tracker: state.provider_schedule[feed],
+      expected_bucket_at: request_plan.expected_bucket_at,
+      attempted_at: at_ms,
+      outcome: classification,
+      retry_after_ms: error?.retry_after_ms ?? null,
+    });
+    return classification;
+  }
+
+  function record_bucket_mismatch(feed, request_plan, actual_bucket_at, at_ms = Date.now()) {
+    const mismatch = {
+      status: 200,
+      error_code: 'UNEXPECTED_FIXED_SAMPLE_BUCKET',
+      recoverable: true,
+      retry_after_ms: poll_ms,
+      message: `Nightwatch ${feed} response did not match the expected fixed-sample bucket`,
+    };
+    state[`${feed}_error`] = {
+      ...compact_fixed_sample_error(mismatch, at_ms),
+      expected_bucket_at: request_plan.expected_bucket_at,
+      actual_bucket_at: actual_bucket_at || null,
+    };
+    state.provider_schedule[feed] = record_fixed_sample_outcome({
+      tracker: state.provider_schedule[feed],
+      expected_bucket_at: request_plan.expected_bucket_at,
+      attempted_at: at_ms,
+      outcome: 'read_model_unavailable',
+      retry_after_ms: poll_ms,
+    });
   }
 
   async function cycle() {
@@ -3679,6 +3766,16 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
       state.executed_signal_ids = [];
       state.market_context = {};
       state.gex_node_history = [];
+      state.provider_schedule = {
+        gex: create_fixed_sample_tracker(),
+        heatmap: create_fixed_sample_tracker(),
+      };
+      state.last_gex_response = null;
+      state.last_gex = null;
+      state.gex_freshness = null;
+      state.gex_error = null;
+      state.heatmap = null;
+      state.heatmap_error = null;
       state.contract_audit_cache = {};
       state.broker_recovery = {
         status: 'pending',
@@ -3822,42 +3919,175 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
       return { idle: false, delay_ms: provider_backoff_cycle_delay(poll_ms, blocked_ms_after_quota) };
     }
 
-    const gex_response = await nightwatch.get_dealer_gex_snapshot(ticker);
+    const sampling_at = new Date();
+    const sampling_context = {
+      now: sampling_at,
+      session_open_minutes: schedule.session_open_minutes,
+      ny_minutes: ny.minutes,
+    };
+    const gex_request_plan = fixed_sample_request_due({
+      ...sampling_context,
+      tracker: state.provider_schedule.gex,
+    });
+    let heatmap_request_plan = fixed_sample_request_due({
+      ...sampling_context,
+      tracker: state.provider_schedule.heatmap,
+    });
+    let gex_fetched = false;
+
+    if (gex_request_plan.due) {
+      try {
+        const response = await nightwatch.get_dealer_gex_snapshot(ticker);
+        const data = response?.data || response || {};
+        const attempted_at = Date.now();
+        if (!fixed_sample_bucket_matches(data.snapshot_at, gex_request_plan.expected_bucket_at)) {
+          record_bucket_mismatch('gex', gex_request_plan, data.snapshot_at, attempted_at);
+        } else {
+          state.provider_schedule.gex = record_fixed_sample_outcome({
+            tracker: state.provider_schedule.gex,
+            expected_bucket_at: gex_request_plan.expected_bucket_at,
+            attempted_at,
+            outcome: 'success',
+          });
+          state.last_gex_response = response;
+          state.gex_error = null;
+          state.provider_blocked_until = null;
+          state.provider_retry_after_ms = null;
+          gex_fetched = true;
+        }
+      } catch (error) {
+        record_fixed_sample_error('gex', gex_request_plan, error);
+      }
+    }
+
+    const heatmap_sampling_at = new Date();
+    heatmap_request_plan = fixed_sample_request_due({
+      now: heatmap_sampling_at,
+      tracker: state.provider_schedule.heatmap,
+      session_open_minutes: schedule.session_open_minutes,
+      ny_minutes: ny_context(heatmap_sampling_at).minutes,
+    });
+    if (heatmap_request_plan.due && provider_wait_ms() === 0) {
+      try {
+        const response = await nightwatch.get_heatmap_snapshot(ticker);
+        const data = response?.data || response || {};
+        const attempted_at = Date.now();
+        if (!fixed_sample_bucket_matches(data.generated_at, heatmap_request_plan.expected_bucket_at)) {
+          record_bucket_mismatch('heatmap', heatmap_request_plan, data.generated_at, attempted_at);
+        } else {
+          state.provider_schedule.heatmap = record_fixed_sample_outcome({
+            tracker: state.provider_schedule.heatmap,
+            expected_bucket_at: heatmap_request_plan.expected_bucket_at,
+            attempted_at,
+            outcome: 'success',
+          });
+          state.heatmap = heatmap_summary(response, {
+            now_ms: attempted_at,
+            max_age_ms: config.policy?.evidence_gates?.heatmap?.max_age_ms,
+          });
+          state.heatmap_error = null;
+          state.provider_blocked_until = null;
+          state.provider_retry_after_ms = null;
+        }
+      } catch (error) {
+        record_fixed_sample_error('heatmap', heatmap_request_plan, error);
+      }
+    }
+
+    const decision_sampling_at = new Date();
+    const current_gex_plan = fixed_sample_request_due({
+      now: decision_sampling_at,
+      tracker: state.provider_schedule.gex,
+      session_open_minutes: schedule.session_open_minutes,
+      ny_minutes: ny_context(decision_sampling_at).minutes,
+    });
+    const current_heatmap_plan = fixed_sample_request_due({
+      now: decision_sampling_at,
+      tracker: state.provider_schedule.heatmap,
+      session_open_minutes: schedule.session_open_minutes,
+      ny_minutes: ny_context(decision_sampling_at).minutes,
+    });
+    const expected_bucket_at = current_gex_plan.expected_bucket_at;
+    const cached_gex_data = state.last_gex_response?.data || state.last_gex_response || {};
+    const gex_tracker_current = state.provider_schedule.gex?.status === 'succeeded'
+      && state.provider_schedule.gex?.bucket_at === expected_bucket_at;
+    const gex_response = gex_tracker_current && fixed_sample_bucket_matches(
+      cached_gex_data.snapshot_at,
+      expected_bucket_at,
+    ) ? state.last_gex_response : null;
+    const heatmap_tracker_current = state.provider_schedule.heatmap?.status === 'succeeded'
+      && state.provider_schedule.heatmap?.bucket_at === current_heatmap_plan.expected_bucket_at;
+    const current_heatmap = heatmap_tracker_current && fixed_sample_bucket_matches(
+      state.heatmap?.generated_at,
+      current_heatmap_plan.expected_bucket_at,
+    ) ? state.heatmap : null;
+
+    if (!gex_response) {
+      state.gex_freshness = {
+        observed_at: new Date().toISOString(),
+        source_snapshot_at: cached_gex_data.snapshot_at || null,
+        session_date_et: cached_gex_data.session_date_et || null,
+        provider_state: cached_gex_data.state || null,
+        expected_bucket_at,
+        max_age_ms: JUNK_GEX_MAX_AGE_MS,
+        readiness: 'not_ready',
+        reason_codes: ['expected_fixed_sample_unavailable'],
+      };
+      await persist_state();
+      await write_status({
+        phase: 'waiting_current_fixed_sample_broker_reconcile_active',
+        mode,
+        process_id: process.pid,
+        session_date_et: state.session_date_et,
+        market_schedule: schedule,
+        provider: {
+          name: 'nightwatch',
+          fixed_sample_interval_ms: NIGHTWATCH_FIXED_SAMPLE_INTERVAL_MS,
+          expected_bucket_at,
+          gex_schedule: state.provider_schedule.gex,
+          gex_request_reason: current_gex_plan.reason,
+          gex_freshness: state.gex_freshness,
+          gex_error: state.gex_error,
+          heatmap_schedule: state.provider_schedule.heatmap,
+          heatmap_request_reason: current_heatmap_plan.reason,
+          heatmap: current_heatmap,
+          heatmap_error: state.heatmap_error,
+        },
+        quota: state.quota,
+        experiment: experiment_status(),
+        oi_structure_background: oi_structure_background_status(),
+        risk: risk_state(state),
+        active_orders: active_order_rows(state).map(compact_order),
+        broker_recovery: state.broker_recovery,
+        reconcile: broker_first_reconcile,
+        last_decision: compact_decision(last_decision),
+        last_error: state.gex_error?.message || null,
+      });
+      return { idle: false, delay_ms: poll_ms };
+    }
+
     state.gex_freshness = assess_junk_gex_freshness({
       response: gex_response,
       observed_at: new Date(),
       previous_observation: state.gex_freshness,
     });
     const gex_data = gex_response?.data || gex_response || {};
-    state.provider_blocked_until = null;
-    state.provider_retry_after_ms = null;
-    const normalized_gex = normalize_gex_snapshot(gex_response, config.policy?.strategy?.max_nodes);
-    state.gex_node_history = [
-      ...(state.gex_node_history || []),
-      {
-        ticker: normalized_gex.ticker,
-        snapshot_at: normalized_gex.snapshot_at,
-        session_date_et: normalized_gex.session_date_et,
-        state: normalized_gex.state,
-        spot_usd: normalized_gex.spot_usd,
-        strikes: normalized_gex.nodes,
-      },
-    ].filter((item) => item.snapshot_at).slice(-240);
+    if (gex_fetched) {
+      const normalized_gex = normalize_gex_snapshot(gex_response, config.policy?.strategy?.max_nodes);
+      state.gex_node_history = [
+        ...(state.gex_node_history || []),
+        {
+          ticker: normalized_gex.ticker,
+          snapshot_at: normalized_gex.snapshot_at,
+          session_date_et: normalized_gex.session_date_et,
+          state: normalized_gex.state,
+          spot_usd: normalized_gex.spot_usd,
+          strikes: normalized_gex.nodes,
+        },
+      ].filter((item) => item.snapshot_at).slice(-240);
+    }
 
     const context_build_at = Date.now();
-    const heatmap_age = context_build_at - Date.parse(state.heatmap?.fetched_at || '');
-    if (!Number.isFinite(heatmap_age) || heatmap_age >= heatmap_poll_ms) {
-      try {
-        state.heatmap = heatmap_summary(await nightwatch.get_heatmap_snapshot(ticker), {
-          now_ms: Date.now(),
-          max_age_ms: config.policy?.evidence_gates?.heatmap?.max_age_ms,
-        });
-        state.heatmap_error = null;
-      } catch (error) {
-        state.heatmap_error = sanitized_error(error);
-        apply_provider_backoff(error);
-      }
-    }
 
     const spy_quote_result = await with_timeout(runtime.quote_feed.getSnapshots([spy_security], {
       orderBookSecurities: [],
@@ -3946,7 +4176,10 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
     }
     let decision = apply_junk_v3_evidence({
       core_decision,
-      heatmap_context: state.heatmap,
+      // Never substitute the preceding fixed sample when the current bucket
+      // is unavailable. Missing Heatmap stays neutral under the existing
+      // evidence policy and can neither trigger nor strengthen a trade.
+      heatmap_context: current_heatmap,
       flow_evaluation,
       evidence_policy: config.policy?.evidence_gates || {},
       now_ms: market_context_at,
@@ -3995,10 +4228,10 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
       ...decision,
       generated_at: new Date(market_context_at).toISOString(),
       heatmap_context: {
-        state: state.heatmap?.state || null,
-        generated_at: state.heatmap?.generated_at || null,
-        session_date_et: state.heatmap?.session_date_et || null,
-        nearest_tested_node_row: nearest_heatmap_row(state.heatmap, decision.tested_node?.strike_usd),
+        state: current_heatmap?.state || null,
+        generated_at: current_heatmap?.generated_at || null,
+        session_date_et: current_heatmap?.session_date_et || null,
+        nearest_tested_node_row: nearest_heatmap_row(current_heatmap, decision.tested_node?.strike_usd),
       },
       automated_flow_context: flow_context,
       market_context: {
@@ -4037,7 +4270,15 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
         })
         : null;
       if (!contract_audit) {
-        try {
+        if (provider_wait_ms() > 0) {
+          contract_audit = degraded_junk_contract_audit({
+            candidate_contract: prepared_entry_plan.contract?.code,
+            source_path: `/v1/options/chain-snapshot/${prepared_entry_plan.signal?.ticker || ticker}`,
+            available_at: Date.now(),
+            reason_code: 'nightwatch_contract_audit_rate_limited_neutral',
+            provider_call_count: 0,
+          });
+        } else try {
           contract_audit = await audit_junk_contract_candidate({
             nightwatch,
             decision,
@@ -4226,9 +4467,14 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
       market_schedule: schedule,
       provider: {
         name: 'nightwatch',
+        fixed_sample_interval_ms: NIGHTWATCH_FIXED_SAMPLE_INTERVAL_MS,
+        expected_bucket_at,
         last_gex: state.last_gex,
         gex_freshness: state.gex_freshness,
-        heatmap: state.heatmap,
+        gex_schedule: state.provider_schedule.gex,
+        gex_error: state.gex_error || null,
+        heatmap: current_heatmap,
+        heatmap_schedule: state.provider_schedule.heatmap,
         heatmap_error: state.heatmap_error || null,
       },
       oi_structure_background: oi_structure_background_status(),

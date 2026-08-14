@@ -91,13 +91,56 @@ export function create_snapshot_rate_limiter({
 const shared_snapshot_rate_limiter = create_snapshot_rate_limiter();
 
 export class NightwatchRestError extends Error {
-  constructor(message, { status = null, retry_after_ms = null, path = null } = {}) {
+  constructor(message, {
+    status = null,
+    retry_after_ms = null,
+    path = null,
+    error_code = null,
+    recoverable = null,
+  } = {}) {
     super(message);
     this.name = 'NightwatchRestError';
     this.status = status;
     this.retry_after_ms = retry_after_ms;
     this.path = path;
+    this.error_code = error_code;
+    this.code = error_code;
+    this.recoverable = recoverable;
   }
+}
+
+async function sanitized_error_metadata(response, pathname, now_ms) {
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch {
+    // Error bodies are diagnostic only. Never echo an untrusted body.
+  }
+  const error = payload?.error && typeof payload.error === 'object'
+    ? payload.error
+    : (payload && typeof payload === 'object' ? payload : {});
+  const error_code = /^[A-Z0-9_]{1,64}$/.test(String(error.code || ''))
+    ? String(error.code)
+    : null;
+  const recoverable = typeof error.recoverable === 'boolean' ? error.recoverable : null;
+  const has_body_retry = error.retry_after_seconds !== null
+    && error.retry_after_seconds !== undefined
+    && String(error.retry_after_seconds).trim() !== '';
+  const body_retry_seconds = has_body_retry ? Number(error.retry_after_seconds) : null;
+  const body_retry_after_ms = Number.isFinite(body_retry_seconds) && body_retry_seconds >= 0
+    ? Math.ceil(body_retry_seconds * 1_000)
+    : null;
+  const header_retry_after_ms = parse_retry_after_ms(
+    header_value(response.headers, 'retry-after'),
+    now_ms,
+  );
+  return {
+    status: response.status,
+    path: pathname,
+    error_code,
+    recoverable,
+    retry_after_ms: body_retry_after_ms ?? header_retry_after_ms,
+  };
 }
 
 function normalized_base_url(base_url, allowed_base_urls = [DEFAULT_BASE_URL]) {
@@ -139,6 +182,12 @@ function build_url(base_url, pathname, query) {
 function normalized_ticker(ticker) {
   const value = String(ticker || '').trim().toUpperCase();
   if (!/^[A-Z0-9._^-]{1,24}$/.test(value)) throw new Error('ticker is invalid');
+  return value;
+}
+
+function normalized_derived_ticker(ticker) {
+  const value = String(ticker || '').trim().toUpperCase();
+  if (!/^[A-Z]{1,5}$/.test(value)) throw new Error('derived ticker is invalid');
   return value;
 }
 
@@ -249,16 +298,13 @@ export function create_nightwatch_rest_client({
       }
 
       if (response.status === 429) {
-        const parsed_retry_after_ms = parse_retry_after_ms(
-          header_value(response.headers, 'retry-after'),
-          now_ms(),
-        );
-        const retry_after_ms = parsed_retry_after_ms ?? MIN_SNAPSHOT_INTERVAL_MS;
-        if (retry_count >= retry_limit) {
+        const metadata = await sanitized_error_metadata(response, path, now_ms());
+        const retry_after_ms = metadata.retry_after_ms;
+        const retryable = retry_after_ms !== null
+          && metadata.error_code !== 'QUOTA_EXHAUSTED';
+        if (!retryable || retry_count >= retry_limit) {
           throw new NightwatchRestError('Nightwatch rate limit retry budget exhausted', {
-            status: 429,
-            retry_after_ms,
-            path,
+            ...metadata,
           });
         }
         retry_count += 1;
@@ -267,10 +313,12 @@ export function create_nightwatch_rest_client({
       }
 
       if (!response.ok) {
-        throw new NightwatchRestError(`Nightwatch request returned HTTP ${response.status}`, {
-          status: response.status,
-          path,
-        });
+        const metadata = await sanitized_error_metadata(response, path, now_ms());
+        const code_suffix = metadata.error_code ? ` (${metadata.error_code})` : '';
+        throw new NightwatchRestError(
+          `Nightwatch request returned HTTP ${response.status}${code_suffix}`,
+          metadata,
+        );
       }
 
       return response_json(response, path);
@@ -281,19 +329,19 @@ export function create_nightwatch_rest_client({
     base_url: resolved_base_url,
     discover_datasets: (options) => get_json('/v1/discover', options),
     get_dealer_gex_snapshot: (ticker, options) => get_json(
-      `/v1/derived/dealer-gex/${encodeURIComponent(normalized_ticker(ticker))}/snapshot`,
+      `/v1/derived/dealer-gex/${encodeURIComponent(normalized_derived_ticker(ticker))}/snapshot`,
       options,
     ),
     get_heatmap_snapshot: (ticker, options) => get_json(
-      `/v1/derived/heatmap/${encodeURIComponent(normalized_ticker(ticker))}/snapshot`,
+      `/v1/derived/heatmap/${encodeURIComponent(normalized_derived_ticker(ticker))}/snapshot`,
       options,
     ),
     get_dealer_gex_history: (ticker, options) => get_json(
-      `/v1/derived/dealer-gex/${encodeURIComponent(normalized_ticker(ticker))}/history`,
+      `/v1/derived/dealer-gex/${encodeURIComponent(normalized_derived_ticker(ticker))}/history`,
       options,
     ),
     get_standard_gex_history: (ticker, options) => get_json(
-      `/v1/derived/standard-gex/${encodeURIComponent(normalized_ticker(ticker))}/history`,
+      `/v1/derived/standard-gex/${encodeURIComponent(normalized_derived_ticker(ticker))}/history`,
       options,
     ),
     get_options_chain_snapshot: (ticker, options) => get_json(
@@ -324,8 +372,8 @@ export function create_nightwatch_rest_client({
       `/v1/options/contract-volume-profile/${encodeURIComponent(normalized_contract(contract))}`,
       options,
     ),
-    get_heatmap_cell_history: (ticker, options) => get_json(
-      `/v1/derived/heatmap/${encodeURIComponent(normalized_ticker(ticker))}/cell-history`,
+    get_heatmap_history: (ticker, options) => get_json(
+      `/v1/derived/heatmap/${encodeURIComponent(normalized_derived_ticker(ticker))}/history`,
       options,
     ),
     get_stock_state: (ticker, options) => get_json(

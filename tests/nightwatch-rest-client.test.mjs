@@ -102,8 +102,8 @@ test('paid options, heatmap, and stock methods use the official GET paths and sn
     },
   });
   await client.get_options_contract_volume_profile('spy260811c00775000');
-  await client.get_heatmap_cell_history('spx', {
-    query: { expiration: '2026-08-11', strike: 7750, limit: 390 },
+  await client.get_heatmap_history('spx', {
+    query: { expiration: '2026-08-11', limit: 390 },
   });
   await client.get_stock_state('spx');
   await client.get_index_ohlc('spx');
@@ -116,7 +116,7 @@ test('paid options, heatmap, and stock methods use the official GET paths and sn
     'https://api.yehangshe.com/v1/options/contract-intraday/SPY260811C00775000',
     'https://api.yehangshe.com/v1/options/contract-greeks-series/SPY260811C00775000?from=2026-08-11T09%3A30%3A00-04%3A00&to=2026-08-11T10%3A00%3A00-04%3A00&interval=1m',
     'https://api.yehangshe.com/v1/options/contract-volume-profile/SPY260811C00775000',
-    'https://api.yehangshe.com/v1/derived/heatmap/SPX/cell-history?expiration=2026-08-11&strike=7750&limit=390',
+    'https://api.yehangshe.com/v1/derived/heatmap/SPX/history?expiration=2026-08-11&limit=390',
     'https://api.yehangshe.com/v1/stocks/stock-state/SPX',
     'https://api.yehangshe.com/v1/stocks/index-ohlc/SPX',
   ]);
@@ -164,6 +164,20 @@ test('daily options methods reject invalid ticker path input before sending cred
   assert.equal(calls, 0);
 });
 
+test('derived endpoints enforce the live OpenAPI ticker schema before sending credentials', () => {
+  let calls = 0;
+  const client = create_nightwatch_rest_client({
+    api_key: 'secret_test_token',
+    fetch_impl: async () => {
+      calls += 1;
+      return json_response(200, {});
+    },
+  });
+  assert.throws(() => client.get_dealer_gex_snapshot('^SPX'), /derived ticker is invalid/);
+  assert.throws(() => client.get_heatmap_snapshot('SPX-W'), /derived ticker is invalid/);
+  assert.equal(calls, 0);
+});
+
 test('daily options HTTP errors expose the exact sanitized request path', async () => {
   const client = create_nightwatch_rest_client({
     api_key: 'secret_test_token',
@@ -178,6 +192,58 @@ test('daily options HTTP errors expose the exact sanitized request path', async 
       assert.equal(error.path, '/v1/options/oi-change/SPX');
       assert.equal(error.message, 'Nightwatch request returned HTTP 503');
       assert.equal(error.message.includes('secret_test_token'), false);
+      return true;
+    },
+  );
+});
+
+test('503 READ_MODEL_UNAVAILABLE uses the authoritative body retry metadata without sleeping', async () => {
+  const sleeps = [];
+  const client = create_nightwatch_rest_client({
+    api_key: 'secret_test_token',
+    sleep: async (delay_ms) => sleeps.push(delay_ms),
+    fetch_impl: async () => json_response(503, {
+      error: {
+        code: 'READ_MODEL_UNAVAILABLE',
+        recoverable: true,
+        retry_after_seconds: 7,
+        message: 'untrusted secret_test_token',
+      },
+    }, { 'Retry-After': '2' }),
+  });
+
+  await assert.rejects(
+    () => client.get_dealer_gex_snapshot('SPX'),
+    (error) => {
+      assert.ok(error instanceof NightwatchRestError);
+      assert.equal(error.status, 503);
+      assert.equal(error.error_code, 'READ_MODEL_UNAVAILABLE');
+      assert.equal(error.recoverable, true);
+      assert.equal(error.retry_after_ms, 7_000);
+      assert.equal(error.message, 'Nightwatch request returned HTTP 503 (READ_MODEL_UNAVAILABLE)');
+      assert.equal(error.message.includes('secret_test_token'), false);
+      return true;
+    },
+  );
+  assert.deepEqual(sleeps, []);
+});
+
+test('503 SERVICE_DISABLED is distinguishable and does not invent an automatic retry', async () => {
+  const client = create_nightwatch_rest_client({
+    api_key: 'test_token',
+    fetch_impl: async () => json_response(503, {
+      error: { code: 'SERVICE_DISABLED', recoverable: false },
+    }),
+  });
+
+  await assert.rejects(
+    () => client.get_heatmap_snapshot('SPX'),
+    (error) => {
+      assert.ok(error instanceof NightwatchRestError);
+      assert.equal(error.status, 503);
+      assert.equal(error.error_code, 'SERVICE_DISABLED');
+      assert.equal(error.recoverable, false);
+      assert.equal(error.retry_after_ms, null);
       return true;
     },
   );
@@ -257,7 +323,9 @@ test('429 failure exposes retry metadata but never the bearer token', async () =
   const client = create_nightwatch_rest_client({
     api_key: 'secret_test_token',
     max_429_retries: 0,
-    fetch_impl: async () => json_response(429, {}, { 'retry-after': '3' }),
+    fetch_impl: async () => json_response(429, {
+      error: { code: 'RATE_LIMITED', recoverable: true },
+    }, { 'retry-after': '3' }),
   });
 
   await assert.rejects(
@@ -265,11 +333,33 @@ test('429 failure exposes retry metadata but never the bearer token', async () =
     (error) => {
       assert.ok(error instanceof NightwatchRestError);
       assert.equal(error.status, 429);
+      assert.equal(error.error_code, 'RATE_LIMITED');
       assert.equal(error.retry_after_ms, 3_000);
       assert.equal(error.message.includes('secret_test_token'), false);
       return true;
     },
   );
+});
+
+test('429 QUOTA_EXHAUSTED never invents a hot retry when Retry-After is absent', async () => {
+  const sleeps = [];
+  const client = create_nightwatch_rest_client({
+    api_key: 'test_token',
+    sleep: async (delay_ms) => sleeps.push(delay_ms),
+    fetch_impl: async () => json_response(429, {
+      error: { code: 'QUOTA_EXHAUSTED', recoverable: false },
+    }),
+  });
+
+  await assert.rejects(
+    () => client.discover_datasets(),
+    (error) => {
+      assert.equal(error.error_code, 'QUOTA_EXHAUSTED');
+      assert.equal(error.retry_after_ms, null);
+      return true;
+    },
+  );
+  assert.deepEqual(sleeps, []);
 });
 
 test('network failures are sanitized before reaching logs or callers', async () => {

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import {
+  DEFAULT_JUNK_GEX_POLICY,
   evaluate_junk_gex_strategy,
   normalize_gex_snapshot,
 } from '../apps/zero-dte-options/junk-gex-strategy.mjs';
@@ -432,6 +433,8 @@ test('active policy follows the fixed five-minute sampling contract with an incl
   assert.equal('gex_snapshot_poll_seconds' in active_policy.provider, false);
   assert.equal('heatmap_snapshot_poll_seconds' in active_policy.provider, false);
   assert.equal(active_policy.strategy.max_snapshot_age_ms, 600_000);
+  assert.equal('max_closed_bar_age_ms' in active_policy.strategy, false);
+  assert.equal('max_closed_bar_age_ms' in DEFAULT_JUNK_GEX_POLICY, false);
   const policy = active_policy.strategy;
   const at = (age_ms, meta_seconds = null) => evaluate_bullish({
     gex_snapshot: {
@@ -478,7 +481,7 @@ test('provider freshness metadata cannot make a stale payload fresh or vice vers
   assert.ok(meta_future.reason_codes.includes('snapshot_meta_from_future'));
 });
 
-test('closed bars require valid fresh continuous timestamps in one ET session', () => {
+test('closed bars require valid continuous timestamps in one ET session without an extra age cutoff', () => {
   const missing_timestamp = evaluate_bullish({
     market_context: bullish_context({
       bars_1m: bullish_bars.map(({ timestamp: _timestamp, ...bar }) => bar),
@@ -499,12 +502,22 @@ test('closed bars require valid fresh continuous timestamps in one ET session', 
       })),
     }),
   });
-  const stale = evaluate_bullish({ now_ms: Date.parse('2026-08-10T14:34:00.000Z') });
+  const unclosed = evaluate_bullish({
+    now_ms: Date.parse('2026-08-10T14:34:00.000Z'),
+    market_context: bullish_context({
+      bars_1m: bullish_bars.map((bar) => ({
+        ...bar,
+        timestamp: new Date(Date.parse(bar.timestamp) + 300_000).toISOString(),
+      })),
+    }),
+  });
+  const before_next_close = evaluate_bullish({ now_ms: Date.parse('2026-08-10T14:34:00.000Z') });
 
   assert.ok(missing_timestamp.reason_codes.includes('invalid_closed_confirmation_bar'));
   assert.ok(gap.reason_codes.includes('closed_confirmation_bars_not_continuous'));
   assert.ok(cross_session.reason_codes.includes('closed_confirmation_bars_cross_et_session'));
-  assert.ok(stale.reason_codes.includes('closed_confirmation_bars_stale'));
+  assert.ok(unclosed.reason_codes.includes('latest_confirmation_bar_not_closed'));
+  assert.equal(before_next_close.decision, 'trade');
 });
 
 test('VWAP disagreement and absent node confirmation remain no-trade', () => {

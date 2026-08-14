@@ -1,11 +1,23 @@
 {
-  "updated_at": "2026-08-14T12:39:54.003Z",
+  "updated_at": "2026-08-14T14:24:41.378Z",
   "business_line": "pa-options",
-  "phase": "broker_orders_degraded",
+  "phase": "broker_reconciled",
   "mode": "execute_simulate",
-  "entry_allowed": false,
-  "blocked_reasons": [
-    "entry_reconciliation_transient_error"
-  ],
-  "error": "Moomoo OpenD WebSocket login failed: {}"
+  "entry_allowed": true,
+  "blocked_reasons": [],
+  "unresolved_submissions": [],
+  "orphan_broker_orders": [],
+  "broker_order_count": 0,
+  "local_pending_reservation_count": 0,
+  "order_snapshot": {
+    "ok": true,
+    "degraded": false,
+    "source": "broker",
+    "orders": [],
+    "fetched_at": "2026-08-14T14:24:41.352Z",
+    "fetched_at_ms": 1786717481352,
+    "age_ms": 0,
+    "next_allowed_at": "2026-08-14T14:24:52.352Z",
+    "backoff_until": null
+  }
 }

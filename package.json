@@ -24,6 +24,7 @@
     "zero-dte:status": "npm run junk:gex:status",
     "zero-dte:plan": "npm run junk:gex:plan",
     "console": "node ./apps/control-console/control-console.mjs",
+    "review:junk-post-deploy": "node ./ops/write-junk-post-deploy-summary.mjs",
     "review:export": "node ./ops/export-review-data.mjs",
     "test": "node --test \"./tests/*.mjs\" \"./tests/*.cjs\" \"./apps/zero-dte-options/*.test.mjs\""
   },

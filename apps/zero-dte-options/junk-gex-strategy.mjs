@@ -19,7 +19,6 @@ export const DEFAULT_JUNK_GEX_POLICY = Object.freeze({
   max_entry_drift_points: 3,
   closed_bar_interval_ms: FIVE_MINUTE_MS,
   closed_bar_interval_tolerance_ms: 1_000,
-  max_closed_bar_age_ms: 90_000,
   min_gex_node_history_samples: 3,
   preferred_gex_node_history_bar_coverage: 3,
   require_gex_node_history_bar_coverage: true,
@@ -253,7 +252,6 @@ function merged_policy(policy) {
   const nonnegative = [
     'max_entry_drift_points',
     'closed_bar_interval_tolerance_ms',
-    'max_closed_bar_age_ms',
     'gex_node_history_strike_tolerance_points',
     'min_impulse_volume_ratio',
     'magnet_dead_zone_points',
@@ -344,8 +342,6 @@ function validate_signal_bars(raw_bars, snapshot, now_ms, policy) {
   const latest_end_ms = latest_start_ms + interval;
   if (latest_end_ms > Number(now_ms) + tolerance) {
     reason_codes.push('latest_confirmation_bar_not_closed');
-  } else if ((Number(now_ms) - latest_end_ms) > Number(policy.max_closed_bar_age_ms)) {
-    reason_codes.push('closed_confirmation_bars_stale');
   }
   return { bars, reason_codes };
 }

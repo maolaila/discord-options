@@ -45,7 +45,6 @@
     "max_entry_drift_points": 3,
     "closed_bar_interval_ms": 300000,
     "closed_bar_interval_tolerance_ms": 1000,
-    "max_closed_bar_age_ms": 90000,
     "min_gex_node_history_samples": 3,
     "preferred_gex_node_history_bar_coverage": 3,
     "require_gex_node_history_bar_coverage": true,

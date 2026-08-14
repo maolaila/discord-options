@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-08-14T14:25:01.873Z",
+  "business_line": "zero-dte-options",
+  "strategy": "junk_gex_nodes_v3",
+  "execution_environment": "simulate_only",
+  "deployment": {
+    "cutoff_at": "2026-08-14T14:12:08.075Z",
+    "old_watcher_pid": 13736,
+    "replacement_watcher_pid": 23404,
+    "supervisor_pid": 20884,
+    "removed_policy_field": "max_closed_bar_age_ms",
+    "replacement_age_cutoff_added": false
+  },
+  "decisions": {
+    "total_records": 3468,
+    "invalid_lines": 0,
+    "records_after_cutoff": 50,
+    "first_at": "2026-08-14T14:12:37.674Z",
+    "last_at": "2026-08-14T14:24:52.576Z",
+    "max_gap_ms": 16283,
+    "snapshot_bucket_count": 3,
+    "trade_decision_count": 0,
+    "reason_counts": {
+      "waiting_for_node_confirmation": 50
+    },
+    "removed_reason_count": 0
+  },
+  "post_deploy_artifacts": {
+    "entry_plans": 0,
+    "exit_plans": 0,
+    "trades": 0
+  },
+  "final_health": {
+    "status_updated_at": "2026-08-14T14:24:52.617Z",
+    "process_id": 23404,
+    "phase": "watching_simulation",
+    "mode": "execute_simulate",
+    "real_trading_allowed": false,
+    "market_open": true,
+    "entry_open": true,
+    "gex_readiness": "ready",
+    "price_action_ready": true,
+    "moomoo_connected": true,
+    "simulated_us_options_account_ready": true,
+    "broker_recovery": "complete",
+    "open_position_count": 0,
+    "active_order_count": 0,
+    "runtime_order_count": 3,
+    "last_decision": "no_trade",
+    "last_reason_codes": [
+      "waiting_for_node_confirmation"
+    ],
+    "last_error": null
+  },
+  "sources": [
+    {
+      "path": "logs/zero-dte-options-decisions.ndjson",
+      "bytes": 39901302,
+      "sha256": "2750103e2586e5caabaffbeeba5a465676577911cfbde04a14d9b0353f83e5a8"
+    },
+    {
+      "path": "logs/zero-dte-options-entry-plans.ndjson",
+      "bytes": 110139,
+      "sha256": "fca837438ea83300658a88c5f508c5ab806eb961f5b2c3e0a420568a7ce56f2e"
+    },
+    {
+      "path": "logs/zero-dte-options-exit-plans.ndjson",
+      "bytes": 9794,
+      "sha256": "745c661a4d3b4cdb77a81b639e3f54cc8c7434489200e43e4749c203eb54ed8d"
+    },
+    {
+      "path": "logs/zero-dte-options-trades.ndjson",
+      "bytes": 7669,
+      "sha256": "b66ccdbee1c4afbbe664df70641783f55a69ecefde3ebdf107b2cd969a42f1f2"
+    },
+    {
+      "path": "logs/zero-dte-options-status.json",
+      "bytes": 43164,
+      "sha256": "f9a9b5a62e5b4b1bd5acbf454b21f20dd7daa158a2035420b2e6275e8d4ffdb9"
+    },
+    {
+      "path": "logs/zero-dte-options-runtime-state.json",
+      "bytes": 344056,
+      "sha256": "8c409a86f689be5ef589c8da91cbc75a518a82a108038e84a789ea0f51825cbe"
+    },
+    {
+      "path": "logs/zero-dte-options-supervisor.log",
+      "bytes": 1394,
+      "sha256": "b83ab75c5e13a79e7e48e1c7f9ded8a81e7431288b8e707dd082d2d843c26f79"
+    }
+  ]
+}

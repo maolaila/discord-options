@@ -1,0 +1,23 @@
+{
+  "experiment_id": null,
+  "enabled": false,
+  "cohort_count": 0,
+  "lines": [],
+  "aggregate_realized_pnl_usd": 0,
+  "aggregate_realized_pnl_to_date_usd": 0,
+  "unallocated_realized_pnl_usd": 0,
+  "unallocated_closed_cohort_count": 0,
+  "unallocated_open_contract_qty": 0,
+  "comparison_pairing_issue_count": 0,
+  "physical_realized_pnl_usd": 0,
+  "physical_realized_pnl_to_date_usd": 0,
+  "session_date_et": "2026-08-14",
+  "session_cohort_count": 0,
+  "session_lines": [],
+  "session_aggregate_realized_pnl_usd": 0,
+  "session_aggregate_realized_pnl_to_date_usd": 0,
+  "session_unallocated_realized_pnl_usd": 0,
+  "session_physical_realized_pnl_usd": 0,
+  "session_physical_realized_pnl_to_date_usd": 0,
+  "generated_at": "2026-08-14T12:39:00.808Z"
+}

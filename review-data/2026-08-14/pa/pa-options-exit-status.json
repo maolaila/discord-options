@@ -1,0 +1,58 @@
+{
+  "updated_at": "2026-08-14T12:39:55.424Z",
+  "business_line": "pa-options",
+  "phase": "ok",
+  "mode": "execute_simulate",
+  "plans": 98,
+  "watched": 0,
+  "submitted_exits": 0,
+  "reconciled_exits": 0,
+  "unresolved_exits": 0,
+  "orphan_active_exit_orders": [],
+  "active_pa_position": false,
+  "unresolved_exit_submission": false,
+  "order_snapshot": {
+    "ok": true,
+    "degraded": false,
+    "source": "cache",
+    "orders": [
+      {
+        "comboLegs": [],
+        "trdSide": 1,
+        "orderType": 1,
+        "orderStatus": 15,
+        "orderID": "5274478650522336822",
+        "orderIDEx": "254389",
+        "code": "SPY260814C500000",
+        "name": "SPY CALL",
+        "qty": 1,
+        "price": 0.01,
+        "createTime": "2026-08-13 09:42:10",
+        "updateTime": "2026-08-13 09:42:10",
+        "fillQty": 0,
+        "fillAvgPrice": 0,
+        "secMarket": 2,
+        "createTimestamp": 1786628530,
+        "updateTimestamp": 1786628530,
+        "remark": "PA_SIM_SMOKE_1786628529036",
+        "timeInForce": 0,
+        "currency": 2,
+        "trdMarket": 2,
+        "session": 1,
+        "jpAccType": 0
+      }
+    ],
+    "fetched_at": "2026-08-14T12:39:39.566Z",
+    "fetched_at_ms": 1786711179566,
+    "age_ms": 15732,
+    "next_allowed_at": "2026-08-14T12:39:50.566Z",
+    "backoff_until": null
+  },
+  "quote_feed": {
+    "mode": "push_plus_snapshot_fallback",
+    "subscribed_security_count": 0,
+    "push_count": 0,
+    "cached_snapshot_count": 0,
+    "recent_errors": []
+  }
+}

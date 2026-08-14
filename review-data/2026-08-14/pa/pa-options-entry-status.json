@@ -1,0 +1,11 @@
+{
+  "updated_at": "2026-08-14T12:39:54.003Z",
+  "business_line": "pa-options",
+  "phase": "broker_orders_degraded",
+  "mode": "execute_simulate",
+  "entry_allowed": false,
+  "blocked_reasons": [
+    "entry_reconciliation_transient_error"
+  ],
+  "error": "Moomoo OpenD WebSocket login failed: {}"
+}

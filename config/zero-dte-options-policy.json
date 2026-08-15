@@ -24,8 +24,7 @@
     "read_model_max_attempts_per_bucket": 3,
     "snapshot_min_interval_ms": 1000,
     "max_429_retries": 0,
-    "request_timeout_ms": 10000,
-    "quota_entry_safety_floor": 10000
+    "request_timeout_ms": 10000
   },
   "strategy": {
     "id": "junk_gex_nodes_v3",
@@ -36,40 +35,21 @@
       "fresh"
     ],
     "max_snapshot_age_ms": 600000,
-    "max_nodes": 16,
-    "node_tolerance_points": 1.5,
-    "min_displacement_points": 1,
-    "min_body_points": 0.75,
-    "stop_buffer_points": 1.5,
-    "min_reward_risk_ratio": 1.33,
-    "max_entry_drift_points": 3,
     "closed_bar_interval_ms": 300000,
     "closed_bar_interval_tolerance_ms": 1000,
-    "min_gex_node_history_samples": 3,
-    "preferred_gex_node_history_bar_coverage": 3,
-    "require_gex_node_history_bar_coverage": true,
-    "gex_node_history_strike_tolerance_points": 0.5,
-    "require_vwap_confirmation": true,
     "require_volume_confirmation": true,
-    "min_impulse_volume_ratio": 1,
-    "magnet_dead_zone_points": 1.5,
-    "allow_positive_gamma_single_leg_mean_reversion": false,
     "option_expiry_days": 0,
     "option_strike_step_points": 5,
     "option_strike_offset_points": 5,
-    "entry_start_time_et": "09:45",
-    "entry_cutoff_time_et": "15:15",
-    "cooldown_seconds": 900
+    "entry_start_time_et": "09:30",
+    "entry_cutoff_time_et": "15:45",
+    "cooldown_seconds": 0
   },
   "evidence_gates": {
     "heatmap": {
       "enabled": true,
       "max_age_ms": 600000,
-      "node_tolerance_points": 5,
-      "conflict_veto_enabled": true,
-      "require_ranked_node_when_fresh": true,
       "direction_from_price_reaction_only": true,
-      "min_conflict_strength_ratio": 0.5,
       "missing_or_degraded_is_neutral": true
     },
     "automated_flow_alert": {
@@ -85,7 +65,6 @@
         180
       ],
       "minimum_events": 2,
-      "conflict_veto_enabled": false,
       "require_large_otm_sweep": true,
       "spx_primary_spy_secondary": true,
       "confirming_supportive_to_opposite_ratio": 2,
@@ -105,13 +84,13 @@
       "allowed_states": [
         "fresh"
       ],
-      "severe_stale_after_ms": 300000,
+      "audit_max_age_ms": 600000,
       "setup_cache_ttl_ms": 900000,
       "degraded_cache_ttl_ms": 60000,
       "unknown_schema_is_neutral": true,
       "service_unavailable_is_neutral": true,
       "require_bid_ask": true,
-      "require_open_interest_and_volume": true,
+      "require_open_interest_and_volume": false,
       "flow_contract_is_never_auto_selected": true,
       "oi_is_not_intraday_directional_evidence": true
     },
@@ -172,10 +151,10 @@
     "max_signal_age_seconds": 30,
     "max_gex_snapshot_age_seconds": 600,
     "max_future_clock_skew_seconds": 5,
+    "max_option_quote_age_seconds": 3,
     "max_open_positions": 1,
-    "max_trades_per_day": 3,
-    "max_contracts_per_trade": 3,
-    "max_daily_realized_loss_usd": 300,
+    "max_trades_per_day": null,
+    "max_daily_realized_loss_usd": null,
     "entry_order_ttl_seconds": 45
   },
   "position_sizing": {
@@ -262,19 +241,20 @@
   "execution_quality": {
     "quote_source": "opend_push_orderbook_with_snapshot_fallback",
     "require_bid_ask": true,
-    "require_open_interest_and_volume": true,
+    "require_tick_size": true,
+    "require_open_interest_and_volume": false,
     "min_bid_price": 0.01,
-    "max_spread_pct_of_mid": 20,
+    "max_spread_pct_of_mid": null,
     "max_spread_abs": null,
-    "max_round_trip_loss_pct": 25,
+    "max_round_trip_loss_pct": null,
     "buy_limit_basis": "ask_plus_slippage_buffer",
     "sell_estimate_basis": "bid_minus_slippage_buffer",
     "slippage_ticks": 1,
-    "slippage_pct_of_spread": 20,
+    "slippage_pct_of_spread": 0,
     "cap_qty_by_visible_ask": true,
-    "max_qty_to_ask_volume_ratio": 3,
-    "min_open_interest": 100,
-    "min_option_day_volume": 100
+    "max_qty_to_ask_volume_ratio": 1,
+    "min_open_interest": 0,
+    "min_option_day_volume": 0
   },
   "exit_rules": {
     "price_basis": "option_entry_fill_price",
@@ -287,20 +267,17 @@
     "breakeven_floor_pct": 0,
     "setup_time_stop_enabled": true,
     "setup_time_stop_minutes": 5,
-    "setup_time_stop_requires_nonpositive_return": true,
     "setup_time_stop_setup_types": [
-      "breakout_retest",
-      "node_rejection",
       "range_mean_reversion"
     ],
     "structural_target_partial_exit_enabled": true,
     "structural_target_partial_exit_ratio": 0.5,
     "structural_target_profit_floor_pct": 0,
-    "use_underlying_node_invalidation": true,
+    "use_underlying_confirmation_bar_wick_invalidation": true,
     "use_next_gex_node_target": true,
     "exit_before_regular_session_close": true,
-    "close_exit_start_time_et": "15:30",
-    "force_close_exit_start_time_et": "15:45",
+    "close_exit_start_time_et": "15:45",
+    "force_close_exit_start_time_et": "15:55",
     "no_overnight_holding": true,
     "controlled_overnight": {
       "enabled": false

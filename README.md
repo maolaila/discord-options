@@ -125,19 +125,21 @@ This disables supported automatic updater services/tasks, keeps lid close and id
 The effective rules live in `config/zero-dte-options-policy.json`:
 
 - The strategy trades single-leg SPX 0DTE options in simulation only.
-- It allows at most one open position and three entries per day.
+- The current executor manages at most one JUNK-owned aggregate cohort at a time. The former three-entries-per-day gate is disabled because it was not a JUNKMAN rule.
 - Each experiment line has USD 10,000 of simulated equity. Target allocation is 5% and 10% is a soft sizing target: when one contract costs more than 10% but no more than the full USD 10,000 line, the line buys the minimum one contract.
-- Positive Gamma is treated as range or magnet structure; the strategy does not chase a naked single leg in the center.
-- Negative Gamma acceleration requires a confirmed breakout and retest.
-- Entry requires stable GEX nodes, a completed five-minute price reaction, VWAP and volume confirmation, price between invalidation and target, and acceptable bid/ask, spread, OI, and option volume.
-- Shared exits include structural invalidation, the next GEX node, a five-minute no-progress rule, breakeven protection after a 20% option gain, and the 15:30/15:45 ET close discipline.
-- The control catastrophic stop is -15% and has no fixed take-profit. Structural exits take priority over fixed percentage exits.
+- A ranked node's positive/negative Gamma sign is context, not a direction label or veto. Direction comes from a completed price reaction at the node.
+- A breakout entry needs a completed body break and a later completed five-minute wick retest that reaches the node while intervening closes hold the accepted side. A same-side rejection needs one completed reverse-colour five-minute candle whose wick reaches the node. Because the provider does not publish a node-region width, the implementation does not invent a point tolerance.
+- GEX history and VWAP are recorded for review but do not silently block a confirmed reaction. Real positive volume must be present, but no undocumented volume ratio, body size, displacement, drift, cooldown, or node-history count is imposed. The only structural reward gate is the engineering minimum `reward > risk`, a deliberately weaker formalization of Nightwatch's qualitative advice that near-1:1 setups are usually insufficient.
+- Directional option strikes use a same-expiry, same-right gross Gamma-OI ranking proxy from the observed official Nightwatch chain response. JUNKMAN stated a maximum directional GEX strike with a +/-5–10 adjustment, but did not specify the sign convention; choosing 5 points toward current price is therefore labeled as a transparent engineering heuristic, not attributed to him or the API. Dealer GEX net nodes are never treated as an undocumented Call/Put split. The same full-chain response is reused for candidate audit, so one setup does not pay for the identical request twice.
+- Execution requires a current quote with real bid/ask and tick plus enough displayed ask depth. OI and day volume remain logged context but are not hard entry gates because neither JUNKMAN nor the official execution API provides a minimum. The former hard 20% spread, 25% round-trip-loss, OI 100, volume 100, per-line contract cap, three-trades-per-day, and USD 300 daily-loss gates are disabled. The remaining modeled immediate-loss rejection uses -15%, an engineering choice at the upper edge of JUNKMAN's stated 10–15% stop range.
+- The five-minute no-progress exit is scoped only to a two-boundary `range_mean_reversion` setup: after touching one boundary, exit if the other boundary is not reached within five minutes, regardless of option PnL. The current automated entry model does not emit that setup, so the rule is dormant for new `breakout_retest` and `node_rejection` positions.
+- Exit priority is force/expiry handling, confirmation-wick structural invalidation, scheduled close, catastrophic stop, breakeven floor, enabled fixed take-profit, next-node structural target, then the scoped boundary time stop. The control line uses the engineering -15% catastrophic stop and has fixed take-profit disabled.
 - The system never holds overnight.
-- Nightwatch timeout, quota protection, or HTTP 429 backoff cannot block moomoo position reconciliation, stop handling, or time exits for an existing position.
+- Nightwatch timeout or HTTP 429 backoff cannot block moomoo position reconciliation, stop handling, or time exits for an existing position.
 
 ## Seven paired exit variants
 
-One signal, contract, entry time, and fill price create one aggregate position in the moomoo simulated account. The program assigns that position to seven local virtual portfolios. Each line has USD 10,000, for a USD 70,000 total experiment baseline. Only fixed take-profit and catastrophic-stop settings differ:
+One signal, contract, entry time, and fill price create one aggregate position in the moomoo simulated account. The program assigns that position to seven local virtual portfolios. Each line has USD 10,000, for a USD 70,000 total experiment baseline. There is no separate undocumented three-contract cap: the physical order quantity is seven times the per-line quantity after budget and displayed-depth sizing. Only fixed take-profit and catastrophic-stop settings differ:
 
 | line_id | Stop | Fixed take-profit |
 | --- | ---: | ---: |
@@ -149,7 +151,7 @@ One signal, contract, entry time, and fill price create one aggregate position i
 | `sl15_tp30` | -15% | +30% |
 | `sl12p5_tp25` | -12.5% | +25% |
 
-Shared structural exits, the five-minute no-progress rule, breakeven behavior, and close discipline are frozen when a cohort is created. An aggregate entry is allocated only after complete equal-unit fills. Any remainder is closed immediately. A broker-to-ledger quantity mismatch stops new actions. A cohort affected by partial exit fills is recorded but excluded from the comparable leaderboard.
+Shared confirmation-wick invalidation, next-node target, breakeven behavior, and close discipline are frozen when a cohort is created. The boundary-only five-minute rule is frozen only when an explicitly supported `range_mean_reversion` cohort exists. An aggregate entry is allocated only after complete equal-unit fills. Any remainder is closed immediately. A broker-to-ledger quantity mismatch stops new actions. A cohort affected by partial exit fills is recorded but excluded from the comparable leaderboard.
 
 ## Status and trade records
 
@@ -163,7 +165,7 @@ All JUNKMAN state uses the `zero-dte-options` prefix:
 - `logs/zero-dte-options-trades.ndjson`: simulated orders, fills, exits, and realized results.
 - `logs/zero-dte-options-flow-events.ndjson`: automated Flow parsing and eligibility audit.
 - `logs/zero-dte-options-experiment-events.ndjson`: per-cohort and per-line events.
-- `logs/zero-dte-options-experiment-summary.json`: per-line realized and comparable PnL, win rate, and sample count.
+- `logs/zero-dte-options-experiment-summary.json`: per-line realized and comparable gross PnL, win rate, and sample count; broker fees are excluded and marked in the file.
 - `logs/zero-dte-options-oi-structure-background.json`: compact, non-directional OI research context used in decision audits.
 - `data/junk-oi-research/`: ignored local SQLite history and redacted daily source snapshots.
 

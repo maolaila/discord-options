@@ -119,7 +119,10 @@ function exitSettings(config) {
     ),
     take_profit_pct: positiveNumber(rules.option_take_profit_pct ?? config.optionExitTakeProfitPct) ?? 25,
     option_price_exit: rules.option_price_exit ?? true,
-    use_underlying_node_invalidation: rules.use_underlying_node_invalidation ?? true,
+    use_underlying_confirmation_bar_wick_invalidation:
+      rules.use_underlying_confirmation_bar_wick_invalidation
+      ?? rules.use_underlying_node_invalidation
+      ?? true,
     use_next_gex_node_target: rules.use_next_gex_node_target ?? true,
     setup_time_stop_enabled: booleanSetting(
       rules.setup_time_stop_enabled
@@ -132,13 +135,10 @@ function exitSettings(config) {
         ?? rules.setup_specific_time_stop_minutes
         ?? config.optionExitSetupTimeStopMinutes,
     ) ?? 5,
-    // v3 deliberately fixes this safety rule: a profitable or unpriced setup
-    // is never liquidated by age alone.
-    setup_time_stop_requires_nonpositive_return: true,
     setup_time_stop_setup_types: normalizedStringList(
       rules.setup_time_stop_setup_types
         ?? rules.setup_specific_time_stop_setup_types,
-      ['breakout_retest', 'node_rejection', 'range_mean_reversion'],
+      ['range_mean_reversion'],
     ),
     structural_target_partial_exit_enabled: booleanSetting(
       rules.structural_target_partial_exit_enabled
@@ -159,8 +159,8 @@ function exitSettings(config) {
         ?? config.optionExitStructuralTargetProfitFloorPct,
     ) ?? 0,
     exit_before_regular_session_close: rules.exit_before_regular_session_close ?? true,
-    close_exit_start_time_et: normalizedString(rules.close_exit_start_time_et || config.closeExitStartTimeEt || '15:30'),
-    force_close_exit_start_time_et: normalizedString(rules.force_close_exit_start_time_et || config.forceCloseExitStartTimeEt || '15:45'),
+    close_exit_start_time_et: normalizedString(rules.close_exit_start_time_et || config.closeExitStartTimeEt || '15:45'),
+    force_close_exit_start_time_et: normalizedString(rules.force_close_exit_start_time_et || config.forceCloseExitStartTimeEt || '15:55'),
     no_overnight_holding: rules.no_overnight_holding ?? true,
   };
 }
@@ -295,13 +295,6 @@ function setupTimeStopTrigger({ ownedPosition, settings, managementUpdate, now, 
   const elapsedMs = nowMs - entryMs;
   if (elapsedMs < targetAgeMs) return null;
   if (target === null || underlying === null || targetReached({ direction, underlying, target })) return null;
-  // A stale mean-reversion setup is only a time-stop candidate when its option
-  // has a known, non-positive return. A profitable setup remains managed by its
-  // structural target / breakeven rules instead of being liquidated by age.
-  if (
-    settings.setup_time_stop_requires_nonpositive_return
-    && (managementUpdate.option_return_pct === null || managementUpdate.option_return_pct > 0)
-  ) return null;
   return {
     reason: `setup_${String(settings.setup_time_stop_minutes).replace('.', 'p')}m_time_stop_no_progress`,
     trigger_type: 'setup_time_stop',
@@ -370,9 +363,9 @@ function exitTrigger({ ownedPosition, quote, settings, managementUpdate, now, un
   const currentPrice = positiveNumber(quote?.sell_estimate_price ?? quote?.bid);
   const returnPct = managementUpdate.option_return_pct;
   if (underlying !== null && direction === 'bull') {
-    if (settings.use_underlying_node_invalidation && invalidation !== null && underlying <= invalidation) {
+    if (settings.use_underlying_confirmation_bar_wick_invalidation && invalidation !== null && underlying <= invalidation) {
       return {
-        reason: 'underlying_gex_node_invalidation',
+        reason: 'underlying_confirmation_bar_wick_proxy_invalidation',
         trigger_type: 'underlying_structure',
         order_type: 'limit',
         underlying_price_usd: underlying,
@@ -381,9 +374,9 @@ function exitTrigger({ ownedPosition, quote, settings, managementUpdate, now, un
     }
   }
   if (underlying !== null && direction === 'bear') {
-    if (settings.use_underlying_node_invalidation && invalidation !== null && underlying >= invalidation) {
+    if (settings.use_underlying_confirmation_bar_wick_invalidation && invalidation !== null && underlying >= invalidation) {
       return {
-        reason: 'underlying_gex_node_invalidation',
+        reason: 'underlying_confirmation_bar_wick_proxy_invalidation',
         trigger_type: 'underlying_structure',
         order_type: 'limit',
         underlying_price_usd: underlying,
@@ -560,8 +553,11 @@ export function buildZeroDteSimulatedExitPlan({
         remark: `junk_gex_exit:${normalizedString(ownedPosition.plan_id).slice(-20)}`.slice(0, 60),
       };
     } else {
-      const sellPrice = positiveNumber(quote?.sell_estimate_price ?? quote?.bid);
-      if (sellPrice === null) {
+      const exitTick = positiveNumber(quote?.tick);
+      const sellPrice = positiveNumber(quote?.sell_estimate_price);
+      if (exitTick === null) {
+        reasons.push('missing_or_invalid_exit_price_tick');
+      } else if (sellPrice === null) {
         reasons.push('missing_positive_exit_bid');
       } else {
         order = {
@@ -668,12 +664,14 @@ export function buildZeroDteSimulatedExplicitExitPlan({
   const emergencyUnpricedForceClose = allowUnpricedMarketForceClose === true
     && orderType === 'market'
     && normalizedString(reason) === 'experiment_unpriced_entry_force_close';
-  const sellPrice = positiveNumber(quote?.sell_estimate_price ?? quote?.bid);
+  const exitTick = positiveNumber(quote?.tick);
+  const sellPrice = positiveNumber(quote?.sell_estimate_price);
   const reasons = ownership.reasons.filter((ownershipReason) => (
     emergencyUnpricedForceClose && ownershipReason === 'missing_entry_fill_price' ? false : true
   ));
   const ownershipPassed = reasons.length === 0;
   if (requestedQty < 1) reasons.push('missing_positive_explicit_exit_qty');
+  if (orderType === 'limit' && exitTick === null) reasons.push('missing_or_invalid_exit_price_tick');
   if (orderType === 'limit' && sellPrice === null) reasons.push('missing_positive_exit_bid');
   const ready = ownershipPassed
     && exitQty > 0

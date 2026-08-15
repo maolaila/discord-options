@@ -10,24 +10,9 @@ export const DEFAULT_JUNK_GEX_POLICY = Object.freeze({
   real_trading_allowed: false,
   allowed_snapshot_states: Object.freeze(['fresh']),
   max_snapshot_age_ms: JUNK_GEX_MAX_AGE_MS,
-  max_nodes: 12,
-  node_tolerance_points: 1.5,
-  min_displacement_points: 1,
-  min_body_points: 1,
-  stop_buffer_points: 1,
-  min_reward_risk_ratio: 0.75,
-  max_entry_drift_points: 3,
   closed_bar_interval_ms: FIVE_MINUTE_MS,
   closed_bar_interval_tolerance_ms: 1_000,
-  min_gex_node_history_samples: 3,
-  preferred_gex_node_history_bar_coverage: 3,
-  require_gex_node_history_bar_coverage: true,
-  gex_node_history_strike_tolerance_points: 0.5,
-  require_vwap_confirmation: true,
   require_volume_confirmation: true,
-  min_impulse_volume_ratio: 1,
-  magnet_dead_zone_points: 1.5,
-  allow_positive_gamma_single_leg_mean_reversion: false,
   option_expiry_days: 0,
   option_strike_step_points: 5,
   option_strike_offset_points: 5,
@@ -73,13 +58,146 @@ function source_payload(gex_snapshot) {
   return gex_snapshot || {};
 }
 
+function canonical_option_right(value) {
+  const token = String(value || '').trim().toUpperCase();
+  if (token === 'CALL') return 'C';
+  if (token === 'PUT') return 'P';
+  return token === 'C' || token === 'P' ? token : null;
+}
+
+function parse_spxw_contract_symbol(value) {
+  const match = String(value || '').trim().toUpperCase()
+    .match(/^SPXW(\d{2})(\d{2})(\d{2})([CP])(\d{8})$/);
+  if (!match) return null;
+  const expiration = `20${match[1]}-${match[2]}-${match[3]}`;
+  const parsed_date = new Date(`${expiration}T00:00:00.000Z`);
+  if (
+    parsed_date.getUTCFullYear() !== 2000 + Number(match[1])
+    || parsed_date.getUTCMonth() + 1 !== Number(match[2])
+    || parsed_date.getUTCDate() !== Number(match[3])
+  ) return null;
+  return {
+    contract_symbol: match[0],
+    expiration,
+    right: match[4],
+    strike_usd: Number(match[5]) / 1_000,
+  };
+}
+
+/**
+ * Rank same-expiry Call or Put strikes from fields observed in Nightwatch's
+ * official option-chain response. Dealer GEX nodes expose only net_gex_usd;
+ * they do not expose a per-node Call/Put split. Within one underlying/expiry,
+ * gamma * open interest has the same rank as conventional GEX magnitude because
+ * spot and contract multiplier are common factors.
+ */
+export function directional_option_gex_reference({
+  option_chain_snapshot,
+  direction,
+  expiration,
+  now_ms = null,
+  max_age_ms = null,
+} = {}) {
+  const option_right = direction === 'bullish' ? 'C' : (direction === 'bearish' ? 'P' : null);
+  const source = option_chain_snapshot?.data && typeof option_chain_snapshot.data === 'object'
+    ? option_chain_snapshot.data
+    : option_chain_snapshot;
+  const source_ticker = String(source?.ticker || '').trim().toUpperCase();
+  const source_expiration = String(source?.expiration || '').slice(0, 10);
+  const expected_expiration = String(expiration || '').slice(0, 10);
+  const contracts = Array.isArray(source?.contracts) ? source.contracts : [];
+  if (!option_right || !/^\d{4}-\d{2}-\d{2}$/.test(expected_expiration)) return null;
+  if (source_ticker !== 'SPX' || source_expiration !== expected_expiration) return null;
+  // Live responses from the official endpoint expose this truncation marker
+  // and the timestamps below. Treat missing provenance as incomplete rather
+  // than pretending the public OpenAPI schema documents more than it does.
+  if (option_chain_snapshot?._meta?.truncated !== false) return null;
+  const freshness_seconds = finite_number(option_chain_snapshot?._meta?.data_freshness_seconds);
+  const source_snapshot_ms = timestamp_ms(source?.snapshot_at);
+  const greeks_as_of_ms = timestamp_ms(source?.greeks_as_of);
+  const open_interest_as_of_ms = timestamp_ms(source?.open_interest_as_of);
+  if (source_snapshot_ms === null || greeks_as_of_ms === null || open_interest_as_of_ms === null) return null;
+  if (open_interest_as_of_ms > source_snapshot_ms + 5_000) return null;
+  if (
+    now_ms !== null
+    && max_age_ms !== null
+    && Number.isFinite(Number(now_ms))
+    && Number.isFinite(Number(max_age_ms))
+  ) {
+    if (source_snapshot_ms === null || greeks_as_of_ms === null) return null;
+    const age_ms = Number(now_ms) - source_snapshot_ms;
+    const greeks_age_ms = Number(now_ms) - greeks_as_of_ms;
+    if (age_ms < -5_000 || age_ms > Number(max_age_ms)) return null;
+    if (greeks_age_ms < -5_000 || greeks_age_ms > Number(max_age_ms)) return null;
+    if (freshness_seconds !== null && freshness_seconds * 1_000 > Number(max_age_ms)) return null;
+  }
+
+  const by_strike = new Map();
+  for (const contract of contracts) {
+    const contract_symbol = String(contract?.contract_symbol || '').trim().toUpperCase();
+    const symbol_identity = parse_spxw_contract_symbol(contract_symbol);
+    const contract_expiration = String(contract?.expiration || '').slice(0, 10);
+    const strike_usd = finite_number(contract?.strike_usd);
+    const contract_right = canonical_option_right(contract?.right);
+    const gamma = finite_number(contract?.gamma);
+    const open_interest = finite_number(contract?.open_interest);
+    if (
+      !symbol_identity
+      || symbol_identity.expiration !== expected_expiration
+      || symbol_identity.right !== option_right
+      || Math.abs(symbol_identity.strike_usd - strike_usd) > 0.0001
+      || contract_expiration !== expected_expiration
+      || contract_right !== option_right
+      || !Number.isFinite(strike_usd)
+      || !Number.isFinite(gamma)
+      || !Number.isFinite(open_interest)
+      || gamma <= 0
+      || open_interest <= 0
+    ) continue;
+    const gamma_oi_weight = gamma * open_interest;
+    if (!(gamma_oi_weight > 0)) continue;
+    const previous = by_strike.get(strike_usd) || {
+      strike_usd,
+      gamma_oi_weight: 0,
+      contract_count: 0,
+      open_interest: 0,
+    };
+    previous.gamma_oi_weight += gamma_oi_weight;
+    previous.contract_count += 1;
+    previous.open_interest += open_interest;
+    by_strike.set(strike_usd, previous);
+  }
+
+  const selected = [...by_strike.values()].sort((left, right) => (
+    right.gamma_oi_weight - left.gamma_oi_weight
+    || left.strike_usd - right.strike_usd
+  ))[0] || null;
+  if (!selected) return null;
+  return {
+    strike_usd: selected.strike_usd,
+    option_right: option_right === 'C' ? 'call' : 'put',
+    contract_root: 'SPXW',
+    expiration: expected_expiration,
+    gamma_oi_weight: rounded(selected.gamma_oi_weight, 8),
+    open_interest: rounded(selected.open_interest),
+    contract_count: selected.contract_count,
+    source: 'nightwatch_options_chain_snapshot_gross_gamma_oi_proxy',
+    source_field: 'data.contracts[].gamma*open_interest',
+    source_snapshot_at: iso_timestamp(source?.snapshot_at),
+    greeks_as_of: iso_timestamp(source?.greeks_as_of),
+    data_freshness_seconds: rounded(freshness_seconds),
+    open_interest_as_of: iso_timestamp(source?.open_interest_as_of),
+    open_interest_is_settlement_lagged: true,
+  };
+}
+
 function normalize_strike(strike) {
   const normalized = {
     strike_usd: finite_number(strike?.strike_usd),
     net_gex_usd: finite_number(strike?.net_gex_usd),
-    call_gex_usd: finite_number(strike?.call_gex_usd),
-    put_gex_usd: finite_number(strike?.put_gex_usd),
     node_type: strike?.node_type ? String(strike.node_type) : null,
+    rank: finite_number(strike?.rank),
+    relative_strength: finite_number(strike?.relative_strength),
   };
   return Number.isFinite(normalized.strike_usd) && Number.isFinite(normalized.net_gex_usd)
     ? normalized
@@ -95,68 +213,15 @@ function is_gamma_flip_node(node) {
   return type.includes('gamma_flip') || type.split(/[^a-z]+/).includes('flip');
 }
 
-function is_wall_node(node) {
-  const type = structural_node_type(node);
-  return type.includes('call_wall') || type.includes('put_wall') || type.split(/[^a-z]+/).includes('wall');
-}
-
 function is_magnet_node(node) {
   const type = structural_node_type(node);
   return type.includes('magnet') || type.split(/[^a-z]+/).includes('mag');
-}
-
-function is_named_structural_node(node) {
-  const tokens = structural_node_type(node).split(/[^a-z]+/);
-  return is_gamma_flip_node(node)
-    || is_wall_node(node)
-    || is_magnet_node(node)
-    || ['res', 'resistance', 'sup', 'support', 'acc', 'acceleration']
-      .some((token) => tokens.includes(token));
 }
 
 function strongest_by(nodes, field) {
   return nodes
     .filter((node) => Number.isFinite(node[field]))
     .sort((left, right) => Math.abs(right[field]) - Math.abs(left[field]))[0] || null;
-}
-
-function select_nodes({ nodes, spot_usd, call_wall_usd, put_wall_usd, max_nodes }) {
-  const limit = Math.max(2, Number(max_nodes) || DEFAULT_JUNK_GEX_POLICY.max_nodes);
-  const mandatory = new Map();
-  const keep = (node) => {
-    if (node) mandatory.set(node.strike_usd, node);
-  };
-  const by_strength = (list) => [...list]
-    .sort((left, right) => Math.abs(right.net_gex_usd) - Math.abs(left.net_gex_usd));
-
-  if (Number.isFinite(spot_usd)) {
-    for (const node of by_strength(nodes.filter((candidate) => candidate.strike_usd < spot_usd)).slice(0, 2)) {
-      keep(node);
-    }
-    for (const node of by_strength(nodes.filter((candidate) => candidate.strike_usd > spot_usd)).slice(0, 2)) {
-      keep(node);
-    }
-    keep(nodes.find((candidate) => candidate.strike_usd === spot_usd) || null);
-  }
-
-  for (const node of nodes) {
-    const type = String(node.node_type || '').toLowerCase();
-    if (type.includes('call_wall') || type.includes('put_wall')) keep(node);
-    if (is_named_structural_node(node)) keep(node);
-    if (Number.isFinite(call_wall_usd) && node.strike_usd === call_wall_usd) keep(node);
-    if (Number.isFinite(put_wall_usd) && node.strike_usd === put_wall_usd) keep(node);
-  }
-  keep(strongest_by(nodes, 'call_gex_usd'));
-  keep(strongest_by(nodes, 'put_gex_usd'));
-
-  for (const node of by_strength(nodes)) {
-    if (mandatory.size >= limit) break;
-    keep(node);
-  }
-
-  // Mandatory nodes may exceed a bad max_nodes setting. Retaining both sides
-  // and both directional walls is safer than silently deleting structure.
-  return [...mandatory.values()].sort((left, right) => left.strike_usd - right.strike_usd);
 }
 
 function normalize_bar(bar) {
@@ -179,7 +244,7 @@ function normalize_bar(bar) {
   return normalized;
 }
 
-export function normalize_gex_snapshot(gex_snapshot, max_nodes = DEFAULT_JUNK_GEX_POLICY.max_nodes) {
+export function normalize_gex_snapshot(gex_snapshot) {
   const source = source_payload(gex_snapshot);
   const summary = source.summary && typeof source.summary === 'object' ? source.summary : source;
   const spot_usd = finite_number(source.spot_usd);
@@ -200,15 +265,10 @@ export function normalize_gex_snapshot(gex_snapshot, max_nodes = DEFAULT_JUNK_GE
           ? existing.node_type
           : `${existing.node_type || 'gex_node'}|gamma_flip`,
       };
-    } else {
-      all_nodes.push({
-        strike_usd: gamma_flip_usd,
-        net_gex_usd: 0,
-        call_gex_usd: null,
-        put_gex_usd: null,
-        node_type: 'gamma_flip',
-      });
     }
+    // junk_man explicitly says he generally does not trade from Flip. Preserve
+    // the summary value as audit context, but never synthesize a tradable node
+    // when the provider did not rank that strike in `strikes`.
   }
   for (const [wall_usd, wall_type] of [[call_wall_usd, 'call_wall'], [put_wall_usd, 'put_wall']]) {
     if (!Number.isFinite(wall_usd)) continue;
@@ -222,13 +282,10 @@ export function normalize_gex_snapshot(gex_snapshot, max_nodes = DEFAULT_JUNK_GE
       };
     }
   }
-  const nodes = select_nodes({
-    nodes: all_nodes,
-    spot_usd,
-    call_wall_usd,
-    put_wall_usd,
-    max_nodes,
-  });
+  // The provider response is already a bounded ranked snapshot. Do not add an
+  // undocumented application-side node cap that could discard a valid tested
+  // node or its next structural target.
+  const nodes = all_nodes.sort((left, right) => left.strike_usd - right.strike_usd);
 
   return {
     ticker: source.ticker ? String(source.ticker).toUpperCase() : null,
@@ -250,16 +307,10 @@ function merged_policy(policy) {
     throw new Error('junk GEX strategy is restricted to simulate_only');
   }
   const nonnegative = [
-    'max_entry_drift_points',
     'closed_bar_interval_tolerance_ms',
-    'gex_node_history_strike_tolerance_points',
-    'min_impulse_volume_ratio',
-    'magnet_dead_zone_points',
   ];
   const positive = [
     'closed_bar_interval_ms',
-    'min_gex_node_history_samples',
-    'preferred_gex_node_history_bar_coverage',
     'option_strike_step_points',
   ];
   for (const key of nonnegative) {
@@ -311,52 +362,56 @@ function no_trade(base, reason_codes) {
 }
 
 function validate_signal_bars(raw_bars, snapshot, now_ms, policy) {
-  if (!Array.isArray(raw_bars) || raw_bars.length < 3) {
+  if (!Array.isArray(raw_bars) || raw_bars.length < 1) {
     return { bars: [], reason_codes: ['insufficient_closed_confirmation_bars'] };
   }
-  const selected = raw_bars.slice(-3);
-  const bars = selected.map(normalize_bar);
+  const latest = normalize_bar(raw_bars.at(-1));
   const reason_codes = [];
-  if (bars.some((bar) => !bar)) return { bars: [], reason_codes: ['invalid_closed_confirmation_bar'] };
-  if (policy.require_volume_confirmation && bars.some((bar) => !Number.isFinite(bar.volume))) {
+  if (!latest) return { bars: [], reason_codes: ['invalid_closed_confirmation_bar'] };
+  if (policy.require_volume_confirmation && !Number.isFinite(latest.volume)) {
     reason_codes.push('missing_closed_bar_volume');
   }
 
   const interval = Number(policy.closed_bar_interval_ms);
   const tolerance = Number(policy.closed_bar_interval_tolerance_ms);
-  for (let index = 1; index < bars.length; index += 1) {
-    const gap = timestamp_ms(bars[index].timestamp) - timestamp_ms(bars[index - 1].timestamp);
-    if (Math.abs(gap - interval) > tolerance) {
-      reason_codes.push('closed_confirmation_bars_not_continuous');
-      break;
-    }
-  }
-
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(snapshot.session_date_et || ''))) {
     reason_codes.push('missing_or_invalid_session_date_et');
-  } else if (bars.some((bar) => date_in_new_york(bar.timestamp) !== snapshot.session_date_et)) {
+  } else if (date_in_new_york(latest.timestamp) !== snapshot.session_date_et) {
     reason_codes.push('closed_confirmation_bars_cross_et_session');
   }
 
-  const latest_start_ms = timestamp_ms(bars.at(-1).timestamp);
+  const latest_start_ms = timestamp_ms(latest.timestamp);
   const latest_end_ms = latest_start_ms + interval;
   if (latest_end_ms > Number(now_ms) + tolerance) {
     reason_codes.push('latest_confirmation_bar_not_closed');
   }
+
+  // A completed rejection candle is independently actionable in junk_man's
+  // description. Only expose a second bar to the breakout/retest evaluator when
+  // that prior bar is valid, contiguous, closed, and in the same ET session;
+  // malformed prior context must not become a hidden two-bar rejection gate.
+  const bars = [latest];
+  let next_start_ms = latest_start_ms;
+  for (let index = raw_bars.length - 2; index >= 0; index -= 1) {
+    const previous = normalize_bar(raw_bars[index]);
+    if (!previous) break;
+    const previous_start_ms = timestamp_ms(previous.timestamp);
+    const previous_same_session = /^\d{4}-\d{2}-\d{2}$/.test(String(snapshot.session_date_et || ''))
+      && date_in_new_york(previous.timestamp) === snapshot.session_date_et;
+    if (
+      Math.abs(next_start_ms - previous_start_ms - interval) > tolerance
+      || previous_start_ms + interval > Number(now_ms) + tolerance
+      || !previous_same_session
+    ) break;
+    bars.unshift(previous);
+    next_start_ms = previous_start_ms;
+  }
   return { bars, reason_codes };
 }
 
-function vwap_confirms(direction, close_usd, vwap_usd, policy) {
-  if (!policy.require_vwap_confirmation) return true;
-  if (!Number.isFinite(vwap_usd)) return false;
-  return direction === 'bullish' ? close_usd > vwap_usd : close_usd < vwap_usd;
-}
-
-function volume_confirms(current_bar, prior_bar, policy) {
+function volume_confirms(bars, policy) {
   if (!policy.require_volume_confirmation) return true;
-  if (!Number.isFinite(current_bar?.volume) || !Number.isFinite(prior_bar?.volume)) return false;
-  if (prior_bar.volume <= 0) return current_bar.volume > 0;
-  return current_bar.volume >= prior_bar.volume * Number(policy.min_impulse_volume_ratio);
+  return bars.every((bar) => Number.isFinite(bar?.volume) && bar.volume > 0);
 }
 
 function next_structural_node(nodes, entry_usd, direction) {
@@ -380,15 +435,7 @@ function dominant_magnet_node(nodes, excluded_strike = null) {
   return strongest_by(named.length > 0 ? named : candidates, 'net_gex_usd');
 }
 
-function plan_target(candidate, nodes, local_gamma_node) {
-  if (candidate.setup_type === 'node_rejection' && local_gamma_node.net_gex_usd > 0) {
-    const magnet = dominant_magnet_node(nodes, candidate.tested_node.strike_usd);
-    const in_direction = magnet && (
-      (candidate.direction === 'bullish' && magnet.strike_usd > candidate.entry_usd)
-      || (candidate.direction === 'bearish' && magnet.strike_usd < candidate.entry_usd)
-    );
-    if (in_direction) return { node: magnet, basis: 'positive_gamma_magnet_center' };
-  }
+function plan_target(candidate, nodes) {
   return {
     node: next_structural_node(nodes, candidate.entry_usd, candidate.direction),
     basis: candidate.setup_type === 'breakout_retest'
@@ -397,147 +444,145 @@ function plan_target(candidate, nodes, local_gamma_node) {
   };
 }
 
-function breakout_candidate(node, bars, vwap_usd, policy) {
-  const setup = bars.at(-3);
-  const impulse = bars.at(-2);
+function breakout_candidate(node, bars, policy) {
+  if (bars.length < 2) return null;
   const retest = bars.at(-1);
-  const tolerance = Number(policy.node_tolerance_points);
-  const displacement = Number(policy.min_displacement_points);
-  const min_body = Number(policy.min_body_points);
-  const stop_buffer = Number(policy.stop_buffer_points);
-  const impulse_body = Math.abs(impulse.close_usd - impulse.open_usd);
 
-  const bullish = setup.close_usd < node.strike_usd
-    && impulse.open_usd < node.strike_usd
-    && impulse.close_usd >= node.strike_usd + displacement
-    && impulse.close_usd > impulse.open_usd
-    && impulse_body >= min_body
-    && retest.low_usd <= node.strike_usd + tolerance
-    && retest.low_usd >= node.strike_usd - stop_buffer
+  // junk_man requires a pullback to the key level with a wick after the body
+  // break. The provider does not publish a node-region width, so require the
+  // wick to reach the node itself instead of inventing a point tolerance.
+
+  const bullish_retest = retest.low_usd <= node.strike_usd
+    && retest.low_usd < Math.min(retest.open_usd, retest.close_usd)
     && retest.close_usd > node.strike_usd
-    && volume_confirms(impulse, setup, policy)
-    && vwap_confirms('bullish', retest.close_usd, vwap_usd, policy);
-  if (bullish) {
+    && volume_confirms([retest], policy);
+  const bullish_impulse_index = bullish_retest
+    ? bars.slice(0, -1).findLastIndex((bar, index, preceding) => (
+      bar.open_usd < node.strike_usd
+      && bar.close_usd > node.strike_usd
+      && bar.close_usd > bar.open_usd
+      && volume_confirms([bar], policy)
+      && preceding.slice(index + 1).every((held) => held.close_usd > node.strike_usd)
+    ))
+    : -1;
+  if (bullish_impulse_index >= 0) {
+    const impulse = bars[bullish_impulse_index];
     return {
       direction: 'bullish',
       setup_type: 'breakout_retest',
       tested_node: node,
       entry_usd: retest.close_usd,
-      setup_bar_at: setup.timestamp,
+      invalidation_usd: retest.low_usd,
+      setup_bar_at: impulse.timestamp,
       impulse_bar_at: impulse.timestamp,
       confirmation_bar_at: retest.timestamp,
+      confirmation_bars: [impulse, retest],
     };
   }
 
-  const bearish = setup.close_usd > node.strike_usd
-    && impulse.open_usd > node.strike_usd
-    && impulse.close_usd <= node.strike_usd - displacement
-    && impulse.close_usd < impulse.open_usd
-    && impulse_body >= min_body
-    && retest.high_usd >= node.strike_usd - tolerance
-    && retest.high_usd <= node.strike_usd + stop_buffer
+  const bearish_retest = retest.high_usd >= node.strike_usd
+    && retest.high_usd > Math.max(retest.open_usd, retest.close_usd)
     && retest.close_usd < node.strike_usd
-    && volume_confirms(impulse, setup, policy)
-    && vwap_confirms('bearish', retest.close_usd, vwap_usd, policy);
-  if (bearish) {
+    && volume_confirms([retest], policy);
+  const bearish_impulse_index = bearish_retest
+    ? bars.slice(0, -1).findLastIndex((bar, index, preceding) => (
+      bar.open_usd > node.strike_usd
+      && bar.close_usd < node.strike_usd
+      && bar.close_usd < bar.open_usd
+      && volume_confirms([bar], policy)
+      && preceding.slice(index + 1).every((held) => held.close_usd < node.strike_usd)
+    ))
+    : -1;
+  if (bearish_impulse_index >= 0) {
+    const impulse = bars[bearish_impulse_index];
     return {
       direction: 'bearish',
       setup_type: 'breakout_retest',
       tested_node: node,
       entry_usd: retest.close_usd,
-      setup_bar_at: setup.timestamp,
+      invalidation_usd: retest.high_usd,
+      setup_bar_at: impulse.timestamp,
       impulse_bar_at: impulse.timestamp,
       confirmation_bar_at: retest.timestamp,
+      confirmation_bars: [impulse, retest],
     };
   }
   return null;
 }
 
-function rejection_candidate(node, bars, vwap_usd, policy) {
-  const test_bar = bars.at(-2);
+function rejection_candidate(node, bars, policy) {
   const confirm = bars.at(-1);
-  const tolerance = Number(policy.node_tolerance_points);
-  const min_body = Number(policy.min_body_points);
-  const stop_buffer = Number(policy.stop_buffer_points);
+  if (!confirm) return null;
 
-  const bearish = test_bar.high_usd >= node.strike_usd - tolerance
-    && test_bar.high_usd <= node.strike_usd + stop_buffer
-    && test_bar.close_usd < node.strike_usd
-    && confirm.high_usd <= node.strike_usd + stop_buffer
-    && confirm.close_usd < test_bar.close_usd
+  // junk_man explicitly says one completed five-minute candle that stabilizes
+  // is enough. A rejection candle must touch the node, close back on the
+  // original side, be the reverse colour, and carry a rejection wick. No
+  // second confirmation candle or fixed wick/body ratio is added.
+  const bearish = confirm.high_usd >= node.strike_usd
+    && confirm.open_usd < node.strike_usd
+    && confirm.close_usd < node.strike_usd
     && confirm.close_usd < confirm.open_usd
-    && Math.abs(confirm.close_usd - confirm.open_usd) >= min_body
-    && volume_confirms(confirm, test_bar, policy)
-    && vwap_confirms('bearish', confirm.close_usd, vwap_usd, policy);
+    && confirm.high_usd > Math.max(confirm.open_usd, confirm.close_usd)
+    && volume_confirms([confirm], policy);
   if (bearish) {
     return {
       direction: 'bearish',
       setup_type: 'node_rejection',
       tested_node: node,
       entry_usd: confirm.close_usd,
-      setup_bar_at: test_bar.timestamp,
+      invalidation_usd: confirm.high_usd,
+      setup_bar_at: confirm.timestamp,
       impulse_bar_at: null,
       confirmation_bar_at: confirm.timestamp,
+      confirmation_bars: [confirm],
     };
   }
 
-  const bullish = test_bar.low_usd <= node.strike_usd + tolerance
-    && test_bar.low_usd >= node.strike_usd - stop_buffer
-    && test_bar.close_usd > node.strike_usd
-    && confirm.low_usd >= node.strike_usd - stop_buffer
-    && confirm.close_usd > test_bar.close_usd
+  const bullish = confirm.low_usd <= node.strike_usd
+    && confirm.open_usd > node.strike_usd
+    && confirm.close_usd > node.strike_usd
     && confirm.close_usd > confirm.open_usd
-    && Math.abs(confirm.close_usd - confirm.open_usd) >= min_body
-    && volume_confirms(confirm, test_bar, policy)
-    && vwap_confirms('bullish', confirm.close_usd, vwap_usd, policy);
+    && confirm.low_usd < Math.min(confirm.open_usd, confirm.close_usd)
+    && volume_confirms([confirm], policy);
   if (bullish) {
     return {
       direction: 'bullish',
       setup_type: 'node_rejection',
       tested_node: node,
       entry_usd: confirm.close_usd,
-      setup_bar_at: test_bar.timestamp,
+      invalidation_usd: confirm.low_usd,
+      setup_bar_at: confirm.timestamp,
       impulse_bar_at: null,
       confirmation_bar_at: confirm.timestamp,
+      confirmation_bars: [confirm],
     };
   }
   return null;
 }
 
-function candidate_plan(candidate, nodes, policy) {
+function candidate_plan(candidate, nodes) {
   const local_gamma_node = nearest_local_gamma_node(nodes, candidate.entry_usd);
-  if (!local_gamma_node) return null;
-  // Negative gamma is a volatility-expansion regime, not a bearish label.
-  // In that regime we only follow a completed boundary break and failed
-  // retest; a simple rejection is too ambiguous for a directional long option.
-  if (candidate.setup_type === 'node_rejection' && local_gamma_node.net_gex_usd < 0) return null;
-  if (
-    candidate.setup_type === 'node_rejection'
-    && local_gamma_node.net_gex_usd > 0
-    && !policy.allow_positive_gamma_single_leg_mean_reversion
-  ) {
-    return { blocked_reason: 'positive_gamma_pin_requires_defined_risk_structure' };
-  }
-  const target_plan = plan_target(candidate, nodes, local_gamma_node);
+  // A ranked node's sign is useful context, but it is not a direct long/short
+  // label and does not define the whole local Gamma region. junk_man explicitly
+  // trades price rejection at both positive- and negative-Gamma structure, so
+  // the sign must not veto an otherwise confirmed price reaction.
+  const target_plan = plan_target(candidate, nodes);
   const target = target_plan.node;
   if (!target || target.strike_usd === candidate.tested_node.strike_usd) return null;
   const signal_type = candidate.setup_type === 'breakout_retest'
-    ? (local_gamma_node.net_gex_usd < 0 ? 'negative_gamma_expansion' : 'positive_wall_acceptance')
-    : 'positive_gamma_mean_reversion';
-  const stop_buffer = Number(policy.stop_buffer_points);
-  const stop_underlying_usd = candidate.direction === 'bullish'
-    ? candidate.tested_node.strike_usd - stop_buffer
-    : candidate.tested_node.strike_usd + stop_buffer;
+    ? 'gex_node_breakout_retest'
+    : 'gex_node_rejection';
+  const stop_underlying_usd = candidate.invalidation_usd;
   const risk_points = Math.abs(candidate.entry_usd - stop_underlying_usd);
   const reward_points = Math.abs(target.strike_usd - candidate.entry_usd);
   const reward_risk_ratio = risk_points > 0 ? reward_points / risk_points : 0;
-  if (reward_risk_ratio < Number(policy.min_reward_risk_ratio)) return null;
+  if (reward_points <= risk_points) {
+    return { blocked_reason: 'structural_reward_not_greater_than_risk' };
+  }
   return {
     ...candidate,
     signal_type,
-    regime: local_gamma_node.net_gex_usd < 0
-      ? 'negative_gamma_expansion'
-      : (candidate.setup_type === 'node_rejection' ? 'positive_gamma_mean_reversion' : 'positive_gamma_boundary_acceptance'),
+    regime: candidate.setup_type,
     local_gamma_node,
     target_node: target,
     target_basis: target_plan.basis,
@@ -549,14 +594,14 @@ function candidate_plan(candidate, nodes, policy) {
   };
 }
 
-function history_snapshots({ gex_node_history, gex_snapshot, max_nodes }) {
+function history_snapshots({ gex_node_history, gex_snapshot }) {
   const raw = [
     ...(Array.isArray(gex_node_history) ? gex_node_history : []),
     gex_snapshot,
   ];
   const by_timestamp = new Map();
   for (const item of raw) {
-    const normalized = normalize_gex_snapshot(item, max_nodes);
+    const normalized = normalize_gex_snapshot(item);
     const at_ms = timestamp_ms(normalized.snapshot_at);
     if (at_ms === null || normalized.nodes.length === 0) continue;
     by_timestamp.set(at_ms, normalized);
@@ -566,7 +611,6 @@ function history_snapshots({ gex_node_history, gex_snapshot, max_nodes }) {
 }
 
 function node_stability(plan, history, bars, snapshot, now_ms, policy) {
-  const strike_tolerance = Number(policy.gex_node_history_strike_tolerance_points);
   const signal_start_ms = timestamp_ms(bars[0].timestamp);
   const expected_sign = Math.sign(plan.tested_node.net_gex_usd);
   const matches = [];
@@ -578,7 +622,7 @@ function node_stability(plan, history, bars, snapshot, now_ms, policy) {
       || sample_ms > Number(now_ms) + 5_000
     ) continue;
     const node = sample.nodes.find((candidate) => (
-      Math.abs(candidate.strike_usd - plan.tested_node.strike_usd) <= strike_tolerance
+      Math.abs(candidate.strike_usd - plan.tested_node.strike_usd) <= 0.0001
       && Math.sign(candidate.net_gex_usd) === expected_sign
     ));
     if (!node) continue;
@@ -602,23 +646,20 @@ function node_stability(plan, history, bars, snapshot, now_ms, policy) {
   return {
     matched_sample_count: matches.length,
     covered_bar_count: covered_bars.size,
-    preferred_bar_coverage_met: covered_bars.size >= Number(policy.preferred_gex_node_history_bar_coverage),
+    observed_across_multiple_samples: matches.length >= 2,
     first_matched_at: matches[0]?.snapshot_at || null,
     last_matched_at: matches.at(-1)?.snapshot_at || null,
     matched_samples: matches,
   };
 }
 
-function candidate_score(plan, policy) {
-  const preferred_coverage = Math.min(
-    plan.gex_node_stability.covered_bar_count,
-    Number(policy.preferred_gex_node_history_bar_coverage),
-  );
-  const coverage_bonus = preferred_coverage * 1_000_000_000_000_000;
-  const gamma_bonus = plan.signal_type === 'negative_gamma_expansion'
-    || plan.signal_type === 'positive_gamma_mean_reversion' ? 1_000_000_000_000 : 0;
-  return coverage_bonus + gamma_bonus + Math.abs(plan.tested_node.net_gex_usd)
-    + (plan.reward_risk_ratio * 1_000);
+function compare_candidates(left, right) {
+  const left_rank = finite_number(left.tested_node.rank) ?? Number.POSITIVE_INFINITY;
+  const right_rank = finite_number(right.tested_node.rank) ?? Number.POSITIVE_INFINITY;
+  return left_rank - right_rank
+    || Math.abs(right.tested_node.net_gex_usd) - Math.abs(left.tested_node.net_gex_usd)
+    || right.reward_risk_ratio - left.reward_risk_ratio
+    || left.tested_node.strike_usd - right.tested_node.strike_usd;
 }
 
 function current_price_reasons(plan, last_price_usd, policy) {
@@ -632,14 +673,7 @@ function current_price_reasons(plan, last_price_usd, policy) {
     if (last_price_usd <= plan.target_underlying_usd) reasons.push('target_reached_before_execution');
     if (last_price_usd >= plan.tested_node.strike_usd) reasons.push('current_price_lost_tested_node');
   }
-  if (Math.abs(last_price_usd - plan.entry_usd) > Number(policy.max_entry_drift_points)) {
-    reasons.push('entry_drift_above_limit');
-  }
   return reasons;
-}
-
-function directional_option_node(nodes, direction) {
-  return strongest_by(nodes, direction === 'bullish' ? 'call_gex_usd' : 'put_gex_usd');
 }
 
 function stable_signal_identity(snapshot, selected) {
@@ -651,7 +685,7 @@ function stable_signal_identity(snapshot, selected) {
     regime: selected.regime,
     direction: selected.direction,
     tested_node_strike_usd: rounded(selected.tested_node.strike_usd),
-    local_gamma_node_strike_usd: rounded(selected.local_gamma_node.strike_usd),
+    local_gamma_node_strike_usd: rounded(selected.local_gamma_node?.strike_usd),
     target_node_strike_usd: rounded(selected.target_node.strike_usd),
     target_basis: selected.target_basis,
     setup_bar_at: selected.setup_bar_at,
@@ -669,12 +703,13 @@ function stable_signal_identity(snapshot, selected) {
 export function evaluate_junk_gex_strategy({
   gex_snapshot,
   gex_node_history,
+  option_chain_snapshot,
   market_context,
   policy,
   now_ms = Date.now(),
 } = {}) {
   const resolved_policy = merged_policy(policy);
-  const snapshot = normalize_gex_snapshot(gex_snapshot, resolved_policy.max_nodes);
+  const snapshot = normalize_gex_snapshot(gex_snapshot);
   const base = base_result(snapshot, market_context, resolved_policy);
   const reason_codes = [];
 
@@ -705,9 +740,7 @@ export function evaluate_junk_gex_strategy({
   if (snapshot.nodes.length < 2) reason_codes.push('insufficient_gex_nodes');
 
   const last_price_usd = finite_number(market_context?.last_price_usd);
-  const vwap_usd = finite_number(market_context?.vwap_usd);
   if (!Number.isFinite(last_price_usd)) reason_codes.push('missing_last_price');
-  if (resolved_policy.require_vwap_confirmation && !Number.isFinite(vwap_usd)) reason_codes.push('missing_vwap');
   const bar_validation = validate_signal_bars(
     market_context?.bars_5m ?? market_context?.bars_1m,
     snapshot,
@@ -720,72 +753,54 @@ export function evaluate_junk_gex_strategy({
   const history = history_snapshots({
     gex_node_history: gex_node_history ?? market_context?.gex_node_history,
     gex_snapshot,
-    max_nodes: resolved_policy.max_nodes,
   });
   const plans = [];
-  let stability_blocked = false;
-  let bar_coverage_blocked = false;
-  let structure_blocked = false;
+  const candidate_block_reasons = new Set();
   for (const node of snapshot.nodes) {
-    const breakout = breakout_candidate(node, bar_validation.bars, vwap_usd, resolved_policy);
-    const rejection = rejection_candidate(node, bar_validation.bars, vwap_usd, resolved_policy);
+    const breakout = breakout_candidate(node, bar_validation.bars, resolved_policy);
+    const rejection = rejection_candidate(node, bar_validation.bars, resolved_policy);
     for (const candidate of [breakout, rejection].filter(Boolean)) {
-      const plan = candidate_plan(candidate, snapshot.nodes, resolved_policy);
+      const plan = candidate_plan(candidate, snapshot.nodes);
       if (!plan) continue;
       if (plan.blocked_reason) {
-        structure_blocked = true;
+        candidate_block_reasons.add(plan.blocked_reason);
         continue;
       }
       const gex_node_stability = node_stability(
         plan,
         history,
-        bar_validation.bars,
+        plan.confirmation_bars,
         snapshot,
         now_ms,
         resolved_policy,
       );
-      if (gex_node_stability.matched_sample_count < Number(resolved_policy.min_gex_node_history_samples)) {
-        stability_blocked = true;
-        continue;
-      }
-      if (resolved_policy.require_gex_node_history_bar_coverage && !gex_node_stability.preferred_bar_coverage_met) {
-        bar_coverage_blocked = true;
-        continue;
-      }
       plans.push({ ...plan, gex_node_stability });
     }
   }
   if (plans.length === 0) {
-    return no_trade(base, [
-      bar_coverage_blocked
-        ? 'gex_node_history_missing_confirmation_bar_coverage'
-        : (stability_blocked
-          ? 'insufficient_stable_gex_node_history'
-          : (structure_blocked ? 'positive_gamma_pin_requires_defined_risk_structure' : 'waiting_for_node_confirmation')),
-    ]);
+    if (candidate_block_reasons.size > 0) return no_trade(base, [...candidate_block_reasons]);
+    return no_trade(base, ['waiting_for_node_confirmation']);
   }
 
-  plans.sort((left, right) => candidate_score(right, resolved_policy) - candidate_score(left, resolved_policy));
+  plans.sort(compare_candidates);
   const selected = plans[0];
   const current_reasons = current_price_reasons(selected, last_price_usd, resolved_policy);
   if (current_reasons.length > 0) return no_trade(base, current_reasons);
   const dominant_magnet = dominant_magnet_node(snapshot.nodes);
-  if (
-    dominant_magnet
-    && !is_wall_node(selected.tested_node)
-    && !is_gamma_flip_node(selected.tested_node)
-    && Math.abs(last_price_usd - dominant_magnet.strike_usd) <= Number(resolved_policy.magnet_dead_zone_points)
-  ) {
-    return no_trade(base, ['positive_gamma_magnet_center_no_chase']);
-  }
 
   const option_right = selected.direction === 'bullish' ? 'call' : 'put';
-  const option_node = directional_option_node(snapshot.nodes, selected.direction);
-  if (!option_node) return no_trade(base, [`missing_${option_right}_gex_option_node`]);
+  const option_reference = directional_option_gex_reference({
+    option_chain_snapshot,
+    direction: selected.direction,
+    expiration: snapshot.session_date_et,
+    now_ms,
+    max_age_ms: resolved_policy.max_snapshot_age_ms,
+  });
+  if (!option_reference) return no_trade(base, [`missing_${option_right}_directional_gex_reference`]);
   const strike_step = Number(resolved_policy.option_strike_step_points);
   const strike_offset = Number(resolved_policy.option_strike_offset_points);
-  const toward_spot = Math.sign(snapshot.spot_usd - option_node.strike_usd) * strike_offset;
-  const shifted_strike = option_node.strike_usd + toward_spot;
+  const toward_current_price = Math.sign(last_price_usd - option_reference.strike_usd) * strike_offset;
+  const shifted_strike = option_reference.strike_usd + toward_current_price;
   const option_strike_reference_usd = Math.round(shifted_strike / strike_step) * strike_step;
   const identity = stable_signal_identity(snapshot, selected);
 
@@ -797,25 +812,26 @@ export function evaluate_junk_gex_strategy({
     reason_codes: [
       selected.signal_type,
       'gex_node_confirmed',
-      'gex_node_history_stable',
       Number(resolved_policy.closed_bar_interval_ms) === FIVE_MINUTE_MS
         ? 'five_minute_acceptance_or_rejection_confirmed'
         : 'closed_bar_acceptance_or_rejection_confirmed',
-      ...(resolved_policy.require_volume_confirmation ? ['volume_confirmed'] : []),
-      ...(resolved_policy.require_vwap_confirmation ? ['vwap_confirmed'] : []),
+      ...(resolved_policy.require_volume_confirmation ? ['volume_data_present'] : []),
     ],
     direction: selected.direction,
     setup_type: selected.setup_type,
     signal_type: selected.signal_type,
     regime: selected.regime,
     node_reaction: selected.setup_type,
-    local_gamma_regime: selected.local_gamma_node.net_gex_usd < 0 ? 'negative' : 'positive',
+    nearest_ranked_node_gamma_sign: selected.local_gamma_node?.net_gex_usd < 0
+      ? 'negative'
+      : (selected.local_gamma_node?.net_gex_usd > 0 ? 'positive' : 'zero_or_unknown'),
     local_gamma_node: selected.local_gamma_node,
     tested_node: selected.tested_node,
     target_node: selected.target_node,
     target_basis: selected.target_basis,
     dominant_magnet_node: dominant_magnet,
     gex_node_stability: selected.gex_node_stability,
+    invalidation_basis: 'underlying_confirmation_bar_wick_proxy',
     entry_reference_usd: rounded(selected.entry_usd),
     stop_underlying_usd: rounded(selected.stop_underlying_usd),
     target_underlying_usd: rounded(selected.target_underlying_usd),
@@ -826,8 +842,8 @@ export function evaluate_junk_gex_strategy({
       option_right,
       expiry_days: Number(resolved_policy.option_expiry_days),
       strike_reference_usd: rounded(option_strike_reference_usd),
-      strike_basis: `max_${option_right}_gex_node_shifted_toward_spot`,
-      source_node: option_node,
+      strike_basis: `max_${option_right}_gamma_oi_shifted_toward_current_price`,
+      source_node: option_reference,
       strike_offset_points: rounded(strike_offset),
       quote_and_liquidity_gate_required: true,
     },

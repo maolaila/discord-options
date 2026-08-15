@@ -370,6 +370,7 @@ function contract_audit_base({
   source_path = null,
   available_at = null,
   provider_call_count = 0,
+  response_reused = false,
 } = {}) {
   const normalized_candidate = normalized_contract(candidate_contract);
   return {
@@ -382,6 +383,7 @@ function contract_audit_base({
     advisory_only: true,
     can_veto_candidate: false,
     provider_call_count,
+    response_reused,
     source_path,
     available_at,
     state: 'unknown',
@@ -425,6 +427,23 @@ function safe_candidate_record(response, candidate_contract) {
       : { record: null, record_schema: matches.length > 1 ? 'ambiguous_exact_records' : 'unknown', explicit_mismatch: null };
   }
   if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+    if (Array.isArray(payload.contracts)) {
+      const matches = payload.contracts.filter((row) => (
+        row && typeof row === 'object' && !Array.isArray(row)
+        && parse_osi_contract(row.contract_symbol)?.contract === candidate_identity
+      ));
+      return matches.length === 1
+        ? {
+          record: { ...matches[0], contract: matches[0].contract_symbol },
+          record_schema: 'data_contracts_exact_contract_symbol',
+          explicit_mismatch: null,
+        }
+        : {
+          record: null,
+          record_schema: matches.length > 1 ? 'ambiguous_exact_contract_symbols' : 'unknown',
+          explicit_mismatch: null,
+        };
+    }
     const direct_contract = normalized_contract(payload.contract);
     if (direct_contract) {
       const direct_identity = parse_osi_contract(direct_contract)?.contract;
@@ -450,11 +469,60 @@ function mismatch_reason_codes({ expected, observed }) {
   return reasons;
 }
 
+function explicit_chain_identity_mismatch_codes({
+  response,
+  record,
+  expected,
+  ticker,
+  expiration,
+}) {
+  const reasons = [];
+  const payload = payload_from_response(response);
+  const payload_object = payload && typeof payload === 'object' && !Array.isArray(payload)
+    ? payload
+    : null;
+  const present = (value) => value !== null && value !== undefined && String(value).trim() !== '';
+  if (payload_object && present(payload_object.ticker)) {
+    const observed_ticker = String(payload_object.ticker).trim().toUpperCase();
+    if (ticker && observed_ticker !== ticker) {
+      reasons.push('nightwatch_contract_envelope_ticker_mismatch');
+    }
+  }
+  if (payload_object && present(payload_object.expiration)) {
+    const observed_expiration = String(payload_object.expiration).trim().slice(0, 10);
+    if (expiration && observed_expiration !== expiration) {
+      reasons.push('nightwatch_contract_envelope_expiration_mismatch');
+    }
+  }
+  if (record && expected) {
+    if (present(record.expiration)) {
+      const observed_expiration = String(record.expiration).trim().slice(0, 10);
+      if (observed_expiration !== expected.expiration) {
+        reasons.push('nightwatch_contract_row_expiration_mismatch');
+      }
+    }
+    if (present(record.right)) {
+      const observed_right = canonical_right(record.right);
+      if (observed_right !== expected.right) {
+        reasons.push('nightwatch_contract_row_right_mismatch');
+      }
+    }
+    if (present(record.strike_usd)) {
+      const observed_strike = finite_number(record.strike_usd);
+      if (observed_strike === null || Math.abs(observed_strike - expected.strike_usd) > 0.0001) {
+        reasons.push('nightwatch_contract_row_strike_mismatch');
+      }
+    }
+  }
+  return unique_strings(reasons);
+}
+
 /**
- * Make at most one paid call for an already-approved, already-quoted moomoo
- * candidate. The official OpenAPI currently describes the chain response only
- * as an object payload, so this accepts no undocumented nested field aliases.
- * Unknown response shapes remain degraded-neutral and cannot block an order.
+ * Audit an already-approved, already-quoted moomoo candidate. A full-chain
+ * response already fetched for directional strike ranking is reused when the
+ * caller supplies it; otherwise this function makes at most one paid call.
+ * The endpoint's observed `data.contracts[].contract_symbol` shape is parsed
+ * explicitly. Unknown response shapes remain degraded-neutral.
  */
 export async function audit_junk_contract_candidate({
   nightwatch,
@@ -462,6 +530,8 @@ export async function audit_junk_contract_candidate({
   entry_plan,
   policy = {},
   now_ms = () => Date.now(),
+  observed_response = null,
+  observed_available_at = null,
 } = {}) {
   if (typeof now_ms !== 'function') throw new TypeError('now_ms must be a function');
   const candidate_contract = normalized_contract(entry_plan?.contract?.code || entry_plan?.order?.code);
@@ -478,7 +548,12 @@ export async function audit_junk_contract_candidate({
   if (policy.enabled === false) {
     return { ...base, assessment: 'skipped', reason_codes: ['nightwatch_contract_audit_disabled'] };
   }
-  if (!nightwatch || typeof nightwatch.get_options_chain_snapshot !== 'function') {
+  const response_reused = Boolean(
+    observed_response
+    && typeof observed_response === 'object'
+    && !Array.isArray(observed_response),
+  );
+  if (!response_reused && (!nightwatch || typeof nightwatch.get_options_chain_snapshot !== 'function')) {
     return { ...base, reason_codes: ['nightwatch_contract_audit_client_missing_neutral'] };
   }
 
@@ -503,16 +578,22 @@ export async function audit_junk_contract_candidate({
     };
   }
 
-  const response = await nightwatch.get_options_chain_snapshot(ticker, {
-    query: { expiration },
-  });
-  const observed_at_ms = Number(now_ms());
-  if (!Number.isFinite(observed_at_ms)) throw new TypeError('now_ms returned a non-finite value');
-  const observed_at = new Date(observed_at_ms).toISOString();
+  const response = response_reused
+    ? observed_response
+    : await nightwatch.get_options_chain_snapshot(ticker, { query: { expiration } });
+  const evaluated_at_ms = Number(now_ms());
+  if (!Number.isFinite(evaluated_at_ms)) throw new TypeError('now_ms returned a non-finite value');
+  const observed_at = response_reused
+    ? iso_timestamp(observed_available_at)
+    : new Date(evaluated_at_ms).toISOString();
+  const provider_call_count = response_reused ? 0 : 1;
+  const reuse_reasons = response_reused
+    ? ['nightwatch_contract_audit_reused_directional_chain']
+    : [];
   const selected = safe_candidate_record(response, candidate_contract);
-  const severe_stale_after_ms = Math.max(
+  const audit_max_age_ms = Math.max(
     1_000,
-    finite_number(policy.severe_stale_after_ms) ?? 300_000,
+    finite_number(policy.audit_max_age_ms) ?? 600_000,
   );
   const evidence = evaluate_junk_contract_evidence({
     response,
@@ -520,8 +601,8 @@ export async function audit_junk_contract_candidate({
     source_path,
     candidate_contract,
     available_at: observed_at,
-    evaluated_at: observed_at_ms,
-    max_age_ms: severe_stale_after_ms,
+    evaluated_at: evaluated_at_ms,
+    max_age_ms: audit_max_age_ms,
     allowed_states: Array.isArray(policy.allowed_states) && policy.allowed_states.length > 0
       ? policy.allowed_states
       : DEFAULT_ALLOWED_STATES,
@@ -532,13 +613,18 @@ export async function audit_junk_contract_candidate({
   const explicit_mismatches = selected.explicit_mismatch
     ? mismatch_reason_codes({ expected, observed: explicit_record })
     : [];
+  const response_identity_mismatches = explicit_chain_identity_mismatch_codes({
+    response,
+    record: selected.record,
+    expected,
+    ticker,
+    expiration,
+  });
   const veto_reasons = unique_strings([
     ...explicit_mismatches,
+    ...response_identity_mismatches,
     ...(evidence.reason_codes.includes('candidate_contract_mismatch')
       ? ['nightwatch_contract_identity_mismatch']
-      : []),
-    ...(evidence.reason_codes.includes('evidence_stale')
-      ? ['nightwatch_contract_evidence_severely_stale']
       : []),
   ]);
   if (veto_reasons.length > 0) {
@@ -547,12 +633,13 @@ export async function audit_junk_contract_candidate({
       assessment: 'veto',
       advisory_only: false,
       can_veto_candidate: true,
-      provider_call_count: 1,
+      provider_call_count,
+      response_reused,
       available_at: observed_at,
       state: evidence.state,
       record_schema: selected.record_schema,
       evidence,
-      reason_codes: veto_reasons,
+      reason_codes: unique_strings([...reuse_reasons, ...veto_reasons]),
     };
   }
   if (evidence.usable) {
@@ -560,22 +647,25 @@ export async function audit_junk_contract_candidate({
       ...base,
       assessment: 'confirm',
       advisory_only: false,
-      provider_call_count: 1,
+      provider_call_count,
+      response_reused,
       available_at: observed_at,
       state: evidence.state,
       record_schema: selected.record_schema,
       evidence,
-      reason_codes: ['nightwatch_contract_evidence_confirmed'],
+      reason_codes: [...reuse_reasons, 'nightwatch_contract_evidence_confirmed'],
     };
   }
   return {
     ...base,
-    provider_call_count: 1,
+    provider_call_count,
+    response_reused,
     available_at: observed_at,
     state: evidence.state,
     record_schema: selected.record_schema,
     evidence,
     reason_codes: unique_strings([
+      ...reuse_reasons,
       'nightwatch_contract_schema_or_freshness_unknown_neutral',
       ...evidence.reason_codes,
     ]),

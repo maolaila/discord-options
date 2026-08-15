@@ -250,13 +250,21 @@ export function loadMoomooConfig(opts = {}) {
     contractMultiplierDefault: numberValue(opts.contractMultiplierDefault || process.env.MOOMOO_CONTRACT_MULTIPLIER_DEFAULT, 'MOOMOO_CONTRACT_MULTIPLIER_DEFAULT', sizing.contract_multiplier_default ?? 100),
     optionRequireBidAsk: boolValue(opts.optionRequireBidAsk ?? process.env.MOOMOO_OPTION_REQUIRE_BID_ASK, executionQuality.require_bid_ask ?? true),
     optionMinBidPrice: numberValue(opts.optionMinBidPrice || process.env.MOOMOO_OPTION_MIN_BID_PRICE, 'MOOMOO_OPTION_MIN_BID_PRICE', executionQuality.min_bid_price ?? 0.01),
-    optionMaxSpreadPctOfMid: numberValue(opts.optionMaxSpreadPctOfMid || process.env.MOOMOO_OPTION_MAX_SPREAD_PCT_OF_MID, 'MOOMOO_OPTION_MAX_SPREAD_PCT_OF_MID', executionQuality.max_spread_pct_of_mid ?? 25),
+    optionMaxSpreadPctOfMid: optionalMaxGateNumberValue(
+      firstPresent(opts.optionMaxSpreadPctOfMid, process.env.MOOMOO_OPTION_MAX_SPREAD_PCT_OF_MID, policyField(executionQuality, 'max_spread_pct_of_mid', 25)),
+      'MOOMOO_OPTION_MAX_SPREAD_PCT_OF_MID',
+      25,
+    ),
     optionMaxSpreadAbs: optionalMaxGateNumberValue(
       firstPresent(opts.optionMaxSpreadAbs, process.env.MOOMOO_OPTION_MAX_SPREAD_ABS, policyField(executionQuality, 'max_spread_abs', 1)),
       'MOOMOO_OPTION_MAX_SPREAD_ABS',
       1,
     ),
-    optionMaxRoundTripLossPct: numberValue(opts.optionMaxRoundTripLossPct || process.env.MOOMOO_OPTION_MAX_ROUND_TRIP_LOSS_PCT, 'MOOMOO_OPTION_MAX_ROUND_TRIP_LOSS_PCT', executionQuality.max_round_trip_loss_pct ?? 40),
+    optionMaxRoundTripLossPct: optionalMaxGateNumberValue(
+      firstPresent(opts.optionMaxRoundTripLossPct, process.env.MOOMOO_OPTION_MAX_ROUND_TRIP_LOSS_PCT, policyField(executionQuality, 'max_round_trip_loss_pct', 40)),
+      'MOOMOO_OPTION_MAX_ROUND_TRIP_LOSS_PCT',
+      40,
+    ),
     optionSlippageTicks: numberValue(opts.optionSlippageTicks || process.env.MOOMOO_OPTION_SLIPPAGE_TICKS, 'MOOMOO_OPTION_SLIPPAGE_TICKS', executionQuality.slippage_ticks ?? 1),
     optionSlippagePctOfSpread: numberValue(opts.optionSlippagePctOfSpread || process.env.MOOMOO_OPTION_SLIPPAGE_PCT_OF_SPREAD, 'MOOMOO_OPTION_SLIPPAGE_PCT_OF_SPREAD', executionQuality.slippage_pct_of_spread ?? 10),
     optionCapQtyByVisibleAsk: boolValue(opts.optionCapQtyByVisibleAsk ?? process.env.MOOMOO_OPTION_CAP_QTY_BY_VISIBLE_ASK, executionQuality.cap_qty_by_visible_ask ?? true),
@@ -897,13 +905,15 @@ function decimalPlaces(value) {
 }
 
 function roundUpToTick(value, tick) {
-  const normalizedTick = Number.isFinite(tick) && tick > 0 ? tick : 0.01;
+  const normalizedTick = Number.isFinite(tick) && tick > 0 ? tick : null;
+  if (normalizedTick === null) return null;
   const decimals = Math.max(2, decimalPlaces(normalizedTick));
   return Number((Math.ceil((value / normalizedTick) - 1e-9) * normalizedTick).toFixed(decimals));
 }
 
 function roundDownToTick(value, tick) {
-  const normalizedTick = Number.isFinite(tick) && tick > 0 ? tick : 0.01;
+  const normalizedTick = Number.isFinite(tick) && tick > 0 ? tick : null;
+  if (normalizedTick === null) return null;
   const decimals = Math.max(2, decimalPlaces(normalizedTick));
   return Number((Math.floor((value / normalizedTick) + 1e-9) * normalizedTick).toFixed(decimals));
 }
@@ -914,7 +924,10 @@ export function buildOptionExecutionQuote(snapshot, config) {
   const bid = numericOrNull(basic.bidPrice);
   const ask = numericOrNull(basic.askPrice);
   const last = numericOrNull(basic.curPrice);
-  const tick = numericOrNull(basic.priceSpread) || 0.01;
+  const reportedTick = numericOrNull(basic.priceSpread);
+  const tick = Number.isFinite(reportedTick) && reportedTick > 0
+    ? reportedTick
+    : (config.optionRequireTickSize ? null : 0.01);
   const askSize = numericOrNull(basic.askVol ?? basic.hpAskVol);
   const bidSize = numericOrNull(basic.bidVol ?? basic.hpBidVol);
   const dayVolume = numericOrNull(basic.volume ?? basic.hpVolume);
@@ -923,6 +936,9 @@ export function buildOptionExecutionQuote(snapshot, config) {
 
   if (config.optionRequireBidAsk && (!Number.isFinite(bid) || !Number.isFinite(ask) || bid <= 0 || ask <= 0)) {
     reasons.push('missing_or_zero_bid_ask');
+  }
+  if (config.optionRequireTickSize && !(Number.isFinite(reportedTick) && reportedTick > 0)) {
+    reasons.push('missing_or_invalid_price_tick');
   }
   if (Number.isFinite(bid) && bid < Number(config.optionMinBidPrice || 0)) {
     reasons.push(`bid_below_min:${bid}`);
@@ -948,7 +964,8 @@ export function buildOptionExecutionQuote(snapshot, config) {
   const spreadAbs = hasBidAsk ? Number((ask - bid).toFixed(4)) : null;
   const spreadPctOfMid = hasBidAsk && mid > 0 ? Number((spreadAbs / mid * 100).toFixed(2)) : null;
 
-  if (spreadPctOfMid !== null && spreadPctOfMid > Number(config.optionMaxSpreadPctOfMid ?? 25)) {
+  const maxSpreadPctOfMid = positiveGateNumberOrNull(config.optionMaxSpreadPctOfMid);
+  if (spreadPctOfMid !== null && maxSpreadPctOfMid !== null && spreadPctOfMid > maxSpreadPctOfMid) {
     reasons.push(`spread_pct_above_gate:${spreadPctOfMid}`);
   }
   const maxSpreadAbs = positiveGateNumberOrNull(config.optionMaxSpreadAbs);
@@ -965,8 +982,11 @@ export function buildOptionExecutionQuote(snapshot, config) {
   const buyLimitPrice = Number.isFinite(fallbackBase) && fallbackBase > 0
     ? roundUpToTick(fallbackBase + slippageBuffer, tick)
     : null;
-  const sellEstimatePrice = hasBidAsk
-    ? Math.max(0, roundDownToTick(bid - slippageBuffer, tick))
+  const roundedSellEstimate = hasBidAsk
+    ? roundDownToTick(bid - slippageBuffer, tick)
+    : null;
+  const sellEstimatePrice = Number.isFinite(roundedSellEstimate)
+    ? Math.max(0, roundedSellEstimate)
     : null;
   const roundTripLossPct = buyLimitPrice && sellEstimatePrice !== null
     ? Number(((buyLimitPrice - sellEstimatePrice) / buyLimitPrice * 100).toFixed(2))
@@ -976,7 +996,8 @@ export function buildOptionExecutionQuote(snapshot, config) {
     ? roundDownToTick(buyLimitPrice * (1 - immediateStopLossGuardPct / 100), tick)
     : null;
 
-  if (roundTripLossPct !== null && roundTripLossPct > Number(config.optionMaxRoundTripLossPct ?? 40)) {
+  const maxRoundTripLossPct = positiveGateNumberOrNull(config.optionMaxRoundTripLossPct);
+  if (roundTripLossPct !== null && maxRoundTripLossPct !== null && roundTripLossPct > maxRoundTripLossPct) {
     reasons.push(`round_trip_loss_pct_above_gate:${roundTripLossPct}`);
   }
   if (

@@ -14,7 +14,7 @@ function candidate(overrides = {}) {
     action: 'open_long_option',
     direction: 'bullish',
     session_date_et: '2026-08-10',
-    reason_codes: ['gex_node_confirmed', 'vwap_confirmed'],
+    reason_codes: ['gex_node_confirmed'],
     tested_node: { strike_usd: 6000, net_gex_usd: 2_000_000 },
     ...overrides,
   };
@@ -30,11 +30,11 @@ function heatmap(overrides = {}) {
   };
 }
 
-test('fresh ranked heatmap node confirms by proximity regardless of GEX sign', () => {
+test('fresh heatmap confirms only an exact ranked structure node regardless of GEX sign', () => {
   const result = evaluate_junk_heatmap_evidence({
     candidate: candidate(),
     heatmap_context: heatmap(),
-    policy: { node_tolerance_points: 5 },
+    policy: { node_tolerance_points: 5, require_ranked_node_when_fresh: true },
     now_ms: NOW,
   });
   assert.equal(result.assessment, 'confirm');
@@ -54,14 +54,14 @@ test('fresh ranked heatmap node confirms by proximity regardless of GEX sign', (
   assert.deepEqual(opposite_sign.reason_codes, ['heatmap_ranked_structure_node_confirmed']);
 });
 
-test('fresh heatmap can veto only when policy requires a nearby ranked node', () => {
+test('fresh off-strike heatmap row stays context-only even with legacy veto flags', () => {
   const outside = heatmap({
     top_rows: [{ strike_usd: 6025, row_net_wall_gex_usd: -2_000_000 }],
   });
   const neutral = evaluate_junk_heatmap_evidence({
     candidate: candidate(),
     heatmap_context: outside,
-    policy: { node_tolerance_points: 5 },
+    policy: { node_tolerance_points: 50 },
     now_ms: NOW,
   });
   assert.equal(neutral.assessment, 'neutral');
@@ -74,9 +74,10 @@ test('fresh heatmap can veto only when policy requires a nearby ranked node', ()
     flow_evaluation: { assessment: 'neutral', reason_codes: ['no_live_events'] },
     now_ms: NOW,
   });
-  assert.equal(required.decision, 'no_trade');
-  assert.equal(required.evidence_model.heatmap.can_veto_candidate, true);
-  assert.ok(required.reason_codes.includes('heatmap_structure_conflict_veto'));
+  assert.equal(required.decision, 'trade');
+  assert.equal(required.evidence_model.heatmap.can_veto_candidate, false);
+  assert.equal(required.evidence_model.heatmap.assessment, 'neutral');
+  assert.ok(!required.reason_codes.includes('heatmap_structure_conflict_veto'));
 });
 
 test('missing or degraded heatmap remains neutral and cannot create a trade', () => {
@@ -187,7 +188,7 @@ test('quality-complete SPX flow confirms but remains context-only on conflict by
   assert.equal(vetoed.automated_flow_usage, 'confirmation_context_only');
   assert.equal(vetoed.evidence_model.automated_flow.can_veto_candidate, false);
 
-  const explicitly_vetoed = apply_junk_v2_evidence({
+  const legacy_veto_flag_is_ignored = apply_junk_v2_evidence({
     core_decision: candidate(),
     heatmap_context: heatmap(),
     flow_evaluation: {
@@ -198,8 +199,10 @@ test('quality-complete SPX flow confirms but remains context-only on conflict by
     evidence_policy: { automated_flow_alert: { conflict_veto_enabled: true } },
     now_ms: NOW,
   });
-  assert.equal(explicitly_vetoed.decision, 'no_trade');
-  assert.ok(explicitly_vetoed.reason_codes.includes('automated_flow_conflict_veto'));
+  assert.equal(legacy_veto_flag_is_ignored.decision, 'trade');
+  assert.equal(legacy_veto_flag_is_ignored.automated_flow_usage, 'confirmation_context_only');
+  assert.equal(legacy_veto_flag_is_ignored.evidence_model.automated_flow.can_veto_candidate, false);
+  assert.ok(legacy_veto_flag_is_ignored.reason_codes.includes('automated_flow_conflict_context_only'));
 
   const no_candidate = apply_junk_v2_evidence({
     core_decision: candidate({ decision: 'no_trade', action: 'hold' }),

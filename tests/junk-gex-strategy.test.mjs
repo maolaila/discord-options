@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import {
   DEFAULT_JUNK_GEX_POLICY,
+  directional_option_gex_reference,
   evaluate_junk_gex_strategy,
   normalize_gex_snapshot,
 } from '../apps/zero-dte-options/junk-gex-strategy.mjs';
@@ -21,38 +22,60 @@ function snapshot(overrides = {}) {
     session_date_et: '2026-08-10',
     state: 'fresh',
     spot_usd: 5004,
-    total_gex_usd: -2_000_000,
+    summary: {
+      total_gex_usd: -2_000_000,
+      king_strike_usd: 5000,
+      major_positive_strike_usd: 5010,
+      major_negative_strike_usd: 5000,
+      gamma_flip_usd: null,
+      call_wall_strike_usd: 5010,
+      put_wall_strike_usd: 4990,
+    },
     strikes: [
       {
         strike_usd: 4990,
         net_gex_usd: 1_000_000,
-        call_gex_usd: 100_000,
-        put_gex_usd: -8_000_000,
         node_type: 'put_wall',
       },
       {
         strike_usd: 5000,
         net_gex_usd: -5_000_000,
-        call_gex_usd: 2_000_000,
-        put_gex_usd: -3_000_000,
         node_type: 'major_negative',
       },
       {
         strike_usd: 5010,
         net_gex_usd: 4_000_000,
-        call_gex_usd: 9_000_000,
-        put_gex_usd: -500_000,
         node_type: 'call_wall',
       },
       {
         strike_usd: 5020,
         net_gex_usd: 500_000,
-        call_gex_usd: 1_000_000,
-        put_gex_usd: -200_000,
         node_type: 'secondary',
       },
     ],
     ...overrides,
+  };
+}
+
+function option_chain(overrides = {}) {
+  return {
+    data: {
+      ticker: 'SPX',
+      expiration: '2026-08-10',
+      snapshot_at: now_iso,
+      greeks_as_of: now_iso,
+      open_interest_as_of: '2026-08-10T12:00:00.000Z',
+      underlying_price_usd: 5004,
+      contracts: [
+        { contract_symbol: 'SPXW260810C05000000', expiration: '2026-08-10', strike_usd: 5000, right: 'C', gamma: 0.02, open_interest: 100 },
+        { contract_symbol: 'SPXW260810C05010000', expiration: '2026-08-10', strike_usd: 5010, right: 'C', gamma: 0.03, open_interest: 1_000 },
+        { contract_symbol: 'SPXW260810P04990000', expiration: '2026-08-10', strike_usd: 4990, right: 'P', gamma: 0.04, open_interest: 1_000 },
+        { contract_symbol: 'SPXW260810P05000000', expiration: '2026-08-10', strike_usd: 5000, right: 'P', gamma: 0.02, open_interest: 100 },
+        { contract_symbol: 'SPX260810P04980000', expiration: '2026-08-10', strike_usd: 4980, right: 'P', gamma: 1, open_interest: 1_000_000 },
+      ],
+      ...overrides,
+    },
+    _meta: { data_freshness_seconds: 1, truncated: false },
   };
 }
 
@@ -77,7 +100,7 @@ const bullish_bars = Object.freeze([
     timestamp: '2026-08-10T14:25:00.000Z',
     open_usd: 5002,
     high_usd: 5005,
-    low_usd: 5000.5,
+    low_usd: 5000,
     close_usd: 5004,
     volume: 1200,
   },
@@ -103,7 +126,7 @@ const bearish_rejection_bars = Object.freeze([
   {
     timestamp: '2026-08-10T14:25:00.000Z',
     open_usd: 5008,
-    high_usd: 5008.5,
+    high_usd: 5011,
     low_usd: 5005,
     close_usd: 5006,
     volume: 1500,
@@ -130,7 +153,7 @@ const bearish_breakout_bars = Object.freeze([
   {
     timestamp: '2026-08-10T14:25:00.000Z',
     open_usd: 4998,
-    high_usd: 4999.5,
+    high_usd: 5000,
     low_usd: 4995,
     close_usd: 4996,
     volume: 1200,
@@ -161,6 +184,7 @@ function bullish_context(overrides = {}) {
 function evaluate_bullish(overrides = {}) {
   return evaluate_junk_gex_strategy({
     gex_snapshot: snapshot(),
+    option_chain_snapshot: option_chain(),
     now_ms,
     market_context: bullish_context(),
     ...overrides,
@@ -176,46 +200,144 @@ test('normalization accepts a data envelope and keeps snake_case fields', () => 
   assert.deepEqual(Object.keys(normalized.nodes[0]), [
     'strike_usd',
     'net_gex_usd',
-    'call_gex_usd',
-    'put_gex_usd',
     'node_type',
+    'rank',
+    'relative_strength',
   ]);
+  assert.equal(normalized.call_wall_usd, 5010);
+  assert.equal(normalized.put_wall_usd, 4990);
 });
 
-test('node clipping retains two-sided primary/secondary structure and call/put walls', () => {
+test('directional option reference ranks the official chain schema by gamma times open interest', () => {
+  const call = directional_option_gex_reference({
+    option_chain_snapshot: option_chain(),
+    direction: 'bullish',
+    expiration: '2026-08-10',
+  });
+  const put = directional_option_gex_reference({
+    option_chain_snapshot: option_chain(),
+    direction: 'bearish',
+    expiration: '2026-08-10',
+  });
+
+  assert.equal(call.strike_usd, 5010);
+  assert.equal(call.gamma_oi_weight, 30);
+  assert.equal(call.contract_root, 'SPXW');
+  assert.equal(call.source_field, 'data.contracts[].gamma*open_interest');
+  assert.equal(put.strike_usd, 4990);
+  assert.equal(put.gamma_oi_weight, 40);
+});
+
+test('directional option reference rejects contract symbols that contradict their row fields', () => {
+  const forged = option_chain({
+    contracts: [
+      { contract_symbol: 'SPXW260811P06000000', expiration: '2026-08-10', strike_usd: 5010, right: 'C', gamma: 100, open_interest: 100_000 },
+      ...option_chain().data.contracts,
+    ],
+  });
+  const call = directional_option_gex_reference({
+    option_chain_snapshot: forged,
+    direction: 'bullish',
+    expiration: '2026-08-10',
+  });
+
+  assert.equal(call.strike_usd, 5010);
+  assert.equal(call.gamma_oi_weight, 30);
+});
+
+test('stale or provider-truncated option chains cannot choose a directional strike', () => {
+  const stale = evaluate_bullish({
+    option_chain_snapshot: option_chain({ snapshot_at: '2026-08-10T14:00:00.000Z' }),
+  });
+  const truncated_chain = option_chain();
+  truncated_chain._meta.truncated = true;
+  const truncated = evaluate_bullish({ option_chain_snapshot: truncated_chain });
+
+  assert.deepEqual(stale.reason_codes, ['missing_call_directional_gex_reference']);
+  assert.deepEqual(truncated.reason_codes, ['missing_call_directional_gex_reference']);
+});
+
+test('directional option reference rejects wrong identity, incomplete provenance, stale Greeks, and invalid signed Gamma', () => {
+  const wrong_ticker = option_chain({ ticker: 'SPY' });
+  const missing_expiration = option_chain({ expiration: null });
+  const stale_greeks = option_chain({ greeks_as_of: '2026-08-10T14:00:00.000Z' });
+  const missing_oi_as_of = option_chain({ open_interest_as_of: null });
+  const future_oi_as_of = option_chain({ open_interest_as_of: '2026-08-10T14:31:30.000Z' });
+  const unknown_truncation = option_chain();
+  delete unknown_truncation._meta.truncated;
+  const invalid_gamma = option_chain({
+    contracts: [
+      { contract_symbol: 'SPXW260810C05010000', expiration: '2026-08-10', strike_usd: 5010, right: 'C', gamma: -0.03, open_interest: 1_000 },
+    ],
+  });
+  const input = {
+    direction: 'bullish',
+    expiration: '2026-08-10',
+    now_ms,
+    max_age_ms: 600_000,
+  };
+
+  assert.equal(directional_option_gex_reference({ ...input, option_chain_snapshot: wrong_ticker }), null);
+  assert.equal(directional_option_gex_reference({ ...input, option_chain_snapshot: missing_expiration }), null);
+  assert.equal(directional_option_gex_reference({ ...input, option_chain_snapshot: stale_greeks }), null);
+  assert.equal(directional_option_gex_reference({ ...input, option_chain_snapshot: missing_oi_as_of }), null);
+  assert.equal(directional_option_gex_reference({ ...input, option_chain_snapshot: future_oi_as_of }), null);
+  assert.equal(directional_option_gex_reference({ ...input, option_chain_snapshot: unknown_truncation }), null);
+  assert.equal(directional_option_gex_reference({ ...input, option_chain_snapshot: invalid_gamma }), null);
+});
+
+test('Dealer GEX summary walls cannot substitute for a missing directional option chain', () => {
+  const result = evaluate_bullish({ option_chain_snapshot: null });
+
+  assert.equal(result.decision, 'no_trade');
+  assert.deepEqual(result.reason_codes, ['missing_call_directional_gex_reference']);
+});
+
+test('normalization retains every provider node without an application-side cap', () => {
   const strikes = [
-    { strike_usd: 4900, net_gex_usd: 10, call_gex_usd: 1, put_gex_usd: -500, node_type: 'put_wall' },
-    { strike_usd: 4970, net_gex_usd: -100, call_gex_usd: 1, put_gex_usd: -10 },
-    { strike_usd: 4980, net_gex_usd: -90, call_gex_usd: 1, put_gex_usd: -9 },
-    { strike_usd: 4990, net_gex_usd: -1, call_gex_usd: 1, put_gex_usd: -1 },
-    { strike_usd: 5010, net_gex_usd: 2, call_gex_usd: 2, put_gex_usd: -1 },
-    { strike_usd: 5020, net_gex_usd: 80, call_gex_usd: 8, put_gex_usd: -1 },
-    { strike_usd: 5030, net_gex_usd: 70, call_gex_usd: 7, put_gex_usd: -1 },
-    { strike_usd: 5100, net_gex_usd: 5, call_gex_usd: 600, put_gex_usd: -1, node_type: 'call_wall' },
+    { strike_usd: 4900, net_gex_usd: 10, node_type: 'put_wall' },
+    { strike_usd: 4970, net_gex_usd: -100 },
+    { strike_usd: 4980, net_gex_usd: -90 },
+    { strike_usd: 4990, net_gex_usd: -1 },
+    { strike_usd: 5010, net_gex_usd: 2 },
+    { strike_usd: 5020, net_gex_usd: 80 },
+    { strike_usd: 5030, net_gex_usd: 70 },
+    { strike_usd: 5100, net_gex_usd: 5, node_type: 'call_wall' },
   ];
-  const normalized = normalize_gex_snapshot(snapshot({ spot_usd: 5000, strikes }), 4);
+  const normalized = normalize_gex_snapshot(snapshot({
+    spot_usd: 5000,
+    strikes,
+    summary: {
+      ...snapshot().summary,
+      call_wall_strike_usd: 5100,
+      put_wall_strike_usd: 4900,
+    },
+  }));
   const selected = new Set(normalized.nodes.map((node) => node.strike_usd));
 
-  for (const required of [4900, 4970, 4980, 5020, 5030, 5100]) {
+  for (const required of strikes.map((node) => node.strike_usd)) {
     assert.ok(selected.has(required), `missing required structural node ${required}`);
   }
+  assert.equal(normalized.nodes.length, strikes.length);
 });
 
-test('negative local gamma body break and retest yields a stable simulate-only call plan', () => {
+test('node body break and exact-node wick retest yields a simulate-only call plan', () => {
   const result = evaluate_bullish();
 
   assert.equal(result.decision, 'trade');
   assert.equal(result.direction, 'bullish');
-  assert.equal(result.signal_type, 'negative_gamma_expansion');
-  assert.equal(result.regime, 'negative_gamma_expansion');
+  assert.equal(result.signal_type, 'gex_node_breakout_retest');
+  assert.equal(result.regime, 'breakout_retest');
   assert.equal(result.local_gamma_node.strike_usd, 5000);
   assert.equal(result.option_selection.option_right, 'call');
   assert.equal(result.option_selection.strike_reference_usd, 5005);
-  assert.equal(result.option_selection.strike_basis, 'max_call_gex_node_shifted_toward_spot');
+  assert.equal(result.option_selection.strike_basis, 'max_call_gamma_oi_shifted_toward_current_price');
+  assert.equal(result.option_selection.source_node.source_field, 'data.contracts[].gamma*open_interest');
   assert.equal(result.target_underlying_usd, 5010);
-  assert.equal(result.gex_node_stability.matched_sample_count, 4);
-  assert.equal(result.gex_node_stability.covered_bar_count, 3);
-  assert.equal(result.gex_node_stability.preferred_bar_coverage_met, true);
+  assert.equal(result.gex_node_stability.matched_sample_count, 3);
+  assert.equal(result.gex_node_stability.covered_bar_count, 2);
+  assert.equal(result.gex_node_stability.observed_across_multiple_samples, true);
+  assert.equal(result.invalidation_basis, 'underlying_confirmation_bar_wick_proxy');
   assert.match(result.signal_id, /^junk_gex_[a-f0-9]{20}$/);
   assert.match(result.setup_id, /^junk_gex_setup_[a-f0-9]{16}$/);
   assert.equal(result.setup_identity.confirmation_bar_at, '2026-08-10T14:25:00.000Z');
@@ -224,11 +346,21 @@ test('negative local gamma body break and retest yields a stable simulate-only c
   assert.equal(result.flow_dependency, 'none');
 });
 
-test('positive local gamma rejection yields a put plan using the strongest put-GEX wall', () => {
+test('a wick that never reaches the tested node is not called a node retest', () => {
+  const bars_1m = bullish_bars.map((bar, index) => (
+    index === 2 ? { ...bar, open_usd: 5003, low_usd: 5002.9 } : bar
+  ));
+  const result = evaluate_bullish({ market_context: bullish_context({ bars_1m }) });
+
+  assert.equal(result.decision, 'no_trade');
+  assert.deepEqual(result.reason_codes, ['waiting_for_node_confirmation']);
+});
+
+test('positive local gamma rejection yields a put plan using the official option-chain Gamma and OI fields', () => {
   const result = evaluate_junk_gex_strategy({
     gex_snapshot: snapshot({ spot_usd: 5005 }),
+    option_chain_snapshot: option_chain(),
     now_ms,
-    policy: { allow_positive_gamma_single_leg_mean_reversion: true },
     market_context: {
       last_price_usd: 5006,
       vwap_usd: 5007,
@@ -239,18 +371,82 @@ test('positive local gamma rejection yields a put plan using the strongest put-G
 
   assert.equal(result.decision, 'trade');
   assert.equal(result.direction, 'bearish');
-  assert.equal(result.signal_type, 'positive_gamma_mean_reversion');
-  assert.equal(result.regime, 'positive_gamma_mean_reversion');
+  assert.equal(result.signal_type, 'gex_node_rejection');
+  assert.equal(result.regime, 'node_rejection');
   assert.equal(result.local_gamma_node.strike_usd, 5010);
   assert.equal(result.option_selection.option_right, 'put');
   assert.equal(result.option_selection.strike_reference_usd, 4995);
-  assert.equal(result.option_selection.strike_basis, 'max_put_gex_node_shifted_toward_spot');
-  assert.equal(result.target_underlying_usd, 4990);
+  assert.equal(result.option_selection.strike_basis, 'max_put_gamma_oi_shifted_toward_current_price');
+  assert.equal(result.option_selection.source_node.source_field, 'data.contracts[].gamma*open_interest');
+  assert.equal(result.target_underlying_usd, 5000);
 });
 
-test('production defaults do not buy naked directional options inside a positive-Gamma pin', () => {
+test('one completed five-minute rejection candle is sufficient without a hidden prior-bar gate', () => {
   const result = evaluate_junk_gex_strategy({
     gex_snapshot: snapshot({ spot_usd: 5005 }),
+    option_chain_snapshot: option_chain(),
+    now_ms,
+    market_context: {
+      last_price_usd: 5006,
+      vwap_usd: 5007,
+      bars_1m: [bearish_rejection_bars.at(-1)],
+      gex_node_history: [],
+    },
+  });
+
+  assert.equal(result.decision, 'trade');
+  assert.equal(result.setup_type, 'node_rejection');
+  assert.equal(result.setup_identity.confirmation_bar_at, '2026-08-10T14:25:00.000Z');
+});
+
+test('a body-crossing candle is not mislabeled as a same-side node rejection', () => {
+  const crossed = {
+    ...bearish_rejection_bars.at(-1),
+    open_usd: 5011.2,
+    high_usd: 5012,
+  };
+  const result = evaluate_junk_gex_strategy({
+    gex_snapshot: snapshot({ spot_usd: 5005 }),
+    option_chain_snapshot: option_chain(),
+    now_ms,
+    market_context: {
+      last_price_usd: 5006,
+      vwap_usd: 5007,
+      bars_1m: [crossed],
+      gex_node_history: [],
+    },
+  });
+
+  assert.equal(result.decision, 'no_trade');
+  assert.deepEqual(result.reason_codes, ['waiting_for_node_confirmation']);
+});
+
+test('Gamma sign remains optional context when valid ranked structure is zero-valued', () => {
+  const zeroNodes = snapshot().strikes.map((node) => ({ ...node, net_gex_usd: 0 }));
+  const result = evaluate_junk_gex_strategy({
+    gex_snapshot: snapshot({ spot_usd: 5005, strikes: zeroNodes }),
+    option_chain_snapshot: option_chain(),
+    now_ms,
+    market_context: {
+      last_price_usd: 5006,
+      vwap_usd: 5007,
+      bars_1m: [bearish_rejection_bars.at(-1)],
+      gex_node_history: [],
+    },
+  });
+
+  assert.equal(result.decision, 'trade');
+  assert.equal(result.local_gamma_node, null);
+  assert.equal(result.nearest_ranked_node_gamma_sign, 'zero_or_unknown');
+});
+
+test('the nearest ranked node Gamma sign is context and does not veto price rejection', () => {
+  const negativeLocalNodes = snapshot().strikes.map((node) => (
+    node.strike_usd === 5010 ? { ...node, net_gex_usd: -4_000_000 } : node
+  ));
+  const result = evaluate_junk_gex_strategy({
+    gex_snapshot: snapshot({ spot_usd: 5005, strikes: negativeLocalNodes }),
+    option_chain_snapshot: option_chain(),
     now_ms,
     market_context: {
       last_price_usd: 5006,
@@ -260,13 +456,15 @@ test('production defaults do not buy naked directional options inside a positive
     },
   });
 
-  assert.equal(result.decision, 'no_trade');
-  assert.deepEqual(result.reason_codes, ['positive_gamma_pin_requires_defined_risk_structure']);
+  assert.equal(result.decision, 'trade');
+  assert.equal(result.signal_type, 'gex_node_rejection');
+  assert.equal(result.nearest_ranked_node_gamma_sign, 'negative');
 });
 
 test('bearish body-cross breakout and retest is supported symmetrically', () => {
   const result = evaluate_junk_gex_strategy({
     gex_snapshot: snapshot(),
+    option_chain_snapshot: option_chain(),
     now_ms,
     market_context: {
       last_price_usd: 4996,
@@ -283,10 +481,33 @@ test('bearish body-cross breakout and retest is supported symmetrically', () => 
   assert.equal(result.option_selection.option_right, 'put');
 });
 
+test('a later retest remains eligible after intervening bars hold the accepted side', () => {
+  const bars_1m = [
+    { ...bullish_bars[0], timestamp: '2026-08-10T14:10:00.000Z' },
+    { ...bullish_bars[1], timestamp: '2026-08-10T14:15:00.000Z' },
+    {
+      timestamp: '2026-08-10T14:20:00.000Z',
+      open_usd: 5003,
+      high_usd: 5004,
+      low_usd: 5001,
+      close_usd: 5002,
+      volume: 1100,
+    },
+    bullish_bars[2],
+  ];
+  const result = evaluate_bullish({ market_context: bullish_context({ bars_1m }) });
+
+  assert.equal(result.decision, 'trade');
+  assert.equal(result.setup_type, 'breakout_retest');
+  assert.equal(result.setup_identity.impulse_bar_at, '2026-08-10T14:15:00.000Z');
+  assert.equal(result.setup_identity.confirmation_bar_at, '2026-08-10T14:25:00.000Z');
+});
+
 test('signal identity remains stable when only the current GEX poll timestamp changes', () => {
   const first = evaluate_bullish();
   const second = evaluate_junk_gex_strategy({
     gex_snapshot: snapshot({ snapshot_at: '2026-08-10T14:31:15.000Z' }),
+    option_chain_snapshot: option_chain(),
     now_ms: Date.parse('2026-08-10T14:31:15.000Z'),
     market_context: bullish_context(),
   });
@@ -297,7 +518,7 @@ test('signal identity remains stable when only the current GEX poll timestamp ch
   assert.equal(second.setup_id, first.setup_id);
 });
 
-test('a setup without three same-sign node-history samples fails closed', () => {
+test('node history remains audit context and does not veto confirmed price action', () => {
   const result = evaluate_bullish({
     market_context: bullish_context({
       gex_node_history: stable_history({
@@ -311,8 +532,9 @@ test('a setup without three same-sign node-history samples fails closed', () => 
     }),
   });
 
-  assert.equal(result.decision, 'no_trade');
-  assert.deepEqual(result.reason_codes, ['insufficient_stable_gex_node_history']);
+  assert.equal(result.decision, 'trade');
+  assert.equal(result.gex_node_stability.matched_sample_count, 1);
+  assert.equal(result.gex_node_stability.observed_across_multiple_samples, false);
 });
 
 test('current price must remain between stop and target and on the confirmed node side', () => {
@@ -330,16 +552,16 @@ test('current price must remain between stop and target and on the confirmed nod
   assert.ok(reached.reason_codes.includes('target_reached_before_execution'));
 });
 
-test('entry drift beyond policy blocks an otherwise still-valid setup', () => {
+test('an otherwise-valid setup is not blocked by an invented point-distance drift cap', () => {
   const result = evaluate_bullish({
     market_context: bullish_context({ last_price_usd: 5008 }),
   });
 
-  assert.equal(result.decision, 'no_trade');
-  assert.deepEqual(result.reason_codes, ['entry_drift_above_limit']);
+  assert.equal(result.decision, 'trade');
+  assert.equal(result.last_price_usd, 5008);
 });
 
-test('bearish setups apply the same stop-target and drift checks', () => {
+test('bearish setups apply the same stop-target checks without an invented drift cap', () => {
   const market_context = {
     last_price_usd: 5006,
     vwap_usd: 5007,
@@ -348,8 +570,8 @@ test('bearish setups apply the same stop-target and drift checks', () => {
   };
   const input = {
     gex_snapshot: snapshot({ spot_usd: 5005 }),
+    option_chain_snapshot: option_chain(),
     now_ms,
-    policy: { allow_positive_gamma_single_leg_mean_reversion: true },
   };
   const invalidated = evaluate_junk_gex_strategy({
     ...input,
@@ -367,22 +589,24 @@ test('bearish setups apply the same stop-target and drift checks', () => {
   assert.ok(invalidated.reason_codes.includes('setup_invalidated_before_execution'));
   assert.ok(invalidated.reason_codes.includes('current_price_lost_tested_node'));
   assert.ok(reached.reason_codes.includes('target_reached_before_execution'));
-  assert.deepEqual(drifted.reason_codes, ['entry_drift_above_limit']);
+  assert.equal(drifted.decision, 'trade');
 });
 
-test('a retest wick through the structural stop cannot trade', () => {
+test('the confirmed retest wick defines the structural invalidation instead of an arbitrary point buffer', () => {
   const bars_1m = bullish_bars.map((bar, index) => (
     index === 2 ? { ...bar, low_usd: 4998.5 } : bar
   ));
   const result = evaluate_bullish({ market_context: bullish_context({ bars_1m }) });
 
-  assert.equal(result.decision, 'no_trade');
-  assert.deepEqual(result.reason_codes, ['waiting_for_node_confirmation']);
+  assert.equal(result.decision, 'trade');
+  assert.equal(result.stop_underlying_usd, 4998.5);
 });
 
 test('a breakout impulse that starts on the destination side is rejected', () => {
   const bars_1m = bullish_bars.map((bar, index) => (
-    index === 1 ? { ...bar, open_usd: 5000.5 } : bar
+    index === 1
+      ? { ...bar, open_usd: 5000.5 }
+      : (index === 2 ? { ...bar, open_usd: 5004, close_usd: 5004 } : bar)
   ));
   const result = evaluate_bullish({ market_context: bullish_context({ bars_1m }) });
 
@@ -390,12 +614,14 @@ test('a breakout impulse that starts on the destination side is rejected', () =>
   assert.deepEqual(result.reason_codes, ['waiting_for_node_confirmation']);
 });
 
-test('bearish retests also reject a crossed stop or an impulse from the wrong side', () => {
+test('bearish retest high defines invalidation while an impulse from the wrong side is rejected', () => {
   const crossed_stop = bearish_breakout_bars.map((bar, index) => (
-    index === 2 ? { ...bar, high_usd: 5001.5 } : bar
+    index === 2 ? { ...bar, open_usd: 4996, close_usd: 4996, high_usd: 5001.5 } : bar
   ));
   const wrong_side = bearish_breakout_bars.map((bar, index) => (
-    index === 1 ? { ...bar, open_usd: 4999.5 } : bar
+    index === 1
+      ? { ...bar, open_usd: 4999.5 }
+      : (index === 2 ? { ...bar, open_usd: 4996, close_usd: 4996 } : bar)
   ));
   const market_context = {
     last_price_usd: 4996,
@@ -404,16 +630,19 @@ test('bearish retests also reject a crossed stop or an impulse from the wrong si
   };
   const crossed = evaluate_junk_gex_strategy({
     gex_snapshot: snapshot(),
+    option_chain_snapshot: option_chain(),
     now_ms,
     market_context: { ...market_context, bars_1m: crossed_stop },
   });
   const wrong = evaluate_junk_gex_strategy({
     gex_snapshot: snapshot(),
+    option_chain_snapshot: option_chain(),
     now_ms,
     market_context: { ...market_context, bars_1m: wrong_side },
   });
 
-  assert.deepEqual(crossed.reason_codes, ['waiting_for_node_confirmation']);
+  assert.equal(crossed.decision, 'trade');
+  assert.equal(crossed.stop_underlying_usd, 5001.5);
   assert.deepEqual(wrong.reason_codes, ['waiting_for_node_confirmation']);
 });
 
@@ -435,6 +664,46 @@ test('active policy follows the fixed five-minute sampling contract with an incl
   assert.equal(active_policy.strategy.max_snapshot_age_ms, 600_000);
   assert.equal('max_closed_bar_age_ms' in active_policy.strategy, false);
   assert.equal('max_closed_bar_age_ms' in DEFAULT_JUNK_GEX_POLICY, false);
+  for (const removed_gate of [
+    'min_displacement_points',
+    'min_body_points',
+    'min_reward_risk_ratio',
+    'max_entry_drift_points',
+    'min_impulse_volume_ratio',
+    'min_gex_node_history_samples',
+    'preferred_gex_node_history_bar_coverage',
+    'require_gex_node_history_bar_coverage',
+    'allow_positive_gamma_single_leg_mean_reversion',
+    'require_vwap_confirmation',
+  ]) {
+    assert.equal(removed_gate in active_policy.strategy, false, `${removed_gate} must not return`);
+  }
+  assert.equal(active_policy.strategy.entry_start_time_et, '09:30');
+  assert.equal(active_policy.strategy.entry_cutoff_time_et, '15:45');
+  assert.equal(active_policy.strategy.cooldown_seconds, 0);
+  assert.equal(active_policy.exit_rules.close_exit_start_time_et, '15:45');
+  assert.equal(active_policy.exit_rules.force_close_exit_start_time_et, '15:55');
+  assert.equal(active_policy.execution_quality.require_open_interest_and_volume, false);
+  assert.equal(active_policy.execution_quality.min_open_interest, 0);
+  assert.equal(active_policy.execution_quality.min_option_day_volume, 0);
+  assert.equal('quota_entry_safety_floor' in active_policy.provider, false);
+  assert.equal('max_nodes' in active_policy.strategy, false);
+  assert.equal(active_policy.risk_limits.max_option_quote_age_seconds, 3);
+  assert.equal(active_policy.risk_limits.max_trades_per_day, null);
+  assert.equal(active_policy.risk_limits.max_daily_realized_loss_usd, null);
+  assert.equal('max_contracts_per_line' in active_policy.risk_limits, false);
+  assert.equal('max_contracts_per_trade' in active_policy.risk_limits, false);
+  assert.equal('require_ranked_node_when_fresh' in active_policy.evidence_gates.heatmap, false);
+  assert.equal('conflict_veto_enabled' in active_policy.evidence_gates.heatmap, false);
+  assert.equal('node_tolerance_points' in active_policy.evidence_gates.heatmap, false);
+  assert.equal('conflict_veto_enabled' in active_policy.evidence_gates.automated_flow_alert, false);
+  assert.equal(active_policy.execution_quality.require_tick_size, true);
+  assert.equal(active_policy.execution_quality.max_spread_pct_of_mid, null);
+  assert.equal(active_policy.execution_quality.max_round_trip_loss_pct, null);
+  assert.equal(active_policy.execution_quality.slippage_pct_of_spread, 0);
+  assert.equal(active_policy.execution_quality.max_qty_to_ask_volume_ratio, 1);
+  assert.deepEqual(active_policy.exit_rules.setup_time_stop_setup_types, ['range_mean_reversion']);
+  assert.equal('setup_time_stop_requires_nonpositive_return' in active_policy.exit_rules, false);
   const policy = active_policy.strategy;
   const at = (age_ms, meta_seconds = null) => evaluate_bullish({
     gex_snapshot: {
@@ -481,7 +750,7 @@ test('provider freshness metadata cannot make a stale payload fresh or vice vers
   assert.ok(meta_future.reason_codes.includes('snapshot_meta_from_future'));
 });
 
-test('closed bars require valid continuous timestamps in one ET session without an extra age cutoff', () => {
+test('the latest closed bar must be valid and same-session while a breakout needs usable contiguous prior context', () => {
   const missing_timestamp = evaluate_bullish({
     market_context: bullish_context({
       bars_1m: bullish_bars.map(({ timestamp: _timestamp, ...bar }) => bar),
@@ -490,7 +759,9 @@ test('closed bars require valid continuous timestamps in one ET session without 
   const gap = evaluate_bullish({
     market_context: bullish_context({
       bars_1m: bullish_bars.map((bar, index) => (
-        index === 1 ? { ...bar, timestamp: '2026-08-10T14:28:30.000Z' } : bar
+        index === 1
+          ? { ...bar, timestamp: '2026-08-10T14:18:30.000Z' }
+          : (index === 2 ? { ...bar, open_usd: 5004, close_usd: 5004 } : bar)
       )),
     }),
   });
@@ -514,34 +785,35 @@ test('closed bars require valid continuous timestamps in one ET session without 
   const before_next_close = evaluate_bullish({ now_ms: Date.parse('2026-08-10T14:34:00.000Z') });
 
   assert.ok(missing_timestamp.reason_codes.includes('invalid_closed_confirmation_bar'));
-  assert.ok(gap.reason_codes.includes('closed_confirmation_bars_not_continuous'));
+  assert.deepEqual(gap.reason_codes, ['waiting_for_node_confirmation']);
   assert.ok(cross_session.reason_codes.includes('closed_confirmation_bars_cross_et_session'));
   assert.ok(unclosed.reason_codes.includes('latest_confirmation_bar_not_closed'));
   assert.equal(before_next_close.decision, 'trade');
 });
 
-test('VWAP disagreement and absent node confirmation remain no-trade', () => {
+test('VWAP disagreement remains audit context and cannot veto a confirmed node reaction', () => {
   const result = evaluate_bullish({
     market_context: bullish_context({ vwap_usd: 5008 }),
   });
 
-  assert.equal(result.decision, 'no_trade');
-  assert.deepEqual(result.reason_codes, ['waiting_for_node_confirmation']);
+  assert.equal(result.decision, 'trade');
+  assert.equal(result.vwap_usd, 5008);
+  assert.equal(result.reason_codes.includes('vwap_confirmed'), false);
 });
 
-test('missing VWAP fails closed instead of being coerced to zero', () => {
+test('missing VWAP remains explicit audit context without becoming a hidden entry gate', () => {
   const result = evaluate_bullish({
     market_context: bullish_context({ vwap_usd: null }),
   });
 
-  assert.equal(result.decision, 'no_trade');
-  assert.ok(result.reason_codes.includes('missing_vwap'));
+  assert.equal(result.decision, 'trade');
+  assert.equal(result.vwap_usd, null);
 });
 
-test('five-minute acceptance requires usable volume and a non-weaker impulse', () => {
+test('five-minute confirmation requires real volume but no invented prior-bar ratio', () => {
   const missing = evaluate_bullish({
     market_context: bullish_context({
-      bars_1m: bullish_bars.map((bar, index) => (index === 1 ? { ...bar, volume: null } : bar)),
+      bars_1m: bullish_bars.map((bar, index) => (index === 2 ? { ...bar, volume: null } : bar)),
     }),
   });
   const weak = evaluate_bullish({
@@ -551,47 +823,40 @@ test('five-minute acceptance requires usable volume and a non-weaker impulse', (
   });
 
   assert.ok(missing.reason_codes.includes('missing_closed_bar_volume'));
-  assert.deepEqual(weak.reason_codes, ['waiting_for_node_confirmation']);
+  assert.equal(weak.decision, 'trade');
 });
 
-test('Gamma Flip is retained as a first-class mechanism node even when max_nodes is small', () => {
-  const normalized = normalize_gex_snapshot(snapshot({ gamma_flip_usd: 5005 }), 2);
+test('Gamma Flip stays in summary context but is not synthesized as a tradable node', () => {
+  const normalized = normalize_gex_snapshot(snapshot({
+    summary: { ...snapshot().summary, gamma_flip_usd: 5005 },
+  }));
   const flip = normalized.nodes.find((node) => node.strike_usd === 5005);
 
   assert.equal(normalized.gamma_flip_usd, 5005);
-  assert.equal(flip?.node_type, 'gamma_flip');
-  assert.equal(flip?.net_gex_usd, 0);
+  assert.equal(flip, undefined);
 });
 
-test('stable sample count cannot replace coverage across all three confirmation bars', () => {
-  const clustered_history = [10, 20, 30].map((seconds) => snapshot({
-    snapshot_at: `2026-08-10T14:15:${seconds}.000Z`,
+test('a provider-ranked node may retain a matching Gamma Flip audit label', () => {
+  const normalized = normalize_gex_snapshot(snapshot({
+    summary: { ...snapshot().summary, gamma_flip_usd: 5000 },
+  }));
+  const flip = normalized.nodes.find((node) => node.strike_usd === 5000);
+
+  assert.match(flip?.node_type || '', /gamma_flip/);
+  assert.notEqual(flip?.net_gex_usd, 0);
+});
+
+test('clustered node-history samples remain audit context instead of an entry veto', () => {
+  const clustered_history = [10, 20].map((seconds) => snapshot({
+    snapshot_at: `2026-08-10T14:20:${seconds}.000Z`,
   }));
   const result = evaluate_bullish({
     market_context: bullish_context({ gex_node_history: clustered_history }),
   });
 
-  assert.equal(result.decision, 'no_trade');
-  assert.deepEqual(result.reason_codes, ['gex_node_history_missing_confirmation_bar_coverage']);
-});
-
-test('directional long options are not chased into a positive-Gamma magnet center', () => {
-  const strikes = [
-    ...snapshot().strikes,
-    { strike_usd: 5005, net_gex_usd: 20_000_000, call_gex_usd: 1_000_000, put_gex_usd: -100_000, node_type: 'magnet' },
-  ];
-  const result = evaluate_junk_gex_strategy({
-    gex_snapshot: snapshot({ strikes }),
-    now_ms,
-    policy: { min_reward_risk_ratio: 0.1 },
-    market_context: bullish_context({
-      last_price_usd: 5004,
-      gex_node_history: stable_history({ snapshot_overrides: { strikes } }),
-    }),
-  });
-
-  assert.equal(result.decision, 'no_trade');
-  assert.deepEqual(result.reason_codes, ['positive_gamma_magnet_center_no_chase']);
+  assert.equal(result.decision, 'trade');
+  assert.equal(result.gex_node_stability.covered_bar_count, 1);
+  assert.equal(result.gex_node_stability.observed_across_multiple_samples, true);
 });
 
 test('policy cannot opt the strategy into real trading', () => {

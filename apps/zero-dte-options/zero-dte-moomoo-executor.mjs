@@ -33,6 +33,16 @@ function firstFinite(...values) {
   return null;
 }
 
+function optionalPositiveGate(...values) {
+  for (const value of values) {
+    if (value === undefined || value === '') continue;
+    if (value === null || value === false) return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }
+  return null;
+}
+
 function finitePositive(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
@@ -126,11 +136,12 @@ export function zeroDtePolicyQuoteConfig(config) {
   const quality = config?.policy?.execution_quality || {};
   return {
     optionRequireBidAsk: quality.require_bid_ask ?? true,
+    optionRequireTickSize: quality.require_tick_size ?? true,
     optionRequireOpenInterestAndVolume: quality.require_open_interest_and_volume === true,
     optionMinBidPrice: firstFinite(quality.min_bid_price, config.optionMinBidPrice, 0.01),
-    optionMaxSpreadPctOfMid: firstFinite(quality.max_spread_pct_of_mid, config.optionMaxSpreadPctOfMid, 20),
+    optionMaxSpreadPctOfMid: optionalPositiveGate(quality.max_spread_pct_of_mid, config.optionMaxSpreadPctOfMid),
     optionMaxSpreadAbs: firstFinite(quality.max_spread_abs, config.optionMaxSpreadAbs),
-    optionMaxRoundTripLossPct: firstFinite(quality.max_round_trip_loss_pct, config.optionMaxRoundTripLossPct, 25),
+    optionMaxRoundTripLossPct: optionalPositiveGate(quality.max_round_trip_loss_pct, config.optionMaxRoundTripLossPct),
     optionSlippageTicks: firstFinite(quality.slippage_ticks, config.optionSlippageTicks, 1),
     optionSlippagePctOfSpread: firstFinite(quality.slippage_pct_of_spread, config.optionSlippagePctOfSpread, 20),
     optionMinOpenInterest: firstFinite(quality.min_open_interest, config.optionMinOpenInterest, 100),
@@ -157,8 +168,7 @@ function sizingSettings(config) {
       100,
     ),
     cap_qty_by_visible_ask: quality.cap_qty_by_visible_ask ?? true,
-    max_qty_to_ask_volume_ratio: firstFinite(quality.max_qty_to_ask_volume_ratio, 3),
-    max_contracts_per_trade: firstFinite(riskLimit(config, 'max_contracts_per_trade', null)),
+    max_qty_to_ask_volume_ratio: firstFinite(quality.max_qty_to_ask_volume_ratio, 1),
   };
 }
 
@@ -205,16 +215,12 @@ function calculatePositionSizing(optionPrice, contractMultiplier, quote, config)
     qty = Math.min(qty, maxQtyByBudget);
   }
 
-  const maxContracts = finitePositive(settings.max_contracts_per_trade);
-  if (maxContracts !== null && qty > Math.floor(maxContracts)) {
-    reasons.push(`qty_capped_by_max_contracts:${qty}->${Math.floor(maxContracts)}`);
-    qty = Math.floor(maxContracts);
-  }
-
-  const askSize = finitePositive(quote?.ask_size_contracts);
+  const rawAskSize = firstFinite(quote?.ask_size_contracts);
+  const askSize = finitePositive(rawAskSize);
   if (settings.cap_qty_by_visible_ask) {
     if (askSize === null) {
-      reasons.push('visible_ask_size_missing');
+      reasons.push(rawAskSize === null ? 'visible_ask_size_missing' : 'visible_ask_size_nonpositive');
+      qty = 0;
     } else {
       const cap = Math.max(1, Math.floor(askSize * settings.max_qty_to_ask_volume_ratio));
       if (qty > cap) {
@@ -335,12 +341,6 @@ function normalizeSignal(signal, now = new Date()) {
       confirmation.price_action,
       reasonCodes.has('gex_node_confirmed'),
     ),
-    vwap_confirmed: boolFrom(
-      signal?.vwap_confirmed,
-      confirmation.vwap_confirmed,
-      confirmation.vwap,
-      reasonCodes.has('vwap_confirmed'),
-    ),
     node_reaction: inferredNodeReaction(signal),
     trigger_price: firstFinite(
       signal?.trigger_price,
@@ -353,6 +353,7 @@ function normalizeSignal(signal, now = new Date()) {
       signal?.stop_price,
       signal?.stop_underlying_usd,
     ),
+    invalidation_basis: normalizedString(signal?.invalidation_basis) || null,
     target_price: firstFinite(
       signal?.target_price,
       signal?.next_node_price,
@@ -406,8 +407,8 @@ function validateSignal(signal, config, riskState, now) {
   const signalAge = ageMs(signal.generated_at, now);
   const gexAge = ageMs(signal.gex_snapshot_at, now);
   const sessionMinutes = sessionMinutesInNewYork(now);
-  const entryStartMinutes = parseSessionMinutes(config?.policy?.strategy?.entry_start_time_et, 9 * 60 + 35);
-  const entryCutoffMinutes = parseSessionMinutes(config?.policy?.strategy?.entry_cutoff_time_et, 15 * 60 + 20);
+  const entryStartMinutes = parseSessionMinutes(config?.policy?.strategy?.entry_start_time_et, 9 * 60 + 30);
+  const entryCutoffMinutes = parseSessionMinutes(config?.policy?.strategy?.entry_cutoff_time_et, 15 * 60 + 45);
 
   if (!signal.signal_id) reasons.push('missing_signal_id');
   if (signal.business_line !== ZERO_DTE_BUSINESS_LINE) reasons.push(`wrong_business_line:${signal.business_line}`);
@@ -422,11 +423,10 @@ function validateSignal(signal, config, riskState, now) {
   if (signal.direction === 'bear' && signal.option_type !== 'P') reasons.push('direction_option_type_mismatch');
   if (signal.entry_confirmed !== true) reasons.push('entry_not_confirmed');
   if (signal.price_action_confirmed !== true) reasons.push('price_action_not_confirmed');
-  if (signal.vwap_confirmed !== true) reasons.push('vwap_not_confirmed');
   if (!DEFAULT_ALLOWED_NODE_REACTIONS.includes(signal.node_reaction)) reasons.push(`unsupported_node_reaction:${signal.node_reaction}`);
   if (signal.discord_flow_dependency) reasons.push('discord_flow_dependency_forbidden');
   if (sessionMinutes < entryStartMinutes) reasons.push('before_entry_start_time_et');
-  if (sessionMinutes > entryCutoffMinutes) reasons.push('after_entry_cutoff_time_et');
+  if (sessionMinutes >= entryCutoffMinutes) reasons.push('after_entry_cutoff_time_et');
   if (signal.gex_state !== 'fresh') reasons.push(`gex_state_not_fresh:${signal.gex_state || 'missing'}`);
   if (signalAge === null) reasons.push('invalid_generated_at');
   if (signalAge !== null && signalAge > maxSignalAgeMs) reasons.push(`signal_stale:${signalAge}`);
@@ -460,8 +460,10 @@ function validateSignal(signal, config, riskState, now) {
   const maxOpenPositions = firstFinite(riskLimit(config, 'max_open_positions', 1), 1);
   if (openPositionCount >= maxOpenPositions) reasons.push(`max_open_positions_reached:${openPositionCount}`);
   const dailyTradeCount = firstFinite(riskState?.daily_trade_count, 0);
-  const maxTradesPerDay = firstFinite(riskLimit(config, 'max_trades_per_day', 3), 3);
-  if (dailyTradeCount >= maxTradesPerDay) reasons.push(`max_trades_per_day_reached:${dailyTradeCount}`);
+  const maxTradesPerDay = finitePositive(riskLimit(config, 'max_trades_per_day', null));
+  if (maxTradesPerDay !== null && dailyTradeCount >= maxTradesPerDay) {
+    reasons.push(`max_trades_per_day_reached:${dailyTradeCount}`);
+  }
   const dailyRealizedPnlUsd = firstFinite(riskState?.daily_realized_pnl_usd, 0);
   const maxDailyRealizedLossUsd = finitePositive(riskLimit(config, 'max_daily_realized_loss_usd', null));
   if (maxDailyRealizedLossUsd !== null && dailyRealizedPnlUsd <= -maxDailyRealizedLossUsd) {
@@ -655,8 +657,8 @@ export function buildZeroDteSimulatedEntryPlan({
         option_take_profit_enabled: exitRules.option_take_profit_enabled === true,
         take_profit_return_pct: firstFinite(exitRules.option_take_profit_pct, config.optionExitTakeProfitPct, 25),
         exit_before_regular_session_close: exitRules.exit_before_regular_session_close ?? true,
-        close_exit_start_time_et: normalizedString(exitRules.close_exit_start_time_et, config.closeExitStartTimeEt || '15:30'),
-        force_close_exit_start_time_et: normalizedString(exitRules.force_close_exit_start_time_et, config.forceCloseExitStartTimeEt || '15:45'),
+        close_exit_start_time_et: normalizedString(exitRules.close_exit_start_time_et, config.closeExitStartTimeEt || '15:45'),
+        force_close_exit_start_time_et: normalizedString(exitRules.force_close_exit_start_time_et, config.forceCloseExitStartTimeEt || '15:55'),
         no_overnight_holding: exitRules.no_overnight_holding ?? true,
       },
     } : null,

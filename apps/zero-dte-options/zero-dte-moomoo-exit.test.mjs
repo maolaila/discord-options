@@ -255,7 +255,7 @@ test('15:30 ET creates a normal close limit and 15:45 ET creates a market force 
   assert.equal(force.order.price, undefined);
 });
 
-test('underlying GEX invalidation and next-node target can trigger exits before option PnL lines', () => {
+test('underlying confirmation-wick proxy invalidation and next-node target can trigger before option PnL lines', () => {
   const invalidation = buildZeroDteSimulatedExitPlan({
     owned_position: ownedPosition({
       direction: 'bull',
@@ -268,7 +268,7 @@ test('underlying GEX invalidation and next-node target can trigger exits before 
     now: new Date('2026-08-10T14:31:00.000Z'),
   });
   assert.equal(invalidation.gate.passed, true);
-  assert.equal(invalidation.trigger.reason, 'underlying_gex_node_invalidation');
+  assert.equal(invalidation.trigger.reason, 'underlying_confirmation_bar_wick_proxy_invalidation');
   assert.equal(invalidation.trigger.underlying_price_usd, 4998.5);
 
   const target = buildZeroDteSimulatedExitPlan({
@@ -292,12 +292,39 @@ test('underlying GEX invalidation and next-node target can trigger exits before 
   assert.equal(target.management_update.profit_floor_pct, 0);
 });
 
-test('a mean-reversion setup exits after five minutes only when the target is missed and return is non-positive', () => {
+test('a normal limit exit never fabricates a one-cent tick while force-close market exits remain available', () => {
+  const base = snapshot({ bid: 4.8, ask: 4.9 });
+  const missingTick = {
+    ...base,
+    basic: { ...base.basic, priceSpread: null },
+  };
+  const blockedLimit = buildZeroDteSimulatedExitPlan({
+    owned_position: ownedPosition({ direction: 'bull', invalidation_price: 4999, target_price: 5010 }),
+    option_snapshot: missingTick,
+    underlying_price_usd: 4998.5,
+    config: config(),
+    now: new Date('2026-08-10T14:31:00.000Z'),
+  });
+  assert.equal(blockedLimit.gate.passed, false);
+  assert.equal(blockedLimit.order, null);
+  assert.ok(blockedLimit.gate.reasons.includes('missing_or_invalid_exit_price_tick'));
+
+  const forcedMarket = buildZeroDteSimulatedExitPlan({
+    owned_position: ownedPosition(),
+    option_snapshot: missingTick,
+    config: config(),
+    now: new Date('2026-08-10T19:45:00.000Z'),
+  });
+  assert.equal(forcedMarket.gate.passed, true);
+  assert.equal(forcedMarket.order.order_type, 'market');
+});
+
+test('a boundary mean-reversion setup exits after five minutes whenever the opposite boundary is missed', () => {
   const basePosition = ownedPosition({
     filled_qty: 1,
     exited_qty: 0,
     direction: 'bull',
-    setup_type: 'node_rejection',
+    setup_type: 'range_mean_reversion',
     entry_at: '2026-08-10T14:25:00.000Z',
     target_price: 5010,
   });
@@ -310,7 +337,7 @@ test('a mean-reversion setup exits after five minutes only when the target is mi
   });
   assert.equal(timed.gate.passed, true);
   assert.equal(timed.trigger.reason, 'setup_5m_time_stop_no_progress');
-  assert.equal(timed.trigger.setup_type, 'node_rejection');
+  assert.equal(timed.trigger.setup_type, 'range_mean_reversion');
   assert.equal(timed.trigger.elapsed_ms, 300_000);
   assert.equal(timed.trigger.option_return_pct, 0);
   assert.equal(timed.order.qty, 1);
@@ -332,10 +359,11 @@ test('a mean-reversion setup exits after five minutes only when the target is mi
     now: new Date('2026-08-10T14:31:00.000Z'),
   });
   assert.equal(profitable.management_update.option_return_pct, 1);
-  assert.equal(profitable.trigger, null);
+  assert.equal(profitable.trigger.reason, 'setup_5m_time_stop_no_progress');
+  assert.equal(profitable.trigger.setup_type, 'range_mean_reversion');
 });
 
-test('the setup time stop covers the executable breakout setup and stays neutral without target or when off', () => {
+test('the setup time stop stays scoped to boundary mean reversion and requires an opposite boundary target', () => {
   const common = {
     filled_qty: 1,
     exited_qty: 0,
@@ -349,8 +377,26 @@ test('the setup time stop covers the executable breakout setup and stays neutral
     config: config(),
     now: new Date('2026-08-10T14:31:00.000Z'),
   });
-  assert.equal(breakout.trigger.reason, 'setup_5m_time_stop_no_progress');
-  assert.equal(breakout.trigger.setup_type, 'breakout_retest');
+  assert.equal(breakout.trigger, null);
+
+  const genericRejection = buildZeroDteSimulatedExitPlan({
+    owned_position: ownedPosition({ ...common, setup_type: 'node_rejection', target_price: 5010 }),
+    option_snapshot: snapshot({ bid: 5.05, ask: 5.15 }),
+    underlying_price_usd: 5005,
+    config: config(),
+    now: new Date('2026-08-10T14:31:00.000Z'),
+  });
+  assert.equal(genericRejection.trigger, null);
+
+  const boundaryReversal = buildZeroDteSimulatedExitPlan({
+    owned_position: ownedPosition({ ...common, setup_type: 'range_mean_reversion', target_price: 5010 }),
+    option_snapshot: snapshot({ bid: 5.05, ask: 5.15 }),
+    underlying_price_usd: 5005,
+    config: config(),
+    now: new Date('2026-08-10T14:31:00.000Z'),
+  });
+  assert.equal(boundaryReversal.trigger.reason, 'setup_5m_time_stop_no_progress');
+  assert.equal(boundaryReversal.trigger.setup_type, 'range_mean_reversion');
 
   const missingTarget = buildZeroDteSimulatedExitPlan({
     owned_position: ownedPosition({ ...common, setup_type: 'range_mean_reversion' }),
@@ -364,7 +410,7 @@ test('the setup time stop covers the executable breakout setup and stays neutral
   const switchedOff = config();
   switchedOff.policy.exit_rules.setup_time_stop_enabled = false;
   const disabled = buildZeroDteSimulatedExitPlan({
-    owned_position: ownedPosition({ ...common, setup_type: 'node_rejection', target_price: 5010 }),
+    owned_position: ownedPosition({ ...common, setup_type: 'range_mean_reversion', target_price: 5010 }),
     option_snapshot: snapshot({ bid: 5.05, ask: 5.15 }),
     underlying_price_usd: 5005,
     config: switchedOff,
@@ -587,7 +633,7 @@ test('exit feature switches disable their corresponding triggers', () => {
   disabled.policy.exit_rules = {
     ...disabled.policy.exit_rules,
     option_price_exit: false,
-    use_underlying_node_invalidation: false,
+    use_underlying_confirmation_bar_wick_invalidation: false,
     use_next_gex_node_target: false,
     exit_before_regular_session_close: false,
   };

@@ -30,11 +30,11 @@ function basePlan(qty = 1) {
       ticker: 'SPX',
     },
     contract: { code: 'SPXW260812C07750000' },
-    quote: { buy_limit_price: 5, ask_size_contracts: 10 },
+    quote: { buy_limit_price: 5, ask_size_contracts: 14 },
     position_sizing: {
       qty,
       estimated_position_usd: qty * 500,
-      max_qty_to_ask_volume_ratio: 3,
+      max_qty_to_ask_volume_ratio: 1,
     },
     order: {
       side: 'buy_to_open',
@@ -76,7 +76,7 @@ test('soft 10% sizing fallback remains one contract per line and seven in the ag
   for (const optionPrice of [10.30, 10.50]) {
     const source = basePlan(1);
     source.quote.buy_limit_price = optionPrice;
-    source.quote.ask_size_contracts = 3;
+    source.quote.ask_size_contracts = 7;
     source.position_sizing = {
       ...source.position_sizing,
       qty: 1,
@@ -397,6 +397,8 @@ test('summary reports independent line PnL and flat state', () => {
   assert.ok(summary.lines.every((line) => line.realized_pnl_usd === 50));
   assert.equal(summary.aggregate_realized_pnl_usd, 350);
   assert.equal(summary.physical_realized_pnl_usd, 350);
+  assert.equal(summary.pnl_basis, 'gross_option_price_change');
+  assert.equal(summary.fees_included, false);
 });
 
 test('summary separates manifest versions and accounts for residual liquidation PnL', () => {

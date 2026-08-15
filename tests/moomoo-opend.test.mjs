@@ -95,6 +95,29 @@ test('fixed absolute spread gate can be enabled or disabled', () => {
   assert.deepEqual(allowed.reasons, []);
 });
 
+test('percentage spread and round-trip gates can be disabled while a real tick remains required', () => {
+  const allowed = buildOptionExecutionQuote(snapshot, {
+    ...quoteGateConfig,
+    optionRequireTickSize: true,
+    optionMaxSpreadPctOfMid: null,
+    optionMaxRoundTripLossPct: null,
+  });
+  assert.equal(allowed.tradeable, true);
+  assert.deepEqual(allowed.reasons, []);
+
+  const missingTick = buildOptionExecutionQuote({
+    ...snapshot,
+    basic: { ...snapshot.basic, priceSpread: null },
+  }, {
+    ...quoteGateConfig,
+    optionRequireTickSize: true,
+    optionMaxSpreadPctOfMid: null,
+    optionMaxRoundTripLossPct: null,
+  });
+  assert.equal(missingTick.tradeable, false);
+  assert.ok(missingTick.reasons.includes('missing_or_invalid_price_tick'));
+});
+
 test('entry quote blocks immediate round-trip loss beyond the option stop', () => {
   const quote = buildOptionExecutionQuote({
     basic: {

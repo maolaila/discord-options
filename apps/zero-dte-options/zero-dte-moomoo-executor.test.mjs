@@ -75,11 +75,12 @@ function strategySignal(overrides = {}) {
     snapshot_at: '2026-08-10T14:30:50.000Z',
     snapshot_state: 'fresh',
     direction: 'bullish',
-    signal_type: 'breakout_retest_acceleration',
-    reason_codes: ['breakout_retest_acceleration', 'gex_node_confirmed', 'vwap_confirmed'],
+    signal_type: 'gex_node_breakout_retest',
+    reason_codes: ['gex_node_breakout_retest', 'gex_node_confirmed'],
     tested_node: { strike_usd: 5000, net_gex_usd: -5_000_000 },
     entry_reference_usd: 5004,
     stop_underlying_usd: 4999,
+    invalidation_basis: 'underlying_confirmation_bar_wick_proxy',
     target_underlying_usd: 5010,
     option_selection: {
       option_right: 'call',
@@ -145,6 +146,7 @@ test('strategy output maps directly to an isolated, idempotent simulation plan',
   assert.equal(plan.signal.option_type, 'C');
   assert.equal(plan.signal.expiration, '2026-08-10');
   assert.equal(plan.signal.node_reaction, 'breakout_retest');
+  assert.equal(plan.signal.invalidation_basis, 'underlying_confirmation_bar_wick_proxy');
   assert.equal(plan.order.code, 'SPXW260810C05005000');
   assert.equal(plan.order.qty, 1);
   assert.equal(plan.order.price, 5.15);
@@ -273,6 +275,28 @@ test('entry window, cooldown, daily loss, contract identity, and non-none Flow s
   assert.ok(tooLate.gate.reasons.includes('after_entry_cutoff_time_et'));
 });
 
+test('disabled engineering daily trade and loss caps do not block a valid strategy setup', () => {
+  const unrestricted = config();
+  unrestricted.policy.risk_limits.max_trades_per_day = null;
+  unrestricted.policy.risk_limits.max_daily_realized_loss_usd = null;
+  const plan = buildZeroDteSimulatedEntryPlan({
+    signal: strategySignal(),
+    contract: contract(),
+    option_snapshot: optionSnapshot(),
+    config: unrestricted,
+    risk_state: {
+      daily_trade_count: 99,
+      daily_realized_pnl_usd: -99_999,
+      open_position_count: 0,
+    },
+    now,
+  });
+
+  assert.equal(plan.gate.passed, true);
+  assert.ok(!plan.gate.reasons.some((reason) => reason.startsWith('max_trades_per_day_reached:')));
+  assert.ok(!plan.gate.reasons.some((reason) => reason.startsWith('max_daily_realized_loss_reached:')));
+});
+
 test('quote quality gates block an untradeable option before submission', () => {
   const blocked = buildZeroDteSimulatedEntryPlan({
     signal: strategySignal(),
@@ -298,6 +322,27 @@ test('quote quality gates block an untradeable option before submission', () => 
   assert.ok(blocked.gate.reasons.some((reason) => reason.includes('spread_pct_above_gate')));
   assert.ok(blocked.gate.reasons.some((reason) => reason.includes('option_day_volume_below_min')));
   assert.ok(blocked.gate.reasons.some((reason) => reason.includes('open_interest_below_min')));
+});
+
+test('missing or nonpositive displayed ask depth cannot pass entry sizing', () => {
+  for (const askVol of [null, 0]) {
+    const base = optionSnapshot();
+    const plan = buildZeroDteSimulatedEntryPlan({
+      signal: strategySignal(),
+      contract: contract(),
+      option_snapshot: {
+        ...base,
+        basic: { ...base.basic, askVol },
+      },
+      config: config(),
+      now,
+    });
+
+    assert.equal(plan.gate.passed, false);
+    assert.equal(plan.order, null);
+    assert.equal(plan.position_sizing.qty, 0);
+    assert.ok(plan.gate.reasons.some((reason) => reason.startsWith('position_sizing:visible_ask_size_')));
+  }
 });
 
 test('10% sizing is a soft target and $10.30/$10.50 contracts fall back to one unit per $10k line', () => {
@@ -329,6 +374,33 @@ test('10% sizing is a soft target and $10.30/$10.50 contracts fall back to one u
     assert.ok(highPremium.position_sizing.estimated_position_pct > 10);
     assert.ok(highPremium.position_sizing.reasons.includes('minimum_contract_above_max_position_target'));
   }
+});
+
+test('cheap contracts use budget sizing without an undocumented per-line contract cap', () => {
+  const base = optionSnapshot();
+  const plan = buildZeroDteSimulatedEntryPlan({
+    signal: strategySignal(),
+    contract: contract(),
+    option_snapshot: {
+      ...base,
+      basic: {
+        ...base.basic,
+        bidPrice: 0.48,
+        askPrice: 0.49,
+        curPrice: 0.485,
+        priceSpread: 0.01,
+        askVol: 20,
+      },
+    },
+    config: config(),
+    now,
+  });
+
+  assert.equal(plan.gate.passed, true);
+  assert.equal(plan.quote.buy_limit_price, 0.5);
+  assert.equal(plan.position_sizing.qty, 10);
+  assert.equal(plan.position_sizing.estimated_position_pct, 5);
+  assert.ok(!plan.position_sizing.reasons.some((reason) => reason.includes('max_contracts_per')));
 });
 
 test('one contract above the full $10k paper line still fails closed', () => {

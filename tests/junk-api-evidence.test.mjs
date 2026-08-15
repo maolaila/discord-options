@@ -37,6 +37,30 @@ function contract_response(overrides = {}, meta = {}) {
   };
 }
 
+function full_chain_response(overrides = {}) {
+  return {
+    data: {
+      ticker: 'SPX',
+      expiration: '2026-08-11',
+      snapshot_at: '2026-08-11T14:30:30.000Z',
+      greeks_as_of: '2026-08-11T14:30:30.000Z',
+      open_interest_as_of: '2026-08-11T12:00:00.000Z',
+      contracts: [
+        {
+          contract_symbol: 'SPXW260811C07750000',
+          expiration: '2026-08-11',
+          strike_usd: 7750,
+          right: 'C',
+          gamma: 0.03,
+          open_interest: 1200,
+        },
+      ],
+      ...overrides,
+    },
+    _meta: { truncated: false, data_freshness_seconds: 1 },
+  };
+}
+
 test('fresh candidate contract evidence exposes summaries but never invents direction', () => {
   const result = evaluate_junk_contract_evidence({
     response: contract_response(),
@@ -287,6 +311,111 @@ test('production audit makes exactly one chain call only for an orderable trade 
   assert.equal(calls.length, 1, 'skipped candidates must not consume another API unit');
 });
 
+test('contract audit reuses the observed full-chain response without a second paid call', async () => {
+  let call_count = 0;
+  const audit = await audit_junk_contract_candidate({
+    nightwatch: {
+      async get_options_chain_snapshot() {
+        call_count += 1;
+        throw new Error('the reused directional chain must prevent a second call');
+      },
+    },
+    decision: candidate_decision(),
+    entry_plan: entry_plan(),
+    observed_response: full_chain_response(),
+    observed_available_at: available_at,
+    now_ms: () => Date.parse(available_at),
+  });
+
+  assert.equal(call_count, 0);
+  assert.equal(audit.provider_call_count, 0);
+  assert.equal(audit.response_reused, true);
+  assert.equal(audit.record_schema, 'data_contracts_exact_contract_symbol');
+  assert.equal(audit.candidate_contract, 'SPXW260811C07750000');
+  assert.equal(audit.evidence.candidate_contract, 'SPXW260811C07750000');
+  assert.equal(audit.assessment, 'degraded_neutral', 'the API response has no explicit state and must not be promoted to fresh');
+  assert.ok(audit.reason_codes.includes('nightwatch_contract_audit_reused_directional_chain'));
+  assert.ok(!audit.evidence.reason_codes.includes('candidate_contract_not_verified'));
+  assert.ok(audit.evidence.reason_codes.includes('missing_or_unknown_state'));
+});
+
+test('full-chain candidate selection never guesses when the exact contract is absent or duplicated', async () => {
+  const absent = full_chain_response({
+    contracts: [{
+      ...full_chain_response().data.contracts[0],
+      contract_symbol: 'SPXW260811C07755000',
+      strike_usd: 7755,
+    }],
+  });
+  const duplicate = full_chain_response({
+    contracts: [
+      full_chain_response().data.contracts[0],
+      { ...full_chain_response().data.contracts[0] },
+    ],
+  });
+  for (const [response, expected_schema] of [
+    [absent, 'unknown'],
+    [duplicate, 'ambiguous_exact_contract_symbols'],
+  ]) {
+    const audit = await audit_junk_contract_candidate({
+      decision: candidate_decision(),
+      entry_plan: entry_plan(),
+      observed_response: response,
+      observed_available_at: available_at,
+      now_ms: () => Date.parse(available_at),
+    });
+    assert.equal(audit.assessment, 'degraded_neutral');
+    assert.equal(audit.record_schema, expected_schema);
+    assert.ok(audit.evidence.reason_codes.includes('candidate_contract_not_verified'));
+  }
+});
+
+test('full-chain audit vetoes explicit envelope or row identity contradictions', async () => {
+  const cases = [
+    [
+      full_chain_response({ ticker: 'NDX' }),
+      'nightwatch_contract_envelope_ticker_mismatch',
+    ],
+    [
+      full_chain_response({ expiration: '2026-08-12' }),
+      'nightwatch_contract_envelope_expiration_mismatch',
+    ],
+    [
+      full_chain_response({ contracts: [{
+        ...full_chain_response().data.contracts[0],
+        expiration: '2026-08-12',
+      }] }),
+      'nightwatch_contract_row_expiration_mismatch',
+    ],
+    [
+      full_chain_response({ contracts: [{
+        ...full_chain_response().data.contracts[0],
+        right: 'P',
+      }] }),
+      'nightwatch_contract_row_right_mismatch',
+    ],
+    [
+      full_chain_response({ contracts: [{
+        ...full_chain_response().data.contracts[0],
+        strike_usd: 7755,
+      }] }),
+      'nightwatch_contract_row_strike_mismatch',
+    ],
+  ];
+  for (const [response, expected_reason] of cases) {
+    const audit = await audit_junk_contract_candidate({
+      decision: candidate_decision(),
+      entry_plan: entry_plan(),
+      observed_response: response,
+      observed_available_at: available_at,
+      now_ms: () => Date.parse(available_at),
+    });
+    assert.equal(audit.assessment, 'veto', expected_reason);
+    assert.equal(audit.can_veto_candidate, true, expected_reason);
+    assert.ok(audit.reason_codes.includes(expected_reason), expected_reason);
+  }
+});
+
 test('moomoo seven-digit strike code is normalized to the same strict OSI identity', async () => {
   const calls = [];
   const audit = await audit_junk_contract_candidate({
@@ -381,7 +510,7 @@ test('seven-digit normalization still rejects every wrong contract identity dime
   }
 });
 
-test('unknown chain schema is degraded-neutral while explicit identity mismatch and severe staleness veto', async () => {
+test('unknown or stale chain evidence stays neutral while explicit identity mismatch vetoes', async () => {
   const unknown = await audit_junk_contract_candidate({
     nightwatch: {
       async get_options_chain_snapshot() {
@@ -426,11 +555,12 @@ test('unknown chain schema is degraded-neutral while explicit identity mismatch 
     },
     decision: candidate_decision(),
     entry_plan: entry_plan(),
-    policy: { severe_stale_after_ms: 300_000 },
+    policy: { audit_max_age_ms: 300_000 },
     now_ms: () => Date.parse(available_at),
   });
-  assert.equal(stale.assessment, 'veto');
-  assert.ok(stale.reason_codes.includes('nightwatch_contract_evidence_severely_stale'));
+  assert.equal(stale.assessment, 'degraded_neutral');
+  assert.equal(stale.can_veto_candidate, false);
+  assert.ok(stale.reason_codes.includes('evidence_stale'));
 });
 
 test('contract audit application records decision and entry provenance without neutral outages blocking', () => {

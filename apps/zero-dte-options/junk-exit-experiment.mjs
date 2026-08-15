@@ -693,6 +693,8 @@ export function summarize_junk_exit_experiment(state) {
     const aggregateRealizedPnl = lines.reduce((sum, line) => sum + line.realized_pnl_usd, 0);
     const aggregateRealizedPnlToDate = lines.reduce((sum, line) => sum + line.realized_pnl_to_date_usd, 0);
     return {
+      pnl_basis: 'gross_option_price_change',
+      fees_included: false,
       cohort_count: new Set(selectedRows.map((row) => row.experiment_ledger.cohort_id)).size,
       lines,
       aggregate_realized_pnl_usd: Number(aggregateRealizedPnl.toFixed(2)),

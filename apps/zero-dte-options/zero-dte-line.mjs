@@ -263,9 +263,9 @@ export function junk_experiment_entry_risk_state(base_risk_state, manifest, expe
   );
   return {
     ...base_risk_state,
-    // The configured $300 stop is a per-$10k-line limit. A new paired cohort is
-    // blocked as soon as the worst line reaches that loss, even when aggregate
-    // PnL is masked by wins in the other variants.
+    // Preserve the worst virtual-line result so an explicitly configured loss
+    // limit can evaluate each line without wins in other variants masking it.
+    // The active JUNKMAN policy does not configure a daily-loss entry gate.
     daily_realized_pnl_usd: conservative_daily_realized_pnl_usd,
     aggregate_daily_realized_pnl_usd,
     worst_line_realized_pnl_usd: raw_worst_line_realized_pnl_usd,
@@ -440,8 +440,8 @@ export function market_schedule(policy, ny) {
   const session_close_minutes = early_close
     ? parse_et_minutes(calendar.early_session_close_time_et, 13 * 60)
     : 16 * 60;
-  const entry_start_minutes = parse_et_minutes(policy?.strategy?.entry_start_time_et, 9 * 60 + 35);
-  const entry_cutoff_minutes = parse_et_minutes(policy?.strategy?.entry_cutoff_time_et, 15 * 60 + 20);
+  const entry_start_minutes = parse_et_minutes(policy?.strategy?.entry_start_time_et, 9 * 60 + 30);
+  const entry_cutoff_minutes = parse_et_minutes(policy?.strategy?.entry_cutoff_time_et, 15 * 60 + 45);
   return {
     calendar_valid,
     closed,
@@ -550,6 +550,7 @@ function default_state() {
     gex_freshness: null,
     oi_structure_background: null,
     oi_structure_background_refresh: null,
+    directional_option_chain: null,
     contract_audit_cache: {},
     experiment_manifest: null,
   };
@@ -1792,6 +1793,28 @@ export function provider_backoff_cycle_delay(poll_ms, blocked_ms) {
   const cadence = Math.max(1000, finite_number(poll_ms, 15_000));
   const remaining = Math.max(0, finite_number(blocked_ms, 0));
   return Math.max(1000, Math.min(cadence, remaining || cadence));
+}
+
+export function directional_chain_retry_delay_ms(
+  payload,
+  fallback_ms = NIGHTWATCH_FIXED_SAMPLE_INTERVAL_MS,
+) {
+  const retry_seconds = positive_number(
+    payload?.retry_after_seconds
+      ?? payload?._meta?.retry_after_seconds
+      ?? payload?.meta?.retry_after_seconds,
+  );
+  // Retry-After is authoritative. Do not shorten a provider-directed wait to
+  // the local five-minute sample cadence and create avoidable paid retries.
+  return retry_seconds === null
+    ? Math.max(1_000, finite_number(fallback_ms, NIGHTWATCH_FIXED_SAMPLE_INTERVAL_MS))
+    : Math.max(1_000, retry_seconds * 1_000);
+}
+
+export function directional_chain_retry_key({ ticker, expiration } = {}) {
+  const normalized_ticker = String(ticker || '').trim().toUpperCase();
+  const normalized_expiration = String(expiration || '').trim().slice(0, 10);
+  return `${normalized_ticker}|${normalized_expiration}`;
 }
 
 export function classify_nightwatch_fixed_sample_error(error) {
@@ -3532,6 +3555,8 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
   let stop_requested = false;
   let last_decision = null;
   let last_error = null;
+  let directional_option_chain_cache = null;
+  let directional_option_chain_retry = null;
 
   const stop = () => { stop_requested = true; };
   process.once('SIGINT', stop);
@@ -3776,6 +3801,8 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
       state.gex_error = null;
       state.heatmap = null;
       state.heatmap_error = null;
+      state.directional_option_chain = null;
+      directional_option_chain_cache = null;
       state.contract_audit_cache = {};
       state.broker_recovery = {
         status: 'pending',
@@ -4073,7 +4100,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
     });
     const gex_data = gex_response?.data || gex_response || {};
     if (gex_fetched) {
-      const normalized_gex = normalize_gex_snapshot(gex_response, config.policy?.strategy?.max_nodes);
+      const normalized_gex = normalize_gex_snapshot(gex_response);
       state.gex_node_history = [
         ...(state.gex_node_history || []),
         {
@@ -4132,13 +4159,148 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
       execution_environment: 'simulate_only',
       real_trading_allowed: false,
     };
-    let core_decision = evaluate_junk_gex_strategy({
+    const directional_chain_cache_key = `${state.session_date_et}|${gex_data.snapshot_at || expected_bucket_at}`;
+    // Retry-After belongs to the option-chain request, not to the current GEX
+    // bucket. A new five-minute GEX sample must not bypass the provider wait.
+    const directional_chain_request_key = directional_chain_retry_key({
+      ticker,
+      expiration: state.session_date_et,
+    });
+    const cached_directional_chain = directional_option_chain_cache?.key === directional_chain_cache_key
+      ? directional_option_chain_cache.response
+      : null;
+    const directional_chain_retry_blocked = directional_option_chain_retry?.key === directional_chain_request_key
+      && directional_option_chain_retry.retry_at_ms > market_context_at;
+    const strategy_input = {
       gex_snapshot: gex_response,
       gex_node_history: state.gex_node_history,
       market_context,
       policy: strategy_policy,
       now_ms: market_context_at,
+    };
+    let core_decision = evaluate_junk_gex_strategy({
+      ...strategy_input,
+      option_chain_snapshot: cached_directional_chain,
     });
+    const directional_reference_reason = (core_decision.reason_codes || [])
+      .find((reason) => /^missing_(call|put)_directional_gex_reference$/.test(String(reason)));
+    if (
+      directional_reference_reason
+      && !cached_directional_chain
+      && !directional_chain_retry_blocked
+      && schedule.entry_open
+      && state.broker_recovery?.status === 'complete'
+      && open_position_count(state) === 0
+      && experiment_cohorts_allow_new_entry(state)
+      && junk_experiment_manifest_conflicts(state, exit_experiment).length === 0
+      && !experiment_unpriced_incident_blocks_new_entry(state)
+      && market_context.price_action_ready
+      && provider_wait_ms() === 0
+    ) {
+      const requested_right = directional_reference_reason.includes('_call_') ? 'call' : 'put';
+      try {
+        const chain_response = await nightwatch.get_options_chain_snapshot(ticker, {
+          query: { expiration: state.session_date_et },
+        });
+        const chain_received_at_ms = Date.now();
+        const chain_received_at = new Date(chain_received_at_ms).toISOString();
+        const chain_contracts = Array.isArray(chain_response?.data?.contracts)
+          ? chain_response.data.contracts
+          : [];
+        state.directional_option_chain = {
+          status: chain_contracts.length > 0 ? 'validating_directional_reference' : 'materializing_or_unavailable',
+          requested_at: chain_received_at,
+          available_at: chain_received_at,
+          cache_key: directional_chain_cache_key,
+          expiration: state.session_date_et,
+          requested_right,
+          contract_count: chain_contracts.length,
+          snapshot_at: chain_response?.data?.snapshot_at || null,
+          greeks_as_of: chain_response?.data?.greeks_as_of || null,
+          open_interest_as_of: chain_response?.data?.open_interest_as_of || null,
+          data_freshness_seconds: finite_number(chain_response?._meta?.data_freshness_seconds),
+          truncated: typeof chain_response?._meta?.truncated === 'boolean'
+            ? chain_response._meta.truncated
+            : null,
+          retry_after_ms: null,
+          retry_at: null,
+          error: null,
+        };
+        if (chain_contracts.length > 0) {
+          core_decision = evaluate_junk_gex_strategy({
+            ...strategy_input,
+            option_chain_snapshot: chain_response,
+          });
+          const reference_still_missing = (core_decision.reason_codes || [])
+            .some((reason) => /^missing_(call|put)_directional_gex_reference$/.test(String(reason)));
+          state.directional_option_chain.status = reference_still_missing
+            ? 'directional_reference_unavailable'
+            : 'ready';
+          if (!reference_still_missing) {
+            directional_option_chain_cache = {
+              key: directional_chain_cache_key,
+              response: chain_response,
+              available_at: chain_received_at,
+            };
+            directional_option_chain_retry = null;
+          } else {
+            const retry_after_ms = directional_chain_retry_delay_ms(
+              chain_response,
+              NIGHTWATCH_FIXED_SAMPLE_INTERVAL_MS,
+            );
+            const retry_at_ms = Date.now() + retry_after_ms;
+            directional_option_chain_retry = {
+              key: directional_chain_request_key,
+              retry_at_ms,
+            };
+            state.directional_option_chain.retry_after_ms = retry_after_ms;
+            state.directional_option_chain.retry_at = new Date(retry_at_ms).toISOString();
+          }
+        } else {
+          // A successful but empty/unsupported fixed-sample response cannot improve
+          // until the next five-minute provider sample. Avoid paying every poll.
+          const retry_after_ms = directional_chain_retry_delay_ms(
+            chain_response,
+            NIGHTWATCH_FIXED_SAMPLE_INTERVAL_MS,
+          );
+          const retry_at_ms = Date.now() + retry_after_ms;
+          directional_option_chain_retry = {
+            key: directional_chain_request_key,
+            retry_at_ms,
+          };
+          state.directional_option_chain.retry_after_ms = retry_after_ms;
+          state.directional_option_chain.retry_at = new Date(retry_at_ms).toISOString();
+        }
+      } catch (error) {
+        apply_provider_backoff(error, Date.now());
+        const retry_after_ms = directional_chain_retry_delay_ms({
+          retry_after_seconds: positive_number(error?.retry_after_ms) === null
+            ? null
+            : Number(error.retry_after_ms) / 1_000,
+        }, poll_ms);
+        const retry_at_ms = Date.now() + retry_after_ms;
+        directional_option_chain_retry = {
+          key: directional_chain_request_key,
+          retry_at_ms,
+        };
+        state.directional_option_chain = {
+          status: 'request_failed',
+          requested_at: new Date().toISOString(),
+          cache_key: directional_chain_cache_key,
+          expiration: state.session_date_et,
+          requested_right,
+          contract_count: 0,
+          snapshot_at: null,
+          greeks_as_of: null,
+          open_interest_as_of: null,
+          data_freshness_seconds: null,
+          truncated: null,
+          retry_after_ms,
+          retry_at: new Date(retry_at_ms).toISOString(),
+          error: sanitized_error(error),
+        };
+      }
+    }
     core_decision = apply_junk_gex_freshness_gate(core_decision, state.gex_freshness);
     const flow_context = flow_context_reader.build_context({
       source_connected: await discord_flow_source_connected(market_context_at),
@@ -4201,8 +4363,6 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
         settlement_lagged: true,
       },
     );
-    const quota_floor = positive_number(provider.quota_entry_safety_floor, 10_000);
-    const quota_remaining = finite_number(state.quota?.monthly_remaining);
     const entry_pause_reasons = [];
     if (!schedule.entry_open) entry_pause_reasons.push('outside_calendar_entry_window');
     if (state.broker_recovery?.status !== 'complete') entry_pause_reasons.push('broker_recovery_incomplete');
@@ -4213,8 +4373,6 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
     if (experiment_unpriced_incident_blocks_new_entry(state)) {
       entry_pause_reasons.push('experiment_unpriced_force_close_requires_manual_reconciliation');
     }
-    if (quota_remaining === null) entry_pause_reasons.push('quota_unavailable_entry_block');
-    else if (quota_remaining < quota_floor) entry_pause_reasons.push('quota_safety_floor_entry_block');
     if (!market_context.price_action_ready) entry_pause_reasons.push(`price_action_not_ready:${market_context.readiness_reason_code}`);
     if (decision.decision === 'trade' && entry_pause_reasons.length > 0) {
       decision = {
@@ -4284,6 +4442,12 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
             decision,
             entry_plan: prepared_entry_plan,
             policy: contract_audit_policy,
+            observed_response: directional_option_chain_cache?.key === directional_chain_cache_key
+              ? directional_option_chain_cache.response
+              : null,
+            observed_available_at: directional_option_chain_cache?.key === directional_chain_cache_key
+              ? directional_option_chain_cache.available_at
+              : null,
           });
         } catch (error) {
           const audit_failed_at = Date.now();
@@ -4476,6 +4640,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
         heatmap: current_heatmap,
         heatmap_schedule: state.provider_schedule.heatmap,
         heatmap_error: state.heatmap_error || null,
+        directional_option_chain: state.directional_option_chain || null,
       },
       oi_structure_background: oi_structure_background_status(),
       automated_flow: {

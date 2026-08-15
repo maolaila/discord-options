@@ -14,6 +14,8 @@ import {
   build_exit_attempt_remark,
   create_moomoo_runtime,
   classify_nightwatch_fixed_sample_error,
+  directional_chain_retry_delay_ms,
+  directional_chain_retry_key,
   expired_entry_without_broker_evidence,
   expired_settlement_missing,
   exit_owned_position,
@@ -701,6 +703,28 @@ test('provider Retry-After never slows broker-first exit cadence below the confi
   assert.equal(provider_backoff_cycle_delay(15_000, 120_000), 15_000);
   assert.equal(provider_backoff_cycle_delay(15_000, 5_000), 5_000);
   assert.equal(provider_backoff_cycle_delay(15_000, 0), 15_000);
+});
+
+test('materializing option chains honor official Retry-After without blocking broker polling', () => {
+  assert.equal(directional_chain_retry_delay_ms({ retry_after_seconds: 7 }), 7_000);
+  assert.equal(directional_chain_retry_delay_ms({ _meta: { retry_after_seconds: 12 } }), 12_000);
+  assert.equal(directional_chain_retry_delay_ms({}), 300_000);
+  assert.equal(directional_chain_retry_delay_ms({}, 15_000), 15_000);
+  assert.equal(directional_chain_retry_delay_ms({}, 300_000), 300_000);
+  assert.equal(directional_chain_retry_delay_ms({ retry_after_seconds: 900 }), 900_000);
+  assert.equal(
+    directional_chain_retry_key({
+      ticker: 'spx',
+      expiration: '2026-08-14',
+      gex_snapshot_at: '2026-08-14T14:30:00.000Z',
+    }),
+    directional_chain_retry_key({
+      ticker: 'SPX',
+      expiration: '2026-08-14',
+      gex_snapshot_at: '2026-08-14T14:35:00.000Z',
+    }),
+    'a new GEX bucket must not change the option-chain Retry-After identity',
+  );
 });
 
 test('fixed-sample errors branch on the official stable machine code', () => {

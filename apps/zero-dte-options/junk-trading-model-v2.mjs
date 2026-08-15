@@ -49,7 +49,6 @@ export function evaluate_junk_heatmap_evidence({
     assessment: 'neutral',
     can_trigger_trade: false,
     can_veto_candidate: false,
-    require_ranked_node_when_fresh: policy.require_ranked_node_when_fresh === true,
     state: heatmap_context?.state || null,
     generated_at: heatmap_context?.generated_at || null,
     session_date_et: heatmap_context?.session_date_et || null,
@@ -89,33 +88,16 @@ export function evaluate_junk_heatmap_evidence({
   }
   const row = nearest_heatmap_row(heatmap_context.top_rows, candidate.tested_node.strike_usd);
   if (!row) {
-    if (policy.require_ranked_node_when_fresh === true) {
-      return {
-        ...base,
-        assessment: 'conflict_veto',
-        can_veto_candidate: true,
-        reason_codes: ['heatmap_fresh_ranked_node_required_veto'],
-      };
-    }
     return { ...base, reason_codes: ['heatmap_tested_node_not_ranked_neutral'] };
   }
   const distance = Math.abs(Number(row.strike_usd) - Number(candidate.tested_node.strike_usd));
-  const tolerance = Math.max(0, finite_number(policy.node_tolerance_points) ?? 5);
   const with_row = {
     ...base,
     nearest_tested_node_row: row,
     node_distance_points: Number(distance.toFixed(4)),
   };
-  if (distance > tolerance) {
-    if (policy.require_ranked_node_when_fresh === true) {
-      return {
-        ...with_row,
-        assessment: 'conflict_veto',
-        can_veto_candidate: true,
-        reason_codes: ['heatmap_fresh_ranked_node_required_veto'],
-      };
-    }
-    return { ...with_row, reason_codes: ['heatmap_tested_node_outside_tolerance_neutral'] };
+  if (distance > 1e-6) {
+    return { ...with_row, reason_codes: ['heatmap_tested_node_not_ranked_neutral'] };
   }
   return {
     ...with_row,
@@ -160,10 +142,10 @@ function normalize_flow_evaluation(flow_evaluation, candidate) {
   }
   return {
     source: 'discord_nightwatch_0dte_flow_alert',
-    usage: 'confirm_or_conflict_veto_only',
+    usage: 'confirmation_context_only',
     dependency: false,
     can_trigger_trade: false,
-    can_veto_candidate: assessment === 'conflict_veto',
+    can_veto_candidate: false,
     candidate_direction: canonical_direction(candidate?.direction),
     assessment,
     requested_assessment,
@@ -203,25 +185,12 @@ export function apply_junk_v2_evidence({
     now_ms,
   });
   const flow = normalize_flow_evaluation(flow_evaluation, core);
-  const flow_conflict_veto_enabled = evidence_policy?.automated_flow_alert?.conflict_veto_enabled === true;
   const effective_flow = {
     ...flow,
-    usage: flow_conflict_veto_enabled
-      ? 'confirm_or_conflict_veto_only'
-      : 'confirmation_context_only',
-    can_veto_candidate: flow_conflict_veto_enabled && flow.can_veto_candidate,
+    usage: 'confirmation_context_only',
+    can_veto_candidate: false,
   };
   const vetoes = [];
-  if (core.decision === 'trade' && heatmap.assessment === 'conflict_veto') {
-    vetoes.push('heatmap_structure_conflict_veto');
-  }
-  if (
-    core.decision === 'trade'
-    && flow.assessment === 'conflict_veto'
-    && flow_conflict_veto_enabled
-  ) {
-    vetoes.push('automated_flow_conflict_veto');
-  }
   const confirmations = [];
   if (core.decision === 'trade' && heatmap.assessment === 'confirm') confirmations.push('heatmap_structure_confirmed');
   if (core.decision === 'trade' && flow.assessment === 'confirm') confirmations.push('automated_flow_context_confirmed');
@@ -229,7 +198,6 @@ export function apply_junk_v2_evidence({
   if (
     core.decision === 'trade'
     && flow.assessment === 'conflict_veto'
-    && !flow_conflict_veto_enabled
   ) {
     context_only_reasons.push('automated_flow_conflict_context_only');
   }
@@ -246,9 +214,7 @@ export function apply_junk_v2_evidence({
     strategy: 'junk_gex_nodes_v3',
     model_version: MODEL_ID,
     flow_dependency: 'none',
-    automated_flow_usage: flow_conflict_veto_enabled
-      ? 'confirm_or_conflict_veto_only'
-      : 'confirmation_context_only',
+    automated_flow_usage: 'confirmation_context_only',
     manual_discord_flow_allowed: false,
     decision: blocked ? 'no_trade' : core.decision,
     action: blocked ? 'hold' : core.action,

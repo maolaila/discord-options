@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   apply_junk_v2_evidence,
   evaluate_junk_heatmap_evidence,
+  evaluate_junk_latest_line_entry,
 } from '../apps/zero-dte-options/junk-trading-model-v2.mjs';
 
 const NOW = Date.parse('2026-08-10T15:00:30Z');
@@ -29,6 +30,162 @@ function heatmap(overrides = {}) {
     ...overrides,
   };
 }
+
+function latestHistory(overrides = {}) {
+  const base = {
+    ticker: 'SPX',
+    session_date_et: '2026-08-10',
+    state: 'fresh',
+    spot_usd: 6004,
+    strikes: [
+      { strike_usd: 5990, net_gex_usd: 1_000_000 },
+      { strike_usd: 6000, net_gex_usd: 2_000_000 },
+      { strike_usd: 6010, net_gex_usd: 1_500_000 },
+    ],
+  };
+  return [
+    { ...base, snapshot_at: '2026-08-10T14:50:00Z' },
+    {
+      ...base,
+      snapshot_at: '2026-08-10T14:55:00Z',
+      strikes: base.strikes.map((row) => (
+        row.strike_usd === 6000 ? { ...row, net_gex_usd: 2_100_000 } : row
+      )),
+      ...overrides,
+    },
+  ];
+}
+
+function latestMarketContext(overrides = {}) {
+  return {
+    last_price_usd: 6004,
+    vwap_usd: 6001,
+    bars_5m: [
+      {
+        timestamp: '2026-08-10T14:45:00Z',
+        open_usd: 5996,
+        high_usd: 5999,
+        low_usd: 5995,
+        close_usd: 5998,
+        volume: 1_000,
+      },
+      {
+        timestamp: '2026-08-10T14:50:00Z',
+        open_usd: 5998,
+        high_usd: 6004,
+        low_usd: 5997,
+        close_usd: 6003,
+        volume: 1_500,
+      },
+      {
+        timestamp: '2026-08-10T14:55:00Z',
+        open_usd: 6002,
+        high_usd: 6005,
+        low_usd: 6000,
+        close_usd: 6004,
+        volume: 1_200,
+      },
+    ],
+    ...overrides,
+  };
+}
+
+test('latest line admits a stable Heatmap-confirmed trend staircase without creating a signal', () => {
+  const result = evaluate_junk_latest_line_entry({
+    candidate: candidate({
+      setup_type: 'breakout_retest',
+      confirmation_bar_at: '2026-08-10T14:55:00Z',
+      last_price_usd: 6004,
+      vwap_usd: 6001,
+      evidence_model: { heatmap: { assessment: 'confirm' } },
+    }),
+    gex_node_history: latestHistory(),
+    market_context: latestMarketContext(),
+    now_ms: NOW,
+  });
+  assert.equal(result.participate, true);
+  assert.equal(result.classified_regime, 'trend_staircase');
+  assert.equal(result.lifecycle_state, 'tested_second_touch');
+  assert.deepEqual(result.reason_codes, ['latest_line_quality_filter_passed']);
+});
+
+test('latest line fails closed on an unconfirmed Heatmap node or a consumed third touch', () => {
+  const base = {
+    candidate: candidate({
+      setup_type: 'breakout_retest',
+      confirmation_bar_at: '2026-08-10T14:55:00Z',
+      evidence_model: { heatmap: { assessment: 'neutral' } },
+    }),
+    gex_node_history: latestHistory(),
+    market_context: latestMarketContext(),
+    now_ms: NOW,
+  };
+  const unconfirmed = evaluate_junk_latest_line_entry(base);
+  assert.equal(unconfirmed.participate, false);
+  assert.ok(unconfirmed.reason_codes.includes('latest_line_heatmap_exact_node_not_confirmed'));
+
+  const consumed = evaluate_junk_latest_line_entry({
+    ...base,
+    candidate: {
+      ...base.candidate,
+      evidence_model: { heatmap: { assessment: 'confirm' } },
+    },
+    market_context: latestMarketContext({
+      bars_5m: [
+        {
+          timestamp: '2026-08-10T14:40:00Z',
+          open_usd: 5999,
+          high_usd: 6001,
+          low_usd: 5998,
+          close_usd: 5999,
+          volume: 900,
+        },
+        ...latestMarketContext().bars_5m,
+      ],
+    }),
+  });
+  assert.equal(consumed.participate, false);
+  assert.equal(consumed.lifecycle_state, 'consumed');
+  assert.ok(consumed.reason_codes.includes('latest_line_node_consumed_three_or_more_touches'));
+});
+
+test('latest line recognizes a positive-Gamma range boundary moving inward to VWAP', () => {
+  const bars = [
+    {
+      timestamp: '2026-08-10T14:50:00Z',
+      open_usd: 6004,
+      high_usd: 6007,
+      low_usd: 6003,
+      close_usd: 6006,
+      volume: 1_000,
+    },
+    {
+      timestamp: '2026-08-10T14:55:00Z',
+      open_usd: 6008,
+      high_usd: 6011,
+      low_usd: 6005,
+      close_usd: 6006,
+      volume: 1_200,
+    },
+  ];
+  const result = evaluate_junk_latest_line_entry({
+    candidate: candidate({
+      direction: 'bearish',
+      setup_type: 'node_rejection',
+      tested_node: { strike_usd: 6010, net_gex_usd: 1_500_000 },
+      confirmation_bar_at: '2026-08-10T14:55:00Z',
+      last_price_usd: 6006,
+      vwap_usd: 6000,
+      evidence_model: { heatmap: { assessment: 'confirm' } },
+    }),
+    gex_node_history: latestHistory(),
+    market_context: { last_price_usd: 6006, vwap_usd: 6000, bars_5m: bars },
+    now_ms: NOW,
+  });
+  assert.equal(result.participate, true);
+  assert.equal(result.classified_regime, 'range_boundary');
+  assert.equal(result.lifecycle_state, 'fresh_first_touch');
+});
 
 test('fresh heatmap confirms only an exact ranked structure node regardless of GEX sign', () => {
   const result = evaluate_junk_heatmap_evidence({

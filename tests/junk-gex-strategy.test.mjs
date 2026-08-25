@@ -228,6 +228,25 @@ test('directional option reference ranks the official chain schema by gamma time
   assert.equal(put.gamma_oi_weight, 40);
 });
 
+test('directional option reference supports a Nightwatch-covered non-SPX OSI root', () => {
+  const response = option_chain({
+    ticker: 'QQQ',
+    underlying_price_usd: 710,
+    contracts: [
+      { contract_symbol: 'QQQ260810C00710000', expiration: '2026-08-10', strike_usd: 710, right: 'C', gamma: 0.04, open_interest: 1_000 },
+      { contract_symbol: 'QQQ260810C00715000', expiration: '2026-08-10', strike_usd: 715, right: 'C', gamma: 0.02, open_interest: 500 },
+    ],
+  });
+  const selected = directional_option_gex_reference({
+    option_chain_snapshot: response,
+    ticker: 'QQQ',
+    direction: 'bullish',
+    expiration: '2026-08-10',
+  });
+  assert.equal(selected?.contract_root, 'QQQ');
+  assert.equal(selected?.strike_usd, 710);
+});
+
 test('directional option reference rejects contract symbols that contradict their row fields', () => {
   const forged = option_chain({
     contracts: [

@@ -11,6 +11,7 @@ import {
 } from '../../packages/moomoo-opend/moomoo-opend.mjs';
 import {
   JUNK_GEX_STRATEGY,
+  JUNK_MULTI_BUSINESS_LINE,
   ZERO_DTE_BUSINESS_LINE,
   assertZeroDteSimulationOnly,
   zeroDtePolicyQuoteConfig,
@@ -53,6 +54,23 @@ function normalizedStringList(value, fallback = []) {
 
 function normalizedString(value) {
   return String(value ?? '').trim();
+}
+
+function expectedBusinessLine(config) {
+  return normalizedString(
+    config?.businessLine || config?.policy?.business_line?.id || config?.policy?.business_line,
+  ).toLowerCase() || ZERO_DTE_BUSINESS_LINE;
+}
+
+function expectedStrategy(config) {
+  return normalizedString(config?.policy?.strategy?.id).toLowerCase() || JUNK_GEX_STRATEGY;
+}
+
+function exitRemark(config, planId) {
+  const prefix = expectedBusinessLine(config) === JUNK_MULTI_BUSINESS_LINE
+    ? 'junk_multi_exit'
+    : 'junk_gex_exit';
+  return `${prefix}:${normalizedString(planId).slice(-20)}`.slice(0, 60);
 }
 
 function nyParts(date = new Date()) {
@@ -171,13 +189,13 @@ function ownedQuantity(ownedPosition) {
   return Math.max(0, Math.floor(filled - exited));
 }
 
-function ownershipGate(ownedPosition) {
+function ownershipGate(ownedPosition, config) {
   const reasons = [];
-  if (normalizedString(ownedPosition?.business_line) !== ZERO_DTE_BUSINESS_LINE) {
+  if (normalizedString(ownedPosition?.business_line) !== expectedBusinessLine(config)) {
     reasons.push('position_not_owned_by_zero_dte_line');
   }
   const ownedStrategy = normalizedString(ownedPosition?.strategy);
-  if (![JUNK_GEX_STRATEGY, 'junk_gex_nodes_v2', 'junk_gex_nodes_v1'].includes(ownedStrategy)) {
+  if (![expectedStrategy(config), JUNK_GEX_STRATEGY, 'junk_gex_nodes_v2', 'junk_gex_nodes_v1'].includes(ownedStrategy)) {
     reasons.push('position_not_owned_by_junk_gex_strategy');
   }
   if (!normalizedString(ownedPosition?.plan_id).startsWith('zero_dte_')) reasons.push('missing_or_invalid_source_plan_id');
@@ -523,7 +541,7 @@ export function buildZeroDteSimulatedExitPlan({
   now = new Date(),
 } = {}) {
   assertZeroDteSimulationOnly(config);
-  const ownership = ownershipGate(ownedPosition || {});
+  const ownership = ownershipGate(ownedPosition || {}, config);
   const settings = exitSettings(config);
   const quote = optionSnapshot
     ? buildOptionExecutionQuote(optionSnapshot, zeroDtePolicyQuoteConfig(config))
@@ -550,7 +568,7 @@ export function buildZeroDteSimulatedExitPlan({
         code: normalizedString(ownedPosition.code),
         qty: Math.min(remainingQty, Math.max(1, Math.floor(nonnegativeNumber(trigger.requested_exit_qty, remainingQty)))),
         position_id: ownedPosition.position_id ?? null,
-        remark: `junk_gex_exit:${normalizedString(ownedPosition.plan_id).slice(-20)}`.slice(0, 60),
+        remark: exitRemark(config, ownedPosition.plan_id),
       };
     } else {
       const exitTick = positiveNumber(quote?.tick);
@@ -568,7 +586,7 @@ export function buildZeroDteSimulatedExitPlan({
           price: sellPrice,
           price_basis: quote?.sell_estimate_price ? 'bid_minus_slippage_buffer' : 'bid',
           position_id: ownedPosition.position_id ?? null,
-          remark: `junk_gex_exit:${normalizedString(ownedPosition.plan_id).slice(-20)}`.slice(0, 60),
+          remark: exitRemark(config, ownedPosition.plan_id),
         };
       }
     }
@@ -578,8 +596,8 @@ export function buildZeroDteSimulatedExitPlan({
   return {
     schema_version: 1,
     planned_at: now.toISOString(),
-    business_line: ZERO_DTE_BUSINESS_LINE,
-    strategy: JUNK_GEX_STRATEGY,
+    business_line: expectedBusinessLine(config),
+    strategy: expectedStrategy(config),
     mode: 'simulate',
     source_plan_id: normalizedString(ownedPosition?.plan_id) || null,
     order_status: ready ? 'ready_for_simulation_exit' : (trigger ? 'exit_gate_failed' : 'watching'),
@@ -651,7 +669,7 @@ export function buildZeroDteSimulatedExplicitExitPlan({
   now = new Date(),
 } = {}) {
   assertZeroDteSimulationOnly(config);
-  const ownership = ownershipGate(ownedPosition || {});
+  const ownership = ownershipGate(ownedPosition || {}, config);
   const settings = exitSettings(config);
   const quote = optionSnapshot
     ? buildOptionExecutionQuote(optionSnapshot, zeroDtePolicyQuoteConfig(config))
@@ -687,8 +705,8 @@ export function buildZeroDteSimulatedExplicitExitPlan({
   return {
     schema_version: 1,
     planned_at: now.toISOString(),
-    business_line: ZERO_DTE_BUSINESS_LINE,
-    strategy: JUNK_GEX_STRATEGY,
+    business_line: expectedBusinessLine(config),
+    strategy: expectedStrategy(config),
     mode: 'simulate',
     source_plan_id: normalizedString(ownedPosition?.plan_id) || null,
     experiment_id: normalizedString(ownedPosition?.experiment_id) || null,
@@ -739,7 +757,7 @@ export function buildZeroDteSimulatedExplicitExitPlan({
         price_basis: quote?.sell_estimate_price ? 'bid_minus_slippage_buffer' : 'bid',
       } : {}),
       position_id: ownedPosition?.position_id ?? null,
-      remark: `junk_gex_exit:${normalizedString(ownedPosition?.plan_id).slice(-20)}`.slice(0, 60),
+      remark: exitRemark(config, ownedPosition?.plan_id),
     } : null,
   };
 }
@@ -758,7 +776,7 @@ export async function executeZeroDteSimulatedExit({
 } = {}) {
   assertZeroDteSimulationOnly(config);
   if (!client) throw new Error('Moomoo client is required.');
-  if (plan?.business_line !== ZERO_DTE_BUSINESS_LINE || plan?.strategy !== JUNK_GEX_STRATEGY) {
+  if (plan?.business_line !== expectedBusinessLine(config) || plan?.strategy !== expectedStrategy(config)) {
     throw new Error('Exit plan does not belong to the isolated junk GEX business line.');
   }
   if (plan?.mode !== 'simulate') throw new Error('Only simulated exit plans are accepted.');

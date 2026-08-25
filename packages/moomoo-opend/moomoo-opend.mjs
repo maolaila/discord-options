@@ -10,6 +10,8 @@ export const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.
 
 export const RET_SUCCEED = 0;
 export const QOT_MARKET_US_SECURITY = 11;
+export const OPTION_MARKET_US_SECURITY = 1;
+export const UNDERLYING_RANK_SORT_VOLUME = 1;
 export const OPTION_TYPE_CALL = 1;
 export const OPTION_TYPE_PUT = 2;
 export const TRD_ENV_SIMULATE = 0;
@@ -35,6 +37,7 @@ export const JP_SUB_ACC_TYPE_TOKUTEI = 2;
 export const QOT_SUBTYPE_BASIC = 1;
 export const QOT_SUBTYPE_ORDER_BOOK = 2;
 export const KL_TYPE_DAY = 2;
+export const KL_TYPE_5MIN = 6;
 export const REHAB_TYPE_FORWARD = 1;
 const CMD_QOT_UPDATE_BASIC_QOT = 3005;
 const CMD_QOT_UPDATE_ORDER_BOOK = 3013;
@@ -477,48 +480,104 @@ export function moomooUnderlyingCode(ticker) {
   return code;
 }
 
-export async function findOptionContract(client, signal) {
-  const ticker = String(signal.ticker || '').trim().toUpperCase();
-  const ownerCode = moomooUnderlyingCode(ticker);
-  const expiration = String(signal.expiration || '').trim();
-  const strike = Number(signal.strike);
-  if (!ticker || !expiration || !Number.isFinite(strike)) {
-    throw new Error('Signal is missing ticker, expiration, or strike.');
+export async function fetchOptionUnderlyingRank(client, {
+  count = 100,
+  tradingDate,
+  sortType = UNDERLYING_RANK_SORT_VOLUME,
+  isAsc = false,
+  optionMarket = OPTION_MARKET_US_SECURITY,
+} = {}) {
+  const resolvedCount = Number(count);
+  if (!Number.isInteger(resolvedCount) || resolvedCount < 1 || resolvedCount > 200) {
+    throw new Error('Option underlying rank count must be an integer between 1 and 200.');
   }
+  const response = await client.GetOptionUnderlyingRank({
+    c2s: {
+      optionMarket: Number(optionMarket),
+      sortType: Number(sortType),
+      isAsc: Boolean(isAsc),
+      count: resolvedCount,
+      ...(tradingDate ? { tradingDate: String(tradingDate).slice(0, 10) } : {}),
+    },
+  });
+  assertMoomooSuccess(response, 'GetOptionUnderlyingRank');
+  return response;
+}
 
-  const legName = optionLegName(signal.option_type);
+export async function listOptionContracts(client, {
+  ticker,
+  expiration,
+  optionType,
+} = {}) {
+  const normalizedTicker = String(ticker || '').trim().toUpperCase();
+  const ownerCode = moomooUnderlyingCode(normalizedTicker);
+  const normalizedExpiration = String(expiration || '').trim().slice(0, 10);
+  if (!normalizedTicker || !/^\d{4}-\d{2}-\d{2}$/.test(normalizedExpiration)) {
+    throw new Error('Option-chain lookup requires ticker and YYYY-MM-DD expiration.');
+  }
+  const requestedType = optionType ? optionTypeCode(optionType) : 0;
   const response = await client.GetOptionChain({
     c2s: {
       owner: {
         market: QOT_MARKET_US_SECURITY,
         code: ownerCode,
       },
-      type: optionTypeCode(signal.option_type),
-      beginTime: expiration,
-      endTime: expiration,
+      type: requestedType,
+      beginTime: normalizedExpiration,
+      endTime: normalizedExpiration,
     },
   });
   assertMoomooSuccess(response, 'GetOptionChain');
 
-  const candidates = [];
+  const contracts = [];
   for (const chain of response?.s2c?.optionChain || []) {
     for (const item of chain.option || []) {
-      const info = item[legName];
-      if (!info?.basic?.security) continue;
-      const optionExData = info.optionExData || {};
-      candidates.push({
-        security: info.basic.security,
-        name: info.basic.name || '',
-        lotSize: info.basic.lotSize,
-        strikeTime: optionExData.strikeTime || chain.strikeTime || '',
-        strikePrice: Number(optionExData.strikePrice),
-        optionType: optionExData.type,
-        owner: optionExData.owner,
-        suspend: optionExData.suspend,
-        raw: info,
-      });
+      for (const legName of ['call', 'put']) {
+        const info = item?.[legName];
+        if (!info?.basic?.security) continue;
+        const optionExData = info.optionExData || {};
+        const strikeTime = String(optionExData.strikeTime || chain.strikeTime || '').slice(0, 10);
+        const strikePrice = Number(optionExData.strikePrice);
+        if (strikeTime !== normalizedExpiration || !Number.isFinite(strikePrice)) continue;
+        contracts.push({
+          security: info.basic.security,
+          name: info.basic.name || '',
+          lotSize: info.basic.lotSize,
+          strikeTime,
+          strikePrice,
+          optionType: optionExData.type,
+          optionRight: legName === 'call' ? 'C' : 'P',
+          owner: optionExData.owner,
+          suspend: optionExData.suspend,
+          raw: info,
+        });
+      }
     }
   }
+  return {
+    ticker: normalizedTicker,
+    expiration: normalizedExpiration,
+    contracts,
+    response: normalizeForJson(response),
+  };
+}
+
+export async function findOptionContract(client, signal) {
+  const ticker = String(signal.ticker || '').trim().toUpperCase();
+  const expiration = String(signal.expiration || '').trim();
+  const strike = Number(signal.strike);
+  if (!ticker || !expiration || !Number.isFinite(strike)) {
+    throw new Error('Signal is missing ticker, expiration, or strike.');
+  }
+
+  const chainResult = await listOptionContracts(client, {
+    ticker,
+    expiration,
+    optionType: signal.option_type,
+  });
+  const candidates = chainResult.contracts.filter((candidate) => (
+    candidate.optionRight === (optionTypeCode(signal.option_type) === OPTION_TYPE_CALL ? 'C' : 'P')
+  ));
 
   const match = candidates.find((candidate) => (
     Math.abs(Number(candidate.strikePrice) - strike) < 0.0001
@@ -529,7 +588,7 @@ export async function findOptionContract(client, signal) {
     found: Boolean(match),
     contract: match,
     candidateCount: candidates.length,
-    response: normalizeForJson(response),
+    response: chainResult.response,
   };
 }
 

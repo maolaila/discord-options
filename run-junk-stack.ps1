@@ -62,8 +62,10 @@ $openDAuthRecoverySensitivePaths = @(
   $openDAuthRecoveryStderrPath
 )
 $junkSupervisorPath = Join-Path $rootPath 'run-junk-gex.ps1'
+$junkMultiSupervisorPath = Join-Path $rootPath 'run-junk-multi.ps1'
 $paSupervisorPath = Join-Path $rootPath 'run-pa-options.ps1'
 $policyPath = Join-Path $rootPath 'config\zero-dte-options-policy.json'
+$junkMultiPolicyPath = Join-Path $rootPath 'config\junk-multi-options-policy.json'
 $paPolicyPath = Join-Path $rootPath 'config\pa-options-policy.json'
 $envPath = Join-Path $rootPath '.env'
 $powershellPath = Join-Path $PSHOME 'powershell.exe'
@@ -553,6 +555,10 @@ function Assert-SimulationOnlyConfiguration {
   if (-not (Test-Path -LiteralPath $junkSupervisorPath -PathType Leaf)) {
     throw 'run-junk-gex.ps1 is missing; JUNKMAN was not started.'
   }
+  if (-not (Test-Path -LiteralPath $junkMultiSupervisorPath -PathType Leaf) -or
+      -not (Test-Path -LiteralPath $junkMultiPolicyPath -PathType Leaf)) {
+    throw 'The JUNKMAN-MULTI simulation supervisor or policy is missing.'
+  }
   if (-not (Test-Path -LiteralPath $paSupervisorPath -PathType Leaf) -or
       -not (Test-Path -LiteralPath $paPolicyPath -PathType Leaf)) {
     throw 'The PA simulation supervisor or policy is missing.'
@@ -585,9 +591,24 @@ function Assert-SimulationOnlyConfiguration {
     throw 'The PA policy is not simulation-only with exactly $10,000 paper equity.'
   }
 
+  $junkMultiPolicy = Get-Content -LiteralPath $junkMultiPolicyPath -Raw | ConvertFrom-Json
+  if ($junkMultiPolicy.business_line.id -ne 'junk-multi-options' -or
+      $junkMultiPolicy.execution.environment -ne 'simulate_only' -or
+      [bool]$junkMultiPolicy.execution.real_trading_allowed -or
+      @($junkMultiPolicy.exit_experiment.lines).Count -ne 7 -or
+      @($junkMultiPolicy.exit_experiment.lines | Where-Object {
+        [double]$_.paper_equity_usd -ne 10000
+      }).Count -ne 0) {
+    throw 'The JUNKMAN-MULTI policy is not simulation-only with seven $10,000 lines.'
+  }
+
   $supervisorText = Get-Content -LiteralPath $junkSupervisorPath -Raw
   if ($supervisorText -notmatch '--execute-simulate' -or $supervisorText -match '--execute-real') {
     throw 'run-junk-gex.ps1 is not locked to --execute-simulate.'
+  }
+  $multiSupervisorText = Get-Content -LiteralPath $junkMultiSupervisorPath -Raw
+  if ($multiSupervisorText -notmatch '--execute-simulate' -or $multiSupervisorText -match '--execute-real') {
+    throw 'run-junk-multi.ps1 is not locked to --execute-simulate.'
   }
 }
 
@@ -1408,6 +1429,68 @@ function Ensure-JunkSupervisor {
   return $false
 }
 
+function Start-JunkMultiSupervisor {
+  $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+  $stdoutPath = Join-Path $logDirectory "junk-multi-supervisor-stack-$stamp.stdout.log"
+  $stderrPath = Join-Path $logDirectory "junk-multi-supervisor-stack-$stamp.stderr.log"
+  Write-StackLog -Message 'Starting the simulation-only JUNKMAN-MULTI strategy supervisor.'
+  $null = Start-Process `
+    -FilePath $powershellPath `
+    -ArgumentList @(
+      '-NoProfile',
+      '-ExecutionPolicy',
+      'Bypass',
+      '-File',
+      ('"{0}"' -f $junkMultiSupervisorPath)
+    ) `
+    -WorkingDirectory $rootPath `
+    -WindowStyle Hidden `
+    -RedirectStandardOutput $stdoutPath `
+    -RedirectStandardError $stderrPath `
+    -PassThru
+}
+
+function Ensure-JunkMultiSupervisor {
+  Assert-SimulationOnlyConfiguration
+  $supervisors = @(
+    Get-RepositoryProcesses `
+      -CommandLineToken 'run-junk-multi.ps1' `
+      -ProcessNames @('powershell.exe', 'pwsh.exe') `
+      -ExactPowerShellFilePath $junkMultiSupervisorPath
+  )
+  if ($supervisors.Count -gt 0) {
+    Set-ComponentState -Name 'junk_multi_supervisor' -State 'healthy' -Detail "process_count=$($supervisors.Count); mode=simulate_only"
+    return $true
+  }
+  $watchers = @(
+    Get-RepositoryProcesses `
+      -CommandLineToken 'apps\junk-multi-options\junk-multi-line.mjs' `
+      -ProcessNames @('node.exe')
+  )
+  if ($watchers.Count -gt 0) {
+    Set-ComponentState `
+      -Name 'junk_multi_supervisor' `
+      -State 'orphan_watcher' `
+      -Detail 'a watcher is running; deferring supervisor launch to avoid a duplicate runtime' `
+      -Level 'WARN'
+    return $true
+  }
+  Start-JunkMultiSupervisor
+  Start-Sleep -Seconds 3
+  $supervisors = @(
+    Get-RepositoryProcesses `
+      -CommandLineToken 'run-junk-multi.ps1' `
+      -ProcessNames @('powershell.exe', 'pwsh.exe') `
+      -ExactPowerShellFilePath $junkMultiSupervisorPath
+  )
+  if ($supervisors.Count -lt 1) {
+    Set-ComponentState -Name 'junk_multi_supervisor' -State 'unavailable' -Detail 'launch_not_observed' -Level 'ERROR'
+    return $false
+  }
+  Set-ComponentState -Name 'junk_multi_supervisor' -State 'healthy' -Detail 'mode=simulate_only; launch_confirmed=true'
+  return $true
+}
+
 function Ensure-PaSupervisor {
   Assert-SimulationOnlyConfiguration
   $supervisors = @(Get-RepositoryProcesses `
@@ -1456,6 +1539,21 @@ function Set-JunkApiGateState {
       Stop-Process -Id $supervisor.ProcessId -Force -ErrorAction SilentlyContinue
     }
     $supervisors = @()
+  }
+
+  $multiSupervisors = @(
+    Get-RepositoryProcesses `
+      -CommandLineToken 'run-junk-multi.ps1' `
+      -ProcessNames @('powershell.exe', 'pwsh.exe') `
+      -ExactPowerShellFilePath $junkMultiSupervisorPath
+  )
+  if ($multiSupervisors.Count -gt 0) {
+    Write-StackLog `
+      -Level 'WARN' `
+      -Message "Moomoo API health is unavailable; stopping $($multiSupervisors.Count) JUNKMAN-MULTI restart supervisor process(es) while leaving any existing watcher running."
+    foreach ($supervisor in $multiSupervisors) {
+      Stop-Process -Id $supervisor.ProcessId -Force -ErrorAction SilentlyContinue
+    }
   }
 
   # Remove restart authority before a stale child can be recycled. Otherwise the
@@ -1621,6 +1719,11 @@ try {
         $null = Ensure-JunkSupervisor
       } catch {
         Set-ComponentState -Name 'junk_supervisor' -State 'error' -Detail $_.Exception.Message -Level 'ERROR'
+      }
+      try {
+        $null = Ensure-JunkMultiSupervisor
+      } catch {
+        Set-ComponentState -Name 'junk_multi_supervisor' -State 'error' -Detail $_.Exception.Message -Level 'ERROR'
       }
       try {
         $null = Ensure-PaSupervisor

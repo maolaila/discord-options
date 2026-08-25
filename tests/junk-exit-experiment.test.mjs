@@ -47,14 +47,20 @@ function basePlan(qty = 1) {
   };
 }
 
-test('manifest is a strict seven-line paired $10k experiment with the active v3 control', () => {
+test('manifest has seven base-entry lines plus one independently filtered latest line', () => {
   const manifest = load_junk_exit_experiment(policy);
   assert.equal(manifest.enabled, true);
-  assert.equal(manifest.line_count, 7);
-  assert.equal(manifest.total_paper_equity_usd, 70_000);
+  assert.equal(manifest.line_count, 8);
+  assert.equal(manifest.total_paper_equity_usd, 80_000);
   assert.equal(manifest.control_line_id, 'control_sl15_tp_off');
   assert.equal(new Set(manifest.lines.map((line) => line.exit_profile_hash)).size, 7);
+  assert.equal(new Set(manifest.lines.map((line) => line.line_profile_hash)).size, 8);
   assert.ok(manifest.lines.every((line) => line.paper_equity_usd === 10_000));
+  const control = manifest.lines.find((line) => line.control);
+  const latest = manifest.lines.find((line) => line.line_id === 'latest_regime_lifecycle');
+  assert.equal(latest.entry_profile, 'latest_regime_lifecycle_v1');
+  assert.equal(latest.exit_profile_hash, control.exit_profile_hash);
+  assert.notEqual(latest.line_profile_hash, control.line_profile_hash);
 });
 
 test('cohort multiplies only broker quantity and retains one common signal, contract, price and entry', () => {
@@ -69,6 +75,54 @@ test('cohort multiplies only broker quantity and retains one common signal, cont
   assert.match(cohort.plan_id, /^zero_dte_[0-9a-f]{20}$/);
   assert.match(cohort.order.remark, /^junk_gex:exp:/);
   assert.ok(cohort.order.remark.length <= 60);
+});
+
+test('latest line independently adds one aggregate unit only when its entry profile passes', () => {
+  const manifest = load_junk_exit_experiment(policy);
+  const assessment = {
+    entry_profile: 'latest_regime_lifecycle_v1',
+    participate: true,
+    decision: 'trade',
+    reason_codes: ['latest_line_quality_filter_passed'],
+  };
+  const cohort = build_junk_experiment_cohort(basePlan(1), manifest, {
+    line_participation: { latest_regime_lifecycle: assessment },
+  });
+  assert.equal(cohort.position_sizing.aggregate_qty, 8);
+  assert.equal(cohort.position_sizing.experiment_participating_line_count, 8);
+  assert.equal(cohort.experiment.lines.find(
+    (line) => line.line_id === 'latest_regime_lifecycle',
+  ).entry_eligible, true);
+  const ledger = finalize_junk_experiment_entry_allocation(
+    create_junk_experiment_ledger(cohort.experiment),
+    { filled_qty: 8, fill_avg_price: 5 },
+  );
+  assert.ok(Object.values(ledger.variants).every((line) => line.allocated_entry_qty === 1));
+});
+
+test('optional latest line yields to visible depth without blocking the seven base lines', () => {
+  const manifest = load_junk_exit_experiment(policy);
+  const source = basePlan(1);
+  source.quote.ask_size_contracts = 7;
+  const cohort = build_junk_experiment_cohort(source, manifest, {
+    line_participation: {
+      latest_regime_lifecycle: {
+        entry_profile: 'latest_regime_lifecycle_v1',
+        participate: true,
+        decision: 'trade',
+        reason_codes: ['latest_line_quality_filter_passed'],
+      },
+    },
+  });
+  assert.equal(cohort.gate.passed, true);
+  assert.equal(cohort.order.qty, 7);
+  const latest = cohort.experiment.lines.find(
+    (line) => line.line_id === 'latest_regime_lifecycle',
+  );
+  assert.equal(latest.entry_eligible, false);
+  assert.ok(latest.entry_participation.reason_codes.includes(
+    'entry_profile_skipped_visible_ask_capacity',
+  ));
 });
 
 test('soft 10% sizing fallback remains one contract per line and seven in the aggregate cohort', () => {
@@ -146,7 +200,11 @@ test('partial entry fill allocates only complete equal rounds and isolates the r
     fill_avg_price: 5,
     now: new Date('2026-08-12T14:01:00Z'),
   });
-  assert.ok(Object.values(allocated.variants).every((line) => line.allocated_entry_qty === 1));
+  assert.ok(Object.values(allocated.variants)
+    .filter((line) => line.entry_eligible)
+    .every((line) => line.allocated_entry_qty === 1));
+  assert.equal(allocated.variants.latest_regime_lifecycle.allocated_entry_qty, 0);
+  assert.equal(allocated.variants.latest_regime_lifecycle.status, 'not_participating');
   assert.equal(allocated.allocated_entry_qty, 7);
   assert.equal(allocated.unallocated_entry_qty, 3);
   assert.equal(experiment_total_remaining_qty(allocated), 10);
@@ -303,7 +361,10 @@ test('a zero-fill rejected multi-line attempt remains comparable and can be retr
     terminal: true,
   }).ledger;
   assert.equal(ledger.comparison_pairing_issue_count, 0);
-  assert.ok(Object.values(ledger.variants).every((variant) => variant.comparison_eligible === true));
+  assert.ok(Object.values(ledger.variants)
+    .filter((variant) => variant.entry_eligible)
+    .every((variant) => variant.comparison_eligible === true));
+  assert.equal(ledger.variants.latest_regime_lifecycle.comparison_eligible, false);
 });
 
 test('variant config changes only fixed option SL/TP fields', () => {
@@ -393,8 +454,16 @@ test('summary reports independent line PnL and flat state', () => {
   }).ledger;
   assert.equal(experiment_all_variants_flat(ledger), true);
   const summary = summarize_junk_exit_experiment({ orders: { one: { experiment_ledger: ledger } } });
-  assert.equal(summary.lines.length, 7);
-  assert.ok(summary.lines.every((line) => line.realized_pnl_usd === 50));
+  assert.equal(summary.lines.length, 8);
+  assert.ok(summary.lines
+    .filter((line) => line.experiment_line_id !== 'latest_regime_lifecycle')
+    .every((line) => line.realized_pnl_usd === 50));
+  assert.equal(summary.lines.find(
+    (line) => line.experiment_line_id === 'latest_regime_lifecycle',
+  ).cohort_count, 0);
+  assert.equal(summary.lines.find(
+    (line) => line.experiment_line_id === 'latest_regime_lifecycle',
+  ).entry_skipped_cohort_count, 1);
   assert.equal(summary.aggregate_realized_pnl_usd, 350);
   assert.equal(summary.physical_realized_pnl_usd, 350);
   assert.equal(summary.pnl_basis, 'gross_option_price_change');
@@ -428,13 +497,13 @@ test('summary separates manifest versions and accounts for residual liquidation 
       second: { expiration: '2026-08-11', experiment_ledger: second },
     },
   });
-  assert.equal(summary.lines.length, 14);
+  assert.equal(summary.lines.length, 16);
   assert.equal(summary.unallocated_realized_pnl_usd, -100);
   assert.equal(summary.unallocated_closed_cohort_count, 2);
   assert.equal(summary.physical_realized_pnl_usd, summary.aggregate_realized_pnl_usd - 100);
   assert.equal(summary.session_unallocated_realized_pnl_usd, -50);
   assert.equal(summary.session_cohort_count, 1);
-  assert.equal(summary.session_lines.length, 7);
+  assert.equal(summary.session_lines.length, 8);
 });
 
 test('manifest rejects per-line capital drift and a control that no longer matches base v3', () => {
@@ -446,5 +515,5 @@ test('manifest rejects per-line capital drift and a control that no longer match
   assert.throws(() => load_junk_exit_experiment(badControl), /control line must match/);
   const duplicateProfile = structuredClone(policy);
   duplicateProfile.exit_experiment.lines[1].catastrophic_stop_loss_pct = 15;
-  assert.throws(() => load_junk_exit_experiment(duplicateProfile), /unique fixed SL\/TP profiles/);
+  assert.throws(() => load_junk_exit_experiment(duplicateProfile), /unique entry plus exit profiles/);
 });

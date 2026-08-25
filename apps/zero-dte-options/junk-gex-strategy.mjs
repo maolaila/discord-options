@@ -65,23 +65,28 @@ function canonical_option_right(value) {
   return token === 'C' || token === 'P' ? token : null;
 }
 
-function parse_spxw_contract_symbol(value) {
+export function parse_osi_contract_symbol(value) {
   const match = String(value || '').trim().toUpperCase()
-    .match(/^SPXW(\d{2})(\d{2})(\d{2})([CP])(\d{8})$/);
+    .match(/^([A-Z0-9.]{1,8})(\d{2})(\d{2})(\d{2})([CP])(\d{8})$/);
   if (!match) return null;
-  const expiration = `20${match[1]}-${match[2]}-${match[3]}`;
+  const expiration = `20${match[2]}-${match[3]}-${match[4]}`;
   const parsed_date = new Date(`${expiration}T00:00:00.000Z`);
   if (
-    parsed_date.getUTCFullYear() !== 2000 + Number(match[1])
-    || parsed_date.getUTCMonth() + 1 !== Number(match[2])
-    || parsed_date.getUTCDate() !== Number(match[3])
+    parsed_date.getUTCFullYear() !== 2000 + Number(match[2])
+    || parsed_date.getUTCMonth() + 1 !== Number(match[3])
+    || parsed_date.getUTCDate() !== Number(match[4])
   ) return null;
   return {
     contract_symbol: match[0],
+    contract_root: match[1],
     expiration,
-    right: match[4],
-    strike_usd: Number(match[5]) / 1_000,
+    right: match[5],
+    strike_usd: Number(match[6]) / 1_000,
   };
+}
+
+function canonical_contract_root(value) {
+  return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
 
 /**
@@ -95,6 +100,7 @@ export function directional_option_gex_reference({
   option_chain_snapshot,
   direction,
   expiration,
+  ticker,
   now_ms = null,
   max_age_ms = null,
 } = {}) {
@@ -103,11 +109,12 @@ export function directional_option_gex_reference({
     ? option_chain_snapshot.data
     : option_chain_snapshot;
   const source_ticker = String(source?.ticker || '').trim().toUpperCase();
+  const expected_ticker = String(ticker || source_ticker).trim().toUpperCase();
   const source_expiration = String(source?.expiration || '').slice(0, 10);
   const expected_expiration = String(expiration || '').slice(0, 10);
   const contracts = Array.isArray(source?.contracts) ? source.contracts : [];
   if (!option_right || !/^\d{4}-\d{2}-\d{2}$/.test(expected_expiration)) return null;
-  if (source_ticker !== 'SPX' || source_expiration !== expected_expiration) return null;
+  if (!expected_ticker || source_ticker !== expected_ticker || source_expiration !== expected_expiration) return null;
   // Live responses from the official endpoint expose this truncation marker
   // and the timestamps below. Treat missing provenance as incomplete rather
   // than pretending the public OpenAPI schema documents more than it does.
@@ -135,7 +142,7 @@ export function directional_option_gex_reference({
   const by_strike = new Map();
   for (const contract of contracts) {
     const contract_symbol = String(contract?.contract_symbol || '').trim().toUpperCase();
-    const symbol_identity = parse_spxw_contract_symbol(contract_symbol);
+    const symbol_identity = parse_osi_contract_symbol(contract_symbol);
     const contract_expiration = String(contract?.expiration || '').slice(0, 10);
     const strike_usd = finite_number(contract?.strike_usd);
     const contract_right = canonical_option_right(contract?.right);
@@ -143,6 +150,9 @@ export function directional_option_gex_reference({
     const open_interest = finite_number(contract?.open_interest);
     if (
       !symbol_identity
+      || (expected_ticker === 'SPX'
+        ? symbol_identity.contract_root !== 'SPXW'
+        : canonical_contract_root(symbol_identity.contract_root) !== canonical_contract_root(expected_ticker))
       || symbol_identity.expiration !== expected_expiration
       || symbol_identity.right !== option_right
       || Math.abs(symbol_identity.strike_usd - strike_usd) > 0.0001
@@ -161,6 +171,7 @@ export function directional_option_gex_reference({
       gamma_oi_weight: 0,
       contract_count: 0,
       open_interest: 0,
+      contract_root: symbol_identity.contract_root,
     };
     previous.gamma_oi_weight += gamma_oi_weight;
     previous.contract_count += 1;
@@ -176,7 +187,7 @@ export function directional_option_gex_reference({
   return {
     strike_usd: selected.strike_usd,
     option_right: option_right === 'C' ? 'call' : 'put',
-    contract_root: 'SPXW',
+    contract_root: selected.contract_root,
     expiration: expected_expiration,
     gamma_oi_weight: rounded(selected.gamma_oi_weight, 8),
     open_interest: rounded(selected.open_interest),
@@ -793,6 +804,7 @@ export function evaluate_junk_gex_strategy({
     option_chain_snapshot,
     direction: selected.direction,
     expiration: snapshot.session_date_et,
+    ticker: snapshot.ticker,
     now_ms,
     max_age_ms: resolved_policy.max_snapshot_age_ms,
   });

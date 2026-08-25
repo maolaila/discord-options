@@ -22,6 +22,16 @@ export const BUSINESS_LINES = Object.freeze({
     enabled: true,
     legacyLogPrefixes: [],
   }),
+  'junk-multi-options': Object.freeze({
+    key: 'junk-multi-options',
+    kind: 'options',
+    label: 'JUNKMAN Top100 multi-symbol 0DTE simulation',
+    policyPath: path.join(PROJECT_ROOT, 'config', 'junk-multi-options-policy.json'),
+    logPrefix: 'junk-multi-options',
+    requiredAdviceFormat: 'gex',
+    enabled: true,
+    legacyLogPrefixes: [],
+  }),
 });
 
 const aliases = Object.freeze({
@@ -36,6 +46,9 @@ const aliases = Object.freeze({
   zerodte: 'zero-dte-options',
   'junk-gex': 'zero-dte-options',
   junkman: 'zero-dte-options',
+  'junk-multi': 'junk-multi-options',
+  'junk-top100': 'junk-multi-options',
+  'top100-0dte': 'junk-multi-options',
 });
 
 export function resolveBusinessLine(value = 'zero-dte-options') {

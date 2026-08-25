@@ -26,6 +26,7 @@ import {
   moomooConfigOptionsForBusinessLine,
   resolveBusinessLine,
 } from '../../packages/business-lines/business-lines.mjs';
+import { acquireSimulatedOptionsEntryLock } from '../../packages/business-lines/simulated-options-entry-lock.mjs';
 import {
   create_nightwatch_rest_client,
   create_snapshot_rate_limiter,
@@ -57,7 +58,10 @@ import {
   read_junk_contract_audit_cache,
   write_junk_contract_audit_cache,
 } from './junk-api-evidence.mjs';
-import { apply_junk_v3_evidence } from './junk-trading-model-v2.mjs';
+import {
+  apply_junk_v3_evidence,
+  evaluate_junk_latest_line_entry,
+} from './junk-trading-model-v2.mjs';
 import {
   attach_junk_oi_structure_background,
 } from './junk-oi-structure-background.mjs';
@@ -67,6 +71,7 @@ import {
 import { open_junk_oi_research_store } from './junk-oi-research-store.mjs';
 import {
   JUNK_GEX_STRATEGY,
+  JUNK_MULTI_BUSINESS_LINE,
   ZERO_DTE_BUSINESS_LINE,
   assertZeroDteSimulationOnly,
   executeZeroDteSimulatedEntry,
@@ -117,6 +122,7 @@ const capture_status_path = path.join(path.dirname(status_path), 'capture-status
 const oi_research_db_path = path.join(PROJECT_ROOT, 'data', 'junk-oi-research', 'junk-oi-research.sqlite');
 const oi_research_raw_dir = path.join(PROJECT_ROOT, 'data', 'junk-oi-research', 'raw');
 const runtime_lock_path = businessLineLogPath(business_line, 'runtime.lock.json');
+const junk_multi_state_path = businessLineLogPath(resolveBusinessLine(JUNK_MULTI_BUSINESS_LINE), 'runtime-state.json');
 const spy_security = Object.freeze({ market: QOT_MARKET_US_SECURITY, code: 'SPY' });
 const JUNK_MOOMOO_CONNECT_TIMEOUT_MS = 25_000;
 const JUNK_MOOMOO_ACCOUNTS_TIMEOUT_MS = 15_000;
@@ -289,8 +295,8 @@ export function junk_experiment_manifest_conflicts(state, manifest) {
   });
 }
 
-export function build_junk_experiment_entry_cohort(base_plan, manifest, policy = {}) {
-  let plan = build_junk_experiment_cohort(base_plan, manifest);
+export function build_junk_experiment_entry_cohort(base_plan, manifest, policy = {}, options = {}) {
+  let plan = build_junk_experiment_cohort(base_plan, manifest, options);
   if (!manifest?.enabled || policy?.execution_quality?.cap_qty_by_visible_ask !== true) return plan;
   const ask_size = positive_number(base_plan?.quote?.ask_size_contracts);
   if (ask_size !== null) return plan;
@@ -1909,9 +1915,14 @@ async function broker_contract_conflict(runtime, code) {
     .filter((row) => String(row?.code || '') === contract_code && finite_number(row?.qty, 0) > 0);
   const pending_orders = broker_rows(orders_response, 'orderList')
     .filter((row) => String(row?.code || '') === contract_code && !is_terminal_broker_order(row?.orderStatus));
+  const multi_state = await read_json(junk_multi_state_path, null);
+  const multi_active_rows = Object.values(multi_state?.orders || {}).filter((row) => (
+    !['closed', 'entry_unfilled_terminal'].includes(String(row?.status || ''))
+  ));
   const reasons = [];
   if (positions.length > 0) reasons.push('broker_contract_position_already_exists');
   if (pending_orders.length > 0) reasons.push('broker_contract_order_already_pending');
+  if (multi_active_rows.length > 0) reasons.push('junk_multi_business_line_exposure_already_exists');
   return { conflict: reasons.length > 0, reasons };
 }
 
@@ -3369,6 +3380,7 @@ function compact_decision(decision) {
       contract_confirmation_assessment: decision.evidence_model.contract_confirmation?.assessment || null,
       oi_structure_background_state: decision.evidence_model.oi_structure_background?.state || null,
     } : null,
+    experiment_entry_profiles: decision.experiment_entry_profiles || null,
     oi_structure_background: decision.oi_structure_background || null,
   };
 }
@@ -4488,11 +4500,28 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
         entry_plan: prepared_entry_plan,
         audit: contract_audit,
       });
-      decision = audited.decision;
+      const latest_line_entry = evaluate_junk_latest_line_entry({
+        candidate: audited.decision,
+        gex_node_history: state.gex_node_history,
+        market_context,
+        policy: config.policy?.exit_experiment?.latest_entry_profile || {},
+        now_ms: market_context_at,
+      });
+      decision = {
+        ...audited.decision,
+        experiment_entry_profiles: {
+          latest_regime_lifecycle_v1: latest_line_entry,
+        },
+      };
       prepared_entry_plan = build_junk_experiment_entry_cohort(
         audited.entry_plan,
         exit_experiment,
         config.policy,
+        {
+          line_participation: {
+            latest_regime_lifecycle: latest_line_entry,
+          },
+        },
       );
     }
     last_decision = decision;
@@ -4500,22 +4529,29 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
 
     if (prepared_entry_plan) {
       let plan = prepared_entry_plan;
-      if (plan.gate.passed) {
-        const conflict = await broker_contract_conflict(runtime, plan.order?.code);
-        if (conflict.conflict) {
-          plan = {
-            ...plan,
-            order_status: 'gate_failed',
-            gate: {
-              ...plan.gate,
-              passed: false,
-              reasons: [...new Set([...(plan.gate.reasons || []), ...conflict.reasons])],
-            },
-          };
+      const release_entry_lock = execute_simulate && plan.gate.passed
+        ? await acquireSimulatedOptionsEntryLock({
+          business_line: ZERO_DTE_BUSINESS_LINE,
+          signal_id: plan.signal?.signal_id,
+        })
+        : async () => {};
+      try {
+        if (plan.gate.passed) {
+          const conflict = await broker_contract_conflict(runtime, plan.order?.code);
+          if (conflict.conflict) {
+            plan = {
+              ...plan,
+              order_status: 'gate_failed',
+              gate: {
+                ...plan.gate,
+                passed: false,
+                reasons: [...new Set([...(plan.gate.reasons || []), ...conflict.reasons])],
+              },
+            };
+          }
         }
-      }
-      await append_json_line(entry_plans_path, plan);
-      if (execute_simulate && plan.gate.passed) {
+        await append_json_line(entry_plans_path, plan);
+        if (execute_simulate && plan.gate.passed) {
         const intent = entry_row_from_plan(plan, null, new Date(market_context_at));
         intent.status = 'entry_intent';
         intent.entry_remark = plan.order?.remark || null;
@@ -4611,6 +4647,9 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
           await persist_state();
           await append_json_line(entry_plans_path, execution);
         }
+        }
+      } finally {
+        await release_entry_lock();
       }
     }
 

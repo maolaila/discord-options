@@ -56,6 +56,10 @@ function normalizedLine(raw, index) {
     option_take_profit_enabled: takeProfitEnabled,
     option_take_profit_pct: takeProfit ?? 25,
   };
+  const entryProfile = normalizedString(raw?.entry_profile || 'base_v3').toLowerCase();
+  if (!['base_v3', 'latest_regime_lifecycle_v1'].includes(entryProfile)) {
+    throw new Error(`Experiment line ${lineId} has an unsupported entry_profile.`);
+  }
   return {
     line_id: lineId,
     label: normalizedString(raw?.label) || lineId,
@@ -63,6 +67,8 @@ function normalizedLine(raw, index) {
     paper_equity_usd: equity,
     exit_profile: exitProfile,
     exit_profile_hash: digest(exitProfile, 16),
+    entry_profile: entryProfile,
+    line_profile_hash: digest({ entry_profile: entryProfile, exit_profile: exitProfile }, 16),
   };
 }
 
@@ -97,8 +103,8 @@ export function load_junk_exit_experiment(policy = {}) {
   if (new Set(lines.map((line) => line.line_id)).size !== lines.length) {
     throw new Error('JUNK exit experiment line_id values must be unique.');
   }
-  if (new Set(lines.map((line) => line.exit_profile_hash)).size !== lines.length) {
-    throw new Error('JUNK exit experiment lines must have unique fixed SL/TP profiles.');
+  if (new Set(lines.map((line) => line.line_profile_hash)).size !== lines.length) {
+    throw new Error('JUNK experiment lines must have unique entry plus exit profiles.');
   }
   if (lines.filter((line) => line.control).length !== 1) {
     throw new Error('JUNK exit experiment requires exactly one control line.');
@@ -155,15 +161,56 @@ function cohortId(basePlan, manifest) {
   }, 20)}`;
 }
 
-export function build_junk_experiment_cohort(base_plan, manifest) {
+export function build_junk_experiment_cohort(base_plan, manifest, { line_participation = {} } = {}) {
   if (!manifest?.enabled) return base_plan;
   if (!base_plan || typeof base_plan !== 'object') throw new Error('A base JUNK entry plan is required.');
   const perLineQty = nonnegativeInteger(base_plan?.position_sizing?.qty);
-  const aggregateQty = perLineQty * manifest.line_count;
-  const reasons = [...(base_plan?.gate?.reasons || [])];
-  if (perLineQty < 1) reasons.push('experiment_missing_positive_per_line_qty');
+  let lines = manifest.lines.map((line) => {
+    const assessment = line_participation?.[line.line_id];
+    const entryEligible = line.entry_profile === 'base_v3'
+      ? true
+      : assessment?.participate === true;
+    return {
+      ...line,
+      entry_eligible: entryEligible,
+      entry_participation: assessment || {
+        entry_profile: line.entry_profile,
+        participate: entryEligible,
+        decision: entryEligible ? 'trade' : 'no_trade',
+        reason_codes: entryEligible
+          ? ['base_entry_profile_always_participates']
+          : ['entry_profile_assessment_missing_fail_closed'],
+      },
+    };
+  });
   const askSize = positiveNumber(base_plan?.quote?.ask_size_contracts);
   const maxAskRatio = positiveNumber(manifest?.execution_quality?.max_qty_to_ask_volume_ratio);
+  if (perLineQty > 0 && askSize !== null && maxAskRatio !== null) {
+    const visibleCapacity = Math.max(1, Math.floor(askSize * maxAskRatio));
+    let eligibleCount = lines.filter((line) => line.entry_eligible).length;
+    for (let index = lines.length - 1; index >= 0 && perLineQty * eligibleCount > visibleCapacity; index -= 1) {
+      const line = lines[index];
+      if (!line.entry_eligible || line.entry_profile === 'base_v3') continue;
+      lines = lines.map((candidate, candidateIndex) => candidateIndex === index ? {
+        ...candidate,
+        entry_eligible: false,
+        entry_participation: {
+          ...(candidate.entry_participation || {}),
+          participate: false,
+          decision: 'no_trade',
+          reason_codes: [...new Set([
+            ...(candidate.entry_participation?.reason_codes || []),
+            'entry_profile_skipped_visible_ask_capacity',
+          ])],
+        },
+      } : candidate);
+      eligibleCount -= 1;
+    }
+  }
+  const participatingLineCount = lines.filter((line) => line.entry_eligible).length;
+  const aggregateQty = perLineQty * participatingLineCount;
+  const reasons = [...(base_plan?.gate?.reasons || [])];
+  if (perLineQty < 1) reasons.push('experiment_missing_positive_per_line_qty');
   if (askSize === null) {
     reasons.push('experiment_visible_ask_size_missing');
   } else if (maxAskRatio === null) {
@@ -182,9 +229,10 @@ export function build_junk_experiment_cohort(base_plan, manifest) {
     aggregate_qty: aggregateQty,
     paper_equity_usd: manifest.total_paper_equity_usd,
     paper_equity_usd_per_line: 10_000,
-    estimated_position_usd: Number((perLineEstimated * manifest.line_count).toFixed(2)),
+    estimated_position_usd: Number((perLineEstimated * participatingLineCount).toFixed(2)),
     estimated_position_usd_per_line: perLineEstimated,
     experiment_line_count: manifest.line_count,
+    experiment_participating_line_count: participatingLineCount,
   };
   return {
     ...base_plan,
@@ -209,11 +257,12 @@ export function build_junk_experiment_cohort(base_plan, manifest) {
       total_paper_equity_usd: manifest.total_paper_equity_usd,
       per_line_entry_qty: perLineQty,
       aggregate_entry_qty: aggregateQty,
+      participating_line_count: participatingLineCount,
       control_line_id: manifest.control_line_id,
       shared_exit_rules: manifest.shared_exit_rules,
       shared_exit_rules_hash: manifest.shared_exit_rules_hash,
       execution_quality: manifest.execution_quality,
-      lines: manifest.lines,
+      lines,
     },
   };
 }
@@ -227,6 +276,10 @@ export function create_junk_experiment_ledger(experiment, now = new Date()) {
     paper_equity_usd: 10_000,
     exit_profile: { ...line.exit_profile },
     exit_profile_hash: line.exit_profile_hash,
+    entry_profile: line.entry_profile || 'base_v3',
+    line_profile_hash: line.line_profile_hash || null,
+    entry_eligible: line.entry_eligible !== false,
+    entry_participation: line.entry_participation || null,
     shared_exit_rules: { ...(experiment.shared_exit_rules || {}) },
     shared_exit_rules_hash: experiment.shared_exit_rules_hash || null,
     allocated_entry_qty: 0,
@@ -239,9 +292,9 @@ export function create_junk_experiment_ledger(experiment, now = new Date()) {
     breakeven_armed: false,
     partial_target_taken: false,
     management_floor_pct: null,
-    comparison_eligible: true,
-    comparison_exclusion_reason: null,
-    status: 'awaiting_entry_allocation',
+    comparison_eligible: line.entry_eligible !== false,
+    comparison_exclusion_reason: line.entry_eligible === false ? 'entry_profile_no_trade' : null,
+    status: line.entry_eligible === false ? 'not_participating' : 'awaiting_entry_allocation',
     realized_pnl_usd: null,
   }]));
   return {
@@ -255,6 +308,8 @@ export function create_junk_experiment_ledger(experiment, now = new Date()) {
     execution_quality: { ...(experiment.execution_quality || {}) },
     paper_equity_usd_per_line: 10_000,
     line_count: experiment.lines.length,
+    participating_line_count: experiment.participating_line_count
+      ?? experiment.lines.filter((line) => line.entry_eligible !== false).length,
     per_line_entry_qty_requested: experiment.per_line_entry_qty,
     aggregate_entry_qty_requested: experiment.aggregate_entry_qty,
     variants,
@@ -276,7 +331,9 @@ export function finalize_junk_experiment_entry_allocation(ledger, {
   now = new Date(),
 } = {}) {
   if (!ledger || ledger.entry_allocation_finalized) return ledger;
-  const lineIds = Object.keys(ledger.variants || {}).sort();
+  const lineIds = Object.keys(ledger.variants || {})
+    .filter((lineId) => ledger.variants[lineId]?.entry_eligible !== false)
+    .sort();
   if (lineIds.length < 1) throw new Error('Experiment ledger has no variants.');
   const filledQty = nonnegativeInteger(filled_qty);
   const avg = positiveNumber(fill_avg_price, 0);
@@ -313,7 +370,9 @@ export function finalize_junk_experiment_unpriced_entry_allocation(ledger, {
   now = new Date(),
 } = {}) {
   if (!ledger || ledger.entry_allocation_finalized) return ledger;
-  const lineIds = Object.keys(ledger.variants || {}).sort();
+  const lineIds = Object.keys(ledger.variants || {})
+    .filter((lineId) => ledger.variants[lineId]?.entry_eligible !== false)
+    .sort();
   if (lineIds.length < 1) throw new Error('Experiment ledger has no variants.');
   const filledQty = nonnegativeInteger(filled_qty);
   if (filledQty < 1) throw new Error('Unpriced experiment force-close requires a positive broker fill quantity.');
@@ -636,6 +695,7 @@ export function summarize_junk_exit_experiment(state) {
           control: variant.control === true,
           paper_equity_usd: 10_000,
           cohort_count: 0,
+          entry_skipped_cohort_count: 0,
           closed_trade_count: 0,
           comparable_closed_trade_count: 0,
           win_count: 0,
@@ -649,6 +709,7 @@ export function summarize_junk_exit_experiment(state) {
           comparison_excluded_cohort_count: 0,
         };
         line.cohort_count += variant.allocated_entry_qty > 0 ? 1 : 0;
+        line.entry_skipped_cohort_count += variant.entry_eligible === false ? 1 : 0;
         line.open_contract_qty += experiment_variant_remaining_qty(variant);
         const entryPrice = positiveNumber(ledger.entry_fill_avg_price, 0);
         const exitedQty = nonnegativeInteger(variant.allocated_exit_qty);

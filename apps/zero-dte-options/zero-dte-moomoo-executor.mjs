@@ -13,7 +13,12 @@ import {
 import { JUNK_GEX_MAX_AGE_MS } from './junk-gex-freshness.mjs';
 
 export const ZERO_DTE_BUSINESS_LINE = 'zero-dte-options';
+export const JUNK_MULTI_BUSINESS_LINE = 'junk-multi-options';
 export const JUNK_GEX_STRATEGY = 'junk_gex_nodes_v3';
+const SUPPORTED_JUNK_BUSINESS_LINES = Object.freeze([
+  ZERO_DTE_BUSINESS_LINE,
+  JUNK_MULTI_BUSINESS_LINE,
+]);
 
 const DEFAULT_ALLOWED_UNDERLYINGS = Object.freeze(['SPX', 'SPY']);
 const DEFAULT_ALLOWED_NODE_REACTIONS = Object.freeze([
@@ -124,6 +129,17 @@ function policyValue(config, section, key, fallback) {
 
 function riskLimit(config, key, fallback) {
   return policyValue(config, 'risk_limits', key, fallback);
+}
+
+function expectedBusinessLine(config) {
+  return normalizedString(
+    config?.businessLine || config?.policy?.business_line?.id || config?.policy?.business_line,
+    ZERO_DTE_BUSINESS_LINE,
+  ).toLowerCase();
+}
+
+function expectedStrategy(config) {
+  return normalizedString(config?.policy?.strategy?.id, JUNK_GEX_STRATEGY).toLowerCase();
 }
 
 function allowedUnderlyings(config) {
@@ -411,8 +427,10 @@ function validateSignal(signal, config, riskState, now) {
   const entryCutoffMinutes = parseSessionMinutes(config?.policy?.strategy?.entry_cutoff_time_et, 15 * 60 + 45);
 
   if (!signal.signal_id) reasons.push('missing_signal_id');
-  if (signal.business_line !== ZERO_DTE_BUSINESS_LINE) reasons.push(`wrong_business_line:${signal.business_line}`);
-  if (signal.strategy !== JUNK_GEX_STRATEGY) reasons.push(`wrong_strategy:${signal.strategy}`);
+  const requiredBusinessLine = expectedBusinessLine(config);
+  const requiredStrategy = expectedStrategy(config);
+  if (signal.business_line !== requiredBusinessLine) reasons.push(`wrong_business_line:${signal.business_line}`);
+  if (signal.strategy !== requiredStrategy) reasons.push(`wrong_strategy:${signal.strategy}`);
   if (!allowedUnderlyings(config).has(signal.ticker)) reasons.push(`underlying_not_allowed:${signal.ticker}`);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(signal.expiration)) reasons.push('invalid_expiration');
   if (signal.expiration && signal.expiration !== dateInNewYork(now)) reasons.push('not_zero_dte_expiration');
@@ -504,28 +522,26 @@ function deterministicPlanId(signal, contractCode) {
 }
 
 export function assertZeroDteSimulationOnly(config) {
-  const businessLine = normalizedString(
-    config?.businessLine || config?.policy?.business_line?.id || config?.policy?.business_line,
-  ).toLowerCase();
-  if (businessLine !== ZERO_DTE_BUSINESS_LINE) {
-    throw new Error(`Moomoo executor only accepts ${ZERO_DTE_BUSINESS_LINE}; received ${businessLine || 'missing'}.`);
+  const businessLine = expectedBusinessLine(config);
+  if (!SUPPORTED_JUNK_BUSINESS_LINES.includes(businessLine)) {
+    throw new Error(`Moomoo executor rejects unsupported JUNK business line ${businessLine || 'missing'}.`);
   }
 
   const policyEnvironment = normalizedString(
     config?.policyExecutionEnvironment || config?.policy?.execution?.environment,
   ).toLowerCase();
   if (policyEnvironment !== 'simulate_only') {
-    throw new Error(`${ZERO_DTE_BUSINESS_LINE} policy must set execution.environment=simulate_only.`);
+    throw new Error(`${businessLine} policy must set execution.environment=simulate_only.`);
   }
 
   const policyRealTradingAllowed = config?.policyRealTradingAllowed
     ?? config?.policy?.execution?.real_trading_allowed;
   if (policyRealTradingAllowed !== false) {
-    throw new Error(`${ZERO_DTE_BUSINESS_LINE} policy must set execution.real_trading_allowed=false.`);
+    throw new Error(`${businessLine} policy must set execution.real_trading_allowed=false.`);
   }
 
   if (Number(config?.trdEnv) !== TRD_ENV_SIMULATE) {
-    throw new Error(`${ZERO_DTE_BUSINESS_LINE} executor rejects every non-simulated trading environment.`);
+    throw new Error(`${businessLine} executor rejects every non-simulated trading environment.`);
   }
   return true;
 }
@@ -588,15 +604,16 @@ export function buildZeroDteSimulatedEntryPlan({
     max_option_quote_age_ms: maxQuoteAgeMs,
   };
   const plannedAt = now.toISOString();
-  const remark = `junk_gex:${signal.signal_id}`.slice(0, 60);
+  const remarkPrefix = expectedBusinessLine(config) === JUNK_MULTI_BUSINESS_LINE ? 'junk_multi' : 'junk_gex';
+  const remark = `${remarkPrefix}:${signal.signal_id}`.slice(0, 60);
   const exitRules = config?.policy?.exit_rules || {};
 
   return {
     schema_version: 1,
     plan_id: deterministicPlanId(signal, contractCode),
     planned_at: plannedAt,
-    business_line: ZERO_DTE_BUSINESS_LINE,
-    strategy: JUNK_GEX_STRATEGY,
+    business_line: expectedBusinessLine(config),
+    strategy: expectedStrategy(config),
     mode: 'simulate',
     order_status: gate.passed ? 'ready_for_simulation' : 'gate_failed',
     gate,
@@ -776,7 +793,7 @@ export async function executeZeroDteSimulatedEntry({
 } = {}) {
   assertZeroDteSimulationOnly(config);
   if (!client) throw new Error('Moomoo client is required.');
-  if (plan?.business_line !== ZERO_DTE_BUSINESS_LINE || plan?.strategy !== JUNK_GEX_STRATEGY) {
+  if (plan?.business_line !== expectedBusinessLine(config) || plan?.strategy !== expectedStrategy(config)) {
     throw new Error('Execution plan does not belong to the isolated junk GEX business line.');
   }
   if (plan?.mode !== 'simulate') throw new Error('Only simulated execution plans are accepted.');

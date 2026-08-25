@@ -167,11 +167,22 @@
   "exit_experiment": {
     "enabled": true,
     "experiment_id": "junk_exit_grid_v1",
-    "version": 1,
+    "version": 2,
     "paired_entry": true,
     "broker_execution_mode": "aggregate_single_position",
     "paper_equity_usd_per_line": 10000,
-    "description": "Seven paired virtual portfolios share one aggregate moomoo simulated entry and differ only in fixed option stop/take-profit settings.",
+    "description": "Eight independent virtual portfolios share one aggregate moomoo simulated position. Seven retain the original base-v3 entry and fixed exit grid; the latest line may independently skip low-quality entries and uses the control exit rules for an entry-only comparison.",
+    "latest_entry_profile": {
+      "entry_profile": "latest_regime_lifecycle_v1",
+      "minimum_node_samples": 2,
+      "node_sample_window": 3,
+      "minimum_node_strength_ratio": 0.75,
+      "minimum_structure_overlap_ratio": 0.5,
+      "maximum_node_touches": 2,
+      "minimum_relative_confirmation_volume": 0.8,
+      "require_heatmap_confirmation": true,
+      "require_vwap_context": true
+    },
     "lines": [
       {
         "line_id": "control_sl15_tp_off",
@@ -234,6 +245,16 @@
         "paper_equity_usd": 10000,
         "catastrophic_stop_loss_pct": 12.5,
         "option_take_profit_enabled": true,
+        "option_take_profit_pct": 25
+      },
+      {
+        "line_id": "latest_regime_lifecycle",
+        "label": "Latest regime/lifecycle SL15 TP off",
+        "control": false,
+        "paper_equity_usd": 10000,
+        "entry_profile": "latest_regime_lifecycle_v1",
+        "catastrophic_stop_loss_pct": 15,
+        "option_take_profit_enabled": false,
         "option_take_profit_pct": 25
       }
     ]

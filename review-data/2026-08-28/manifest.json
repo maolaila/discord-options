@@ -1,0 +1,420 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-08-27T22:47:32.250Z",
+  "snapshot_date_jst": "2026-08-28",
+  "public_repository_safe_export": true,
+  "redaction": {
+    "credentials": "replaced",
+    "account_discord_and_message_ids": "stable_sha256_aliases",
+    "local_user_and_repository_paths": "normalized"
+  },
+  "excluded": [
+    "raw Discord messages and browser/network events",
+    "browser profile and authentication state",
+    "real-order and SPCX helper records",
+    "multi-gigabyte general trade journal; latest structured snapshot retained",
+    "SQLite WAL/SHM runtime files; redacted OI JSON snapshots retained"
+  ],
+  "files": [
+    {
+      "source": "logs/junk-multi-options-decisions.ndjson",
+      "output": "review-data/2026-08-28/junk-multi/junk-multi-options-decisions.ndjson.gz",
+      "encoding": "gzip_ndjson",
+      "source_bytes": 4922524,
+      "output_bytes": 386941,
+      "sha256": "de1cd0aa7a021a4812b0446fa9d4d2306eebfbe4b8d75b966a27e24364a24c59",
+      "record_count": 1014,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/junk-multi-options-experiment-summary.json",
+      "output": "review-data/2026-08-28/junk-multi/junk-multi-options-experiment-summary.json",
+      "encoding": "json",
+      "source_bytes": 9316,
+      "output_bytes": 9316,
+      "sha256": "c213726d975775e62366ec0ea32e70ef9f2cd9f84cc4e8be5c71a71e2ff4626f",
+      "record_count": 1,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/junk-multi-options-runtime-state.json",
+      "output": "review-data/2026-08-28/junk-multi/junk-multi-options-runtime-state.json",
+      "encoding": "json",
+      "source_bytes": 56189,
+      "output_bytes": 56189,
+      "sha256": "2d2c71ec44c8560467dda0f02b323176bd8ee6146a3d921e82d889d5f85c8f8c",
+      "record_count": 1,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/junk-multi-options-status.json",
+      "output": "review-data/2026-08-28/junk-multi/junk-multi-options-status.json",
+      "encoding": "json",
+      "source_bytes": 11907,
+      "output_bytes": 11907,
+      "sha256": "aa0f5ea15fa66aa934ed205981c6cce8a16b4fff207317901c9ba4e6d72117ac",
+      "record_count": 1,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/junk-multi-options-universe.json",
+      "output": "review-data/2026-08-28/junk-multi/junk-multi-options-universe.json",
+      "encoding": "json",
+      "source_bytes": 6219,
+      "output_bytes": 6219,
+      "sha256": "38787c4738a119ba6954c5d8514b7708fde83e756b5ab2d48ab38f29c1a1820c",
+      "record_count": 1,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "data/junk-oi-research/raw/241f698a-24a9-4f1a-92cd-ad07ffb6a1f8.json",
+      "output": "review-data/2026-08-28/junk/oi-raw/241f698a-24a9-4f1a-92cd-ad07ffb6a1f8.json",
+      "encoding": "json",
+      "source_bytes": 16827,
+      "output_bytes": 28965,
+      "sha256": "c2558d9eaddfb5c404a0114a02e6a79e1ddd85d16cb81c45ee9488c3a060eb3c",
+      "record_count": 1,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "data/junk-oi-research/raw/36d157bd-8bb3-4e12-8914-3d686da79f72.json",
+      "output": "review-data/2026-08-28/junk/oi-raw/36d157bd-8bb3-4e12-8914-3d686da79f72.json",
+      "encoding": "json",
+      "source_bytes": 16811,
+      "output_bytes": 28949,
+      "sha256": "08d0851ec4d4f6a1d401adeaf15e8f462ab1566f609f7693c2abdf830d89e9f3",
+      "record_count": 1,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "data/junk-oi-research/raw/3d6f41fa-9123-4177-addd-09800b2ef49a.json",
+      "output": "review-data/2026-08-28/junk/oi-raw/3d6f41fa-9123-4177-addd-09800b2ef49a.json",
+      "encoding": "json",
+      "source_bytes": 16943,
+      "output_bytes": 29081,
+      "sha256": "ec91e1fdeba5cabb177080a27ebfbb06cb3ff812224f6dbe8b2d0bbb4a551810",
+      "record_count": 1,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "data/junk-oi-research/raw/5f61d806-e64f-4d0b-9953-bf1f4edfd313.json",
+      "output": "review-data/2026-08-28/junk/oi-raw/5f61d806-e64f-4d0b-9953-bf1f4edfd313.json",
+      "encoding": "json",
+      "source_bytes": 16929,
+      "output_bytes": 29067,
+      "sha256": "6848f5b39d035ba30ddaeca42b60dd18021ffdf2f680651a8e6d6afbff743d89",
+      "record_count": 1,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "data/junk-oi-research/raw/a72f8395-0917-42c3-a3e7-8d212543bed5.json",
+      "output": "review-data/2026-08-28/junk/oi-raw/a72f8395-0917-42c3-a3e7-8d212543bed5.json",
+      "encoding": "json",
+      "source_bytes": 16989,
+      "output_bytes": 29127,
+      "sha256": "6f4679c41ff814f1b2ff9f6c4bb3423c5e6c7e59003763bc6395e2d2afe1ce5b",
+      "record_count": 1,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "data/junk-oi-research/raw/c53873aa-671b-4aff-9939-635c728486e1.json",
+      "output": "review-data/2026-08-28/junk/oi-raw/c53873aa-671b-4aff-9939-635c728486e1.json",
+      "encoding": "json",
+      "source_bytes": 17088,
+      "output_bytes": 29226,
+      "sha256": "73ee9caa605ae156cb5dbf17a313f5d6d0ddd0eba820d9a798034bf41493b773",
+      "record_count": 1,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "data/junk-oi-research/raw/c7743cd4-0e00-4b08-9cec-21cd125536d5.json",
+      "output": "review-data/2026-08-28/junk/oi-raw/c7743cd4-0e00-4b08-9cec-21cd125536d5.json",
+      "encoding": "json",
+      "source_bytes": 16955,
+      "output_bytes": 29093,
+      "sha256": "4215b343f4e6d73c13185939e7b6a405d9ddda9fbbd9c579d15edf0436747c1b",
+      "record_count": 1,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "data/junk-oi-research/raw/d26ffa74-9905-4ee9-b20b-87a443ac0601.json",
+      "output": "review-data/2026-08-28/junk/oi-raw/d26ffa74-9905-4ee9-b20b-87a443ac0601.json",
+      "encoding": "json",
+      "source_bytes": 16885,
+      "output_bytes": 29023,
+      "sha256": "c160f0c81f5c21a3955b02909f8e9455a18315d77f78d7aaad32afe29e7f39a7",
+      "record_count": 1,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "data/junk-oi-research/raw/f272fbf0-7097-4653-a569-3789a363a530.json",
+      "output": "review-data/2026-08-28/junk/oi-raw/f272fbf0-7097-4653-a569-3789a363a530.json",
+      "encoding": "json",
+      "source_bytes": 16925,
+      "output_bytes": 29063,
+      "sha256": "d4ede968d7e9be6e926121d2589f1e9aeb982bfaf02527a6722aaeeceb3f9588",
+      "record_count": 1,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "data/junk-oi-research/raw/f6ac64cf-160e-4536-9bad-1e469a406ed2.json",
+      "output": "review-data/2026-08-28/junk/oi-raw/f6ac64cf-160e-4536-9bad-1e469a406ed2.json",
+      "encoding": "json",
+      "source_bytes": 16788,
+      "output_bytes": 28926,
+      "sha256": "938e5b1b13bccb9bb45b22a184590e827fe66b6cb0c6dee1839701d01c891d3c",
+      "record_count": 1,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "data/junk-oi-research/raw/fd3f9341-12a9-4545-92c4-ee78b261ba02.json",
+      "output": "review-data/2026-08-28/junk/oi-raw/fd3f9341-12a9-4545-92c4-ee78b261ba02.json",
+      "encoding": "json",
+      "source_bytes": 17043,
+      "output_bytes": 29181,
+      "sha256": "31bcd1bb0ed91c7c3af5e64376bab3bbd944c35ee60768ea5f16591f417da8a5",
+      "record_count": 1,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/zero-dte-options-decisions.ndjson",
+      "output": "review-data/2026-08-28/junk/zero-dte-options-decisions.ndjson.gz",
+      "encoding": "gzip_ndjson",
+      "source_bytes": 255920841,
+      "output_bytes": 4893225,
+      "sha256": "2037a5f743fc7f3d68f4e87612564f3377ab179bbdb4e45dbca080de3a46b361",
+      "record_count": 17747,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/zero-dte-options-entry-plans.ndjson",
+      "output": "review-data/2026-08-28/junk/zero-dte-options-entry-plans.ndjson",
+      "encoding": "ndjson",
+      "source_bytes": 982834,
+      "output_bytes": 983810,
+      "sha256": "03d403d3bf9be883d89d0aac75b87bffbdba1b1ecf95571fda29edb3df0b256f",
+      "record_count": 148,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/zero-dte-options-exit-plans.ndjson",
+      "output": "review-data/2026-08-28/junk/zero-dte-options-exit-plans.ndjson",
+      "encoding": "ndjson",
+      "source_bytes": 349159,
+      "output_bytes": 350451,
+      "sha256": "e89a779bc8feaa87896abfe55ffd3aad48b73e80d897a104689f99a3fc029915",
+      "record_count": 138,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/zero-dte-options-experiment-events.ndjson",
+      "output": "review-data/2026-08-28/junk/zero-dte-options-experiment-events.ndjson",
+      "encoding": "ndjson",
+      "source_bytes": 475061,
+      "output_bytes": 475061,
+      "sha256": "e64dea0699d727e17ac971bbe9561160ff843f10f01b4e7aaf3129d872bcd000",
+      "record_count": 814,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/zero-dte-options-experiment-summary.json",
+      "output": "review-data/2026-08-28/junk/zero-dte-options-experiment-summary.json",
+      "encoding": "json",
+      "source_bytes": 19786,
+      "output_bytes": 19786,
+      "sha256": "dd8fd9f84561f96b47a35107416d17190557fe59a78aa7ed86ed2e08eb9079fe",
+      "record_count": 1,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/zero-dte-options-flow-events.ndjson",
+      "output": "review-data/2026-08-28/junk/zero-dte-options-flow-events.ndjson",
+      "encoding": "ndjson",
+      "source_bytes": 874911,
+      "output_bytes": 894004,
+      "sha256": "5102b6c6c01d4295932fb8567b7f54cae0c13a4b89c787dea91c21b635abca77",
+      "record_count": 682,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/zero-dte-options-incidents.ndjson",
+      "output": "review-data/2026-08-28/junk/zero-dte-options-incidents.ndjson",
+      "encoding": "ndjson",
+      "source_bytes": 3513,
+      "output_bytes": 3513,
+      "sha256": "8b384e430e0221a4eed7efd40a1f8539acaa15e2cf7642316695021a86975a88",
+      "record_count": 2,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/zero-dte-options-oi-structure-background.json",
+      "output": "review-data/2026-08-28/junk/zero-dte-options-oi-structure-background.json",
+      "encoding": "json",
+      "source_bytes": 18227,
+      "output_bytes": 18227,
+      "sha256": "cc2c6ea8334daf4462d738425c98160100ccefb2bf42207e9d383ec1e1572b42",
+      "record_count": 1,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/zero-dte-options-post-deploy-summary.json",
+      "output": "review-data/2026-08-28/junk/zero-dte-options-post-deploy-summary.json",
+      "encoding": "json",
+      "source_bytes": 3056,
+      "output_bytes": 3056,
+      "sha256": "2c02c6d08d068620e96b47fe1a7c296d0714f23c195088174700b1f51d9109b4",
+      "record_count": 1,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/zero-dte-options-runtime-state.json",
+      "output": "review-data/2026-08-28/junk/zero-dte-options-runtime-state.json",
+      "encoding": "json",
+      "source_bytes": 1109977,
+      "output_bytes": 1109964,
+      "sha256": "035ad857009d50e698a465281c7ae7de3a5013657d979a9ce59ef3c0bf39aa4b",
+      "record_count": 1,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/zero-dte-options-status.json",
+      "output": "review-data/2026-08-28/junk/zero-dte-options-status.json",
+      "encoding": "json",
+      "source_bytes": 76500,
+      "output_bytes": 76487,
+      "sha256": "168f535028c3adc8ed3a12a92b7f6fd0a27fd89dac019afa08f0e5585398de02",
+      "record_count": 1,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/zero-dte-options-trades.ndjson",
+      "output": "review-data/2026-08-28/junk/zero-dte-options-trades.ndjson",
+      "encoding": "ndjson",
+      "source_bytes": 579567,
+      "output_bytes": 579567,
+      "sha256": "b99b261737ad050ec6b0d0d3ebc7d1af220d3dd7a1e5c227ac690fde21c0f22a",
+      "record_count": 789,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/moomoo-executions.ndjson",
+      "output": "review-data/2026-08-28/legacy/moomoo-executions.ndjson",
+      "encoding": "ndjson",
+      "source_bytes": 169032,
+      "output_bytes": 171279,
+      "sha256": "ab5dec5ba30451a76abf2e8176ed17a8bca6febc07a806e95b2be1290436148d",
+      "record_count": 21,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/moomoo-exit-orders.ndjson",
+      "output": "review-data/2026-08-28/legacy/moomoo-exit-orders.ndjson",
+      "encoding": "ndjson",
+      "source_bytes": 67658,
+      "output_bytes": 68437,
+      "sha256": "67030d6003804095f42fb8e8f99ef42ad1f07a69261bd936de74caff8b1d60dd",
+      "record_count": 19,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/moomoo-exit-state.json",
+      "output": "review-data/2026-08-28/legacy/moomoo-exit-state.json",
+      "encoding": "json",
+      "source_bytes": 23617,
+      "output_bytes": 23617,
+      "sha256": "39746354b95e319f571b5bda5d72ea72e27b331ef3d939cf4818c1d6bb261026",
+      "record_count": 1,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/moomoo-order-plans.ndjson",
+      "output": "review-data/2026-08-28/legacy/moomoo-order-plans.ndjson.gz",
+      "encoding": "gzip_ndjson",
+      "source_bytes": 600011,
+      "output_bytes": 63567,
+      "sha256": "1e89f9024031ea9bf8c6773bb93cff87b05122c05525fcbc387298996caf82d3",
+      "record_count": 276,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/trade-journal-latest.json",
+      "output": "review-data/2026-08-28/legacy/trade-journal-latest.json",
+      "encoding": "json",
+      "source_bytes": 12367,
+      "output_bytes": 12454,
+      "sha256": "a55a63119bf03b0efcfb41b78fedf16f252ae9eda08c1d2279e86d80f90bc554",
+      "record_count": 1,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/pa-options-broker-orders-snapshot.json",
+      "output": "review-data/2026-08-28/pa/pa-options-broker-orders-snapshot.json",
+      "encoding": "json",
+      "source_bytes": 9551,
+      "output_bytes": 9551,
+      "sha256": "ab8ff92a364109806676050d1a7255ab7c4b2fca27937f3fc74862a5ff2515cd",
+      "record_count": 1,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/pa-options-entry-status.json",
+      "output": "review-data/2026-08-28/pa/pa-options-entry-status.json",
+      "encoding": "json",
+      "source_bytes": 274,
+      "output_bytes": 274,
+      "sha256": "a96d4c5f1df237958cb41bb358ffffe7960a82ec8d2ced4ef4fefdc45ee1fb00",
+      "record_count": 1,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/pa-options-executions.ndjson",
+      "output": "review-data/2026-08-28/pa/pa-options-executions.ndjson",
+      "encoding": "ndjson",
+      "source_bytes": 2295380,
+      "output_bytes": 2308288,
+      "sha256": "2df8a0a3466a7acd9be8838a00b7105efbd6495ea005e6ee13ce0ede8b2b9c28",
+      "record_count": 167,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/pa-options-exit-orders.ndjson",
+      "output": "review-data/2026-08-28/pa/pa-options-exit-orders.ndjson",
+      "encoding": "ndjson",
+      "source_bytes": 489523,
+      "output_bytes": 494566,
+      "sha256": "33ed7bccdb44ff87d7175795ad9f6b7fde89223e5e15a8a744d5a037ebe18228",
+      "record_count": 123,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/pa-options-exit-state.json",
+      "output": "review-data/2026-08-28/pa/pa-options-exit-state.json",
+      "encoding": "json",
+      "source_bytes": 186556,
+      "output_bytes": 186556,
+      "sha256": "be9d44eb3c835a94025e284d913897788a11159ddb6f34bf12eafa26b7cf2d98",
+      "record_count": 1,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/pa-options-exit-status.json",
+      "output": "review-data/2026-08-28/pa/pa-options-exit-status.json",
+      "encoding": "json",
+      "source_bytes": 10782,
+      "output_bytes": 10782,
+      "sha256": "e352eade02e45fc607af3a846596abf016fed426109bdf890f28e3f5311b425a",
+      "record_count": 1,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/pa-options-order-plans.ndjson",
+      "output": "review-data/2026-08-28/pa/pa-options-order-plans.ndjson.gz",
+      "encoding": "gzip_ndjson",
+      "source_bytes": 2936755,
+      "output_bytes": 295164,
+      "sha256": "7a360f2e3a4fa6d102f92825c7e53104c14f966c738cc9a6430e00762a90d006",
+      "record_count": 314,
+      "invalid_line_count": 0
+    }
+  ]
+}

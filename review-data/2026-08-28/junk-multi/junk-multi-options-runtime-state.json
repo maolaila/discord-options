@@ -1,0 +1,1920 @@
+{
+  "schema_version": 1,
+  "business_line": "junk-multi-options",
+  "strategy": "junk_gex_nodes_v3",
+  "session_date_et": "2026-08-27",
+  "universe": {
+    "refreshed_at": "2026-08-27T04:00:26.405Z",
+    "session_date_et": "2026-08-27",
+    "expected_rank_trading_date": "2026-08-26",
+    "rank_trading_date": "2026-08-26",
+    "top100_row_count": 100,
+    "nightwatch_working_set_count": 284,
+    "intersected_candidate_count": 85,
+    "probed_candidate_count": 85,
+    "finalists": [
+      {
+        "rank": 1,
+        "ticker": "SPY",
+        "market": 11,
+        "name": "标普500ETF-SPDR",
+        "total_volume": 6812834,
+        "total_open_interest": 19481346,
+        "put_call_volume_ratio_pct": 1.10115,
+        "put_call_open_interest_ratio_pct": 2.46978,
+        "iv_pct": 15.154,
+        "iv_rank_pct": 11.681,
+        "iv_percentile_pct": 12.301,
+        "underlying_price_usd": 766.08,
+        "change_rate_pct": 0.022195819352143202,
+        "market_cap_usd": 811456539425.28,
+        "nightwatch_supported": true,
+        "reserved_for_other_business_line": false,
+        "expiration": "2026-08-27",
+        "option_contract_count": 358,
+        "call_contract_count": 179,
+        "put_contract_count": 179,
+        "option_strike_step_points": 1,
+        "nightwatch_gate": "dealer-heatmap-working-set",
+        "zero_dte_chain_verified": true
+      },
+      {
+        "rank": 2,
+        "ticker": "QQQ",
+        "market": 11,
+        "name": "纳指100ETF-Invesco QQQ Trust",
+        "total_volume": 5007673,
+        "total_open_interest": 12064225,
+        "put_call_volume_ratio_pct": 1.12918,
+        "put_call_open_interest_ratio_pct": 1.21607,
+        "iv_pct": 21.257,
+        "iv_rank_pct": 24.808,
+        "iv_percentile_pct": 28.571,
+        "underlying_price_usd": 711.37,
+        "change_rate_pct": 0.0914565511031067,
+        "market_cap_usd": 484229559000,
+        "nightwatch_supported": true,
+        "reserved_for_other_business_line": false,
+        "expiration": "2026-08-27",
+        "option_contract_count": 332,
+        "call_contract_count": 166,
+        "put_contract_count": 166,
+        "option_strike_step_points": 1,
+        "nightwatch_gate": "dealer-heatmap-working-set",
+        "zero_dte_chain_verified": true
+      },
+      {
+        "rank": 7,
+        "ticker": "IWM",
+        "market": 11,
+        "name": "罗素2000ETF-iShares",
+        "total_volume": 878715,
+        "total_open_interest": 9504558,
+        "put_call_volume_ratio_pct": 1.3132,
+        "put_call_open_interest_ratio_pct": 2.51036,
+        "iv_pct": 19.324,
+        "iv_rank_pct": 8.494,
+        "iv_percentile_pct": 4.365,
+        "underlying_price_usd": 298.93,
+        "change_rate_pct": -0.10025732713965846,
+        "market_cap_usd": 80845618500,
+        "nightwatch_supported": true,
+        "reserved_for_other_business_line": false,
+        "expiration": "2026-08-27",
+        "option_contract_count": 166,
+        "call_contract_count": 83,
+        "put_contract_count": 83,
+        "option_strike_step_points": 1,
+        "nightwatch_gate": "dealer-heatmap-working-set",
+        "zero_dte_chain_verified": true
+      }
+    ],
+    "probe_errors": [
+      {
+        "ticker": "MU",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "MSFT",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "IBIT",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "TLT",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "GLD",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "SLV",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "AMD",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "GOOGL",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "PLTR",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "MSTR",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "AVGO",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "SOFI",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "XLE",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "HYG",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "GDX",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "TQQQ",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "ORCL",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "IREN",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "NKE",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "DRAM",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      }
+    ]
+  },
+  "gex_history_by_ticker": {
+    "SPY": [
+      {
+        "ticker": "SPY",
+        "snapshot_at": "2026-08-27T17:45:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 771.33,
+        "total_gex_usd": -722051778.0378001,
+        "call_wall_usd": 771,
+        "put_wall_usd": 772,
+        "gamma_flip_usd": 772.7838500955672,
+        "nodes": [
+          {
+            "strike_usd": 769,
+            "net_gex_usd": 10272765.7725,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0.0085
+          },
+          {
+            "strike_usd": 770,
+            "net_gex_usd": -134595172.10160002,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.0342
+          },
+          {
+            "strike_usd": 771,
+            "net_gex_usd": -375640803.03330004,
+            "node_type": "gatekeeper|call_wall",
+            "rank": 2,
+            "relative_strength": 0.7442
+          },
+          {
+            "strike_usd": 772,
+            "net_gex_usd": -414522499.3245,
+            "node_type": "king|put_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 773,
+            "net_gex_usd": 114306292.90079999,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.0741
+          }
+        ]
+      },
+      {
+        "ticker": "SPY",
+        "snapshot_at": "2026-08-27T17:50:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 771.37,
+        "total_gex_usd": -742568131.8316998,
+        "call_wall_usd": 771,
+        "put_wall_usd": 772,
+        "gamma_flip_usd": 772.7708369450529,
+        "nodes": [
+          {
+            "strike_usd": 769,
+            "net_gex_usd": 7066428.005599998,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0.0078
+          },
+          {
+            "strike_usd": 770,
+            "net_gex_usd": -143933106.3444,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.0412
+          },
+          {
+            "strike_usd": 771,
+            "net_gex_usd": -416881077.2291,
+            "node_type": "king|call_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 772,
+            "net_gex_usd": -394873968.2661,
+            "node_type": "gatekeeper|put_wall",
+            "rank": 2,
+            "relative_strength": 0.8498
+          },
+          {
+            "strike_usd": 773,
+            "net_gex_usd": 117392563.32699999,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.0785
+          }
+        ]
+      },
+      {
+        "ticker": "SPY",
+        "snapshot_at": "2026-08-27T17:55:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 771.2947,
+        "total_gex_usd": -754275820.2043021,
+        "call_wall_usd": 771,
+        "put_wall_usd": 772,
+        "gamma_flip_usd": 772.7812598183382,
+        "nodes": [
+          {
+            "strike_usd": 769,
+            "net_gex_usd": 8099157.395130999,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0.0087
+          },
+          {
+            "strike_usd": 770,
+            "net_gex_usd": -146390661.960367,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.0432
+          },
+          {
+            "strike_usd": 771,
+            "net_gex_usd": -417057254.55786705,
+            "node_type": "king|call_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 772,
+            "net_gex_usd": -395683691.16365105,
+            "node_type": "gatekeeper|put_wall",
+            "rank": 2,
+            "relative_strength": 0.854
+          },
+          {
+            "strike_usd": 773,
+            "net_gex_usd": 110785068.49344,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.0582
+          }
+        ]
+      },
+      {
+        "ticker": "SPY",
+        "snapshot_at": "2026-08-27T18:00:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 770.72,
+        "total_gex_usd": -742687086.9936002,
+        "call_wall_usd": 771,
+        "put_wall_usd": 771,
+        "gamma_flip_usd": 769.0519187802391,
+        "nodes": [
+          {
+            "strike_usd": 769,
+            "net_gex_usd": 11793071.8864,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0.0223
+          },
+          {
+            "strike_usd": 770,
+            "net_gex_usd": -215351553.47040004,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.1715
+          },
+          {
+            "strike_usd": 771,
+            "net_gex_usd": -413110166.6672,
+            "node_type": "king|call_wall|put_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 772,
+            "net_gex_usd": -318153925.06240004,
+            "node_type": "gatekeeper",
+            "rank": 2,
+            "relative_strength": 0.5529
+          },
+          {
+            "strike_usd": 773,
+            "net_gex_usd": 86208885.60000001,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.0284
+          }
+        ]
+      },
+      {
+        "ticker": "SPY",
+        "snapshot_at": "2026-08-27T18:05:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 770.3722,
+        "total_gex_usd": -716555762.260338,
+        "call_wall_usd": 771,
+        "put_wall_usd": 770,
+        "gamma_flip_usd": 769.0631829851882,
+        "nodes": [
+          {
+            "strike_usd": 769,
+            "net_gex_usd": 21045682.57597,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.0617
+          },
+          {
+            "strike_usd": 770,
+            "net_gex_usd": -312045299.328048,
+            "node_type": "gatekeeper|put_wall",
+            "rank": 2,
+            "relative_strength": 0.7887
+          },
+          {
+            "strike_usd": 771,
+            "net_gex_usd": -337732435.89040804,
+            "node_type": "king|call_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 772,
+            "net_gex_usd": -256511609.50992203,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.4381
+          },
+          {
+            "strike_usd": 773,
+            "net_gex_usd": 70765388.80814001,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0.016
+          }
+        ]
+      },
+      {
+        "ticker": "SPY",
+        "snapshot_at": "2026-08-27T18:10:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 770.07,
+        "total_gex_usd": -615035303.0178001,
+        "call_wall_usd": 771,
+        "put_wall_usd": 770,
+        "gamma_flip_usd": 769.0775284979865,
+        "nodes": [
+          {
+            "strike_usd": 768,
+            "net_gex_usd": 90127344.8502,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0.0206
+          },
+          {
+            "strike_usd": 769,
+            "net_gex_usd": 26495636.77529999,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.0915
+          },
+          {
+            "strike_usd": 770,
+            "net_gex_usd": -315257879.202,
+            "node_type": "gatekeeper|put_wall",
+            "rank": 2,
+            "relative_strength": 0.8797
+          },
+          {
+            "strike_usd": 771,
+            "net_gex_usd": -329017012.5186,
+            "node_type": "king|call_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 772,
+            "net_gex_usd": -224013162.78180003,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.3156
+          }
+        ]
+      },
+      {
+        "ticker": "SPY",
+        "snapshot_at": "2026-08-27T18:15:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 770.48,
+        "total_gex_usd": -640646122.4176002,
+        "call_wall_usd": 771,
+        "put_wall_usd": 770,
+        "gamma_flip_usd": 769.0836902586123,
+        "nodes": [
+          {
+            "strike_usd": 768,
+            "net_gex_usd": 99047484.62080002,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0.0219
+          },
+          {
+            "strike_usd": 769,
+            "net_gex_usd": 29353130.65600001,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.079
+          },
+          {
+            "strike_usd": 770,
+            "net_gex_usd": -321382201.54080003,
+            "node_type": "gatekeeper|put_wall",
+            "rank": 2,
+            "relative_strength": 0.7477
+          },
+          {
+            "strike_usd": 771,
+            "net_gex_usd": -354088800.16800004,
+            "node_type": "king|call_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 772,
+            "net_gex_usd": -228738877.3368,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.2696
+          }
+        ]
+      },
+      {
+        "ticker": "SPY",
+        "snapshot_at": "2026-08-27T18:20:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 770.126,
+        "total_gex_usd": -659889810.1020398,
+        "call_wall_usd": 771,
+        "put_wall_usd": 770,
+        "gamma_flip_usd": 769.0389385389652,
+        "nodes": [
+          {
+            "strike_usd": 768,
+            "net_gex_usd": 92308881.11829999,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0.0148
+          },
+          {
+            "strike_usd": 769,
+            "net_gex_usd": 15245291.075840004,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.0623
+          },
+          {
+            "strike_usd": 770,
+            "net_gex_usd": -376276617.06348,
+            "node_type": "king|put_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 771,
+            "net_gex_usd": -339534629.52191997,
+            "node_type": "gatekeeper|call_wall",
+            "rank": 2,
+            "relative_strength": 0.7347
+          },
+          {
+            "strike_usd": 772,
+            "net_gex_usd": -181328353.85784,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.1119
+          }
+        ]
+      },
+      {
+        "ticker": "SPY",
+        "snapshot_at": "2026-08-27T18:25:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 769.3345,
+        "total_gex_usd": -419625578.87964994,
+        "call_wall_usd": 771,
+        "put_wall_usd": 770,
+        "gamma_flip_usd": 769.0142334092628,
+        "nodes": [
+          {
+            "strike_usd": 768,
+            "net_gex_usd": 163916978.14723003,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.1119
+          },
+          {
+            "strike_usd": 769,
+            "net_gex_usd": 5355029.720699996,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.1337
+          },
+          {
+            "strike_usd": 770,
+            "net_gex_usd": -370874559.53723997,
+            "node_type": "king|put_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 771,
+            "net_gex_usd": -244153981.26361,
+            "node_type": "gatekeeper|call_wall",
+            "rank": 2,
+            "relative_strength": 0.3699
+          },
+          {
+            "strike_usd": 772,
+            "net_gex_usd": -106396122.50569502,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0.0306
+          }
+        ]
+      },
+      {
+        "ticker": "SPY",
+        "snapshot_at": "2026-08-27T18:30:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 769.6755,
+        "total_gex_usd": -430111779.286365,
+        "call_wall_usd": 771,
+        "put_wall_usd": 770,
+        "gamma_flip_usd": 768.8743158753578,
+        "nodes": [
+          {
+            "strike_usd": 768,
+            "net_gex_usd": 157863600.71955004,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.1203
+          },
+          {
+            "strike_usd": 769,
+            "net_gex_usd": -22693112.441999987,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.2565
+          },
+          {
+            "strike_usd": 770,
+            "net_gex_usd": -343564201.485945,
+            "node_type": "king|put_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 771,
+            "net_gex_usd": -252008175.878415,
+            "node_type": "gatekeeper|call_wall",
+            "rank": 2,
+            "relative_strength": 0.4895
+          },
+          {
+            "strike_usd": 772,
+            "net_gex_usd": -106196177.22813,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0.0366
+          }
+        ]
+      },
+      {
+        "ticker": "SPY",
+        "snapshot_at": "2026-08-27T18:35:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 769.89,
+        "total_gex_usd": -570910312.7309998,
+        "call_wall_usd": 771,
+        "put_wall_usd": 770,
+        "gamma_flip_usd": 769.0074276445009,
+        "nodes": [
+          {
+            "strike_usd": 768,
+            "net_gex_usd": 134676118.6056,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.0512
+          },
+          {
+            "strike_usd": 769,
+            "net_gex_usd": 2925327.9363000095,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.35
+          },
+          {
+            "strike_usd": 770,
+            "net_gex_usd": -390917960.598,
+            "node_type": "king|put_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 771,
+            "net_gex_usd": -317045044.1796,
+            "node_type": "gatekeeper|call_wall",
+            "rank": 2,
+            "relative_strength": 0.6412
+          },
+          {
+            "strike_usd": 772,
+            "net_gex_usd": -135787131.46679997,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0.0504
+          }
+        ]
+      },
+      {
+        "ticker": "SPY",
+        "snapshot_at": "2026-08-27T18:35:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 769.89,
+        "total_gex_usd": -570910312.7309998,
+        "call_wall_usd": 771,
+        "put_wall_usd": 770,
+        "gamma_flip_usd": 769.0074276445009,
+        "nodes": [
+          {
+            "strike_usd": 768,
+            "net_gex_usd": 134676118.6056,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.0512
+          },
+          {
+            "strike_usd": 769,
+            "net_gex_usd": 2925327.9363000095,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.35
+          },
+          {
+            "strike_usd": 770,
+            "net_gex_usd": -390917960.598,
+            "node_type": "king|put_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 771,
+            "net_gex_usd": -317045044.1796,
+            "node_type": "gatekeeper|call_wall",
+            "rank": 2,
+            "relative_strength": 0.6412
+          },
+          {
+            "strike_usd": 772,
+            "net_gex_usd": -135787131.46679997,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0.0504
+          }
+        ]
+      }
+    ],
+    "QQQ": [
+      {
+        "ticker": "QQQ",
+        "snapshot_at": "2026-08-27T18:05:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 718.3808,
+        "total_gex_usd": 187723879.89862394,
+        "call_wall_usd": 720,
+        "put_wall_usd": 719,
+        "gamma_flip_usd": 717.4541219158531,
+        "nodes": [
+          {
+            "strike_usd": 715,
+            "net_gex_usd": 28063668.076736,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0.0227
+          },
+          {
+            "strike_usd": 717,
+            "net_gex_usd": -55865838.35846401,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.1788
+          },
+          {
+            "strike_usd": 718,
+            "net_gex_usd": 67153633.744128,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.3105
+          },
+          {
+            "strike_usd": 719,
+            "net_gex_usd": 110119666.12076801,
+            "node_type": "king|put_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 720,
+            "net_gex_usd": 75792464.58406399,
+            "node_type": "gatekeeper|call_wall",
+            "rank": 2,
+            "relative_strength": 0.4463
+          }
+        ]
+      },
+      {
+        "ticker": "QQQ",
+        "snapshot_at": "2026-08-27T18:10:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 718.25,
+        "total_gex_usd": 197132783.99749997,
+        "call_wall_usd": 719,
+        "put_wall_usd": 719,
+        "gamma_flip_usd": 717.4604038412884,
+        "nodes": [
+          {
+            "strike_usd": 715,
+            "net_gex_usd": 27335330.880000003,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0.0194
+          },
+          {
+            "strike_usd": 717,
+            "net_gex_usd": -59536058.53,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.1998
+          },
+          {
+            "strike_usd": 718,
+            "net_gex_usd": 69776630.00750001,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.3216
+          },
+          {
+            "strike_usd": 719,
+            "net_gex_usd": 111180503.19999999,
+            "node_type": "king|call_wall|put_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 720,
+            "net_gex_usd": 78920340.36250001,
+            "node_type": "gatekeeper",
+            "rank": 2,
+            "relative_strength": 0.4653
+          }
+        ]
+      },
+      {
+        "ticker": "QQQ",
+        "snapshot_at": "2026-08-27T18:20:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 717.9955,
+        "total_gex_usd": 245400407.88551995,
+        "call_wall_usd": 718,
+        "put_wall_usd": 719,
+        "gamma_flip_usd": 717.4238321723097,
+        "nodes": [
+          {
+            "strike_usd": 715,
+            "net_gex_usd": 23580487.190504998,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0.0068
+          },
+          {
+            "strike_usd": 717,
+            "net_gex_usd": -75473008.836785,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.2227
+          },
+          {
+            "strike_usd": 718,
+            "net_gex_usd": 102599855.30066499,
+            "node_type": "gatekeeper|call_wall",
+            "rank": 2,
+            "relative_strength": 0.5594
+          },
+          {
+            "strike_usd": 719,
+            "net_gex_usd": 124520401.514765,
+            "node_type": "king|put_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 720,
+            "net_gex_usd": 85415867.96042499,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.3228
+          }
+        ]
+      },
+      {
+        "ticker": "QQQ",
+        "snapshot_at": "2026-08-27T18:40:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 718.1216,
+        "total_gex_usd": 202735429.502816,
+        "call_wall_usd": 718,
+        "put_wall_usd": 719,
+        "gamma_flip_usd": 717.4256300309141,
+        "nodes": [
+          {
+            "strike_usd": 715,
+            "net_gex_usd": 21576782.130623996,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0.0039
+          },
+          {
+            "strike_usd": 717,
+            "net_gex_usd": -108048159.42547199,
+            "node_type": "gatekeeper",
+            "rank": 2,
+            "relative_strength": 0.5022
+          },
+          {
+            "strike_usd": 718,
+            "net_gex_usd": 145806483.28713602,
+            "node_type": "king|call_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 719,
+            "net_gex_usd": 105572040.24259198,
+            "node_type": "gex_node|put_wall",
+            "rank": 3,
+            "relative_strength": 0.4685
+          },
+          {
+            "strike_usd": 720,
+            "net_gex_usd": 46246427.817856,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.0394
+          }
+        ]
+      },
+      {
+        "ticker": "QQQ",
+        "snapshot_at": "2026-08-27T18:45:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 718.08,
+        "total_gex_usd": 219545276.54400006,
+        "call_wall_usd": 718,
+        "put_wall_usd": 719,
+        "gamma_flip_usd": 717.3966699316666,
+        "nodes": [
+          {
+            "strike_usd": 714,
+            "net_gex_usd": -17973413.145600002,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0.0021
+          },
+          {
+            "strike_usd": 717,
+            "net_gex_usd": -98416188.7104,
+            "node_type": "gatekeeper",
+            "rank": 2,
+            "relative_strength": 0.3554
+          },
+          {
+            "strike_usd": 718,
+            "net_gex_usd": 149689807.87200004,
+            "node_type": "king|call_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 719,
+            "net_gex_usd": 97032010.52160001,
+            "node_type": "gex_node|put_wall",
+            "rank": 3,
+            "relative_strength": 0.3407
+          },
+          {
+            "strike_usd": 720,
+            "net_gex_usd": 54041573.414400004,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.0589
+          }
+        ]
+      },
+      {
+        "ticker": "QQQ",
+        "snapshot_at": "2026-08-27T18:50:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 717.74,
+        "total_gex_usd": 192104855.1082,
+        "call_wall_usd": 718,
+        "put_wall_usd": 718,
+        "gamma_flip_usd": 717.3917512227346,
+        "nodes": [
+          {
+            "strike_usd": 714,
+            "net_gex_usd": -24030523.746799998,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.0042
+          },
+          {
+            "strike_usd": 717,
+            "net_gex_usd": -104770962.47080001,
+            "node_type": "gatekeeper",
+            "rank": 2,
+            "relative_strength": 0.3491
+          },
+          {
+            "strike_usd": 718,
+            "net_gex_usd": 162671629.64020002,
+            "node_type": "king|call_wall|put_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 719,
+            "net_gex_usd": 97646660.876,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.2826
+          },
+          {
+            "strike_usd": 720,
+            "net_gex_usd": 22274012.9996,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0.0034
+          }
+        ]
+      },
+      {
+        "ticker": "QQQ",
+        "snapshot_at": "2026-08-27T18:55:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 718.16,
+        "total_gex_usd": 230337640.00640005,
+        "call_wall_usd": 718,
+        "put_wall_usd": 718,
+        "gamma_flip_usd": 717.3636985104607,
+        "nodes": [
+          {
+            "strike_usd": 715,
+            "net_gex_usd": 18298005.821599998,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0.0014
+          },
+          {
+            "strike_usd": 717,
+            "net_gex_usd": -101441493.23039998,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.2404
+          },
+          {
+            "strike_usd": 718,
+            "net_gex_usd": 177474945.28319997,
+            "node_type": "king|call_wall|put_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 719,
+            "net_gex_usd": 104190343.99119999,
+            "node_type": "gatekeeper",
+            "rank": 2,
+            "relative_strength": 0.2605
+          },
+          {
+            "strike_usd": 720,
+            "net_gex_usd": 34384035.753599994,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.0094
+          }
+        ]
+      },
+      {
+        "ticker": "QQQ",
+        "snapshot_at": "2026-08-27T19:00:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 718.58,
+        "total_gex_usd": 270342665.76780015,
+        "call_wall_usd": 718,
+        "put_wall_usd": 719,
+        "gamma_flip_usd": 717.3154474003682,
+        "nodes": [
+          {
+            "strike_usd": 715,
+            "net_gex_usd": 13070747.440200001,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0.0005
+          },
+          {
+            "strike_usd": 717,
+            "net_gex_usd": -84043643.711,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.1248
+          },
+          {
+            "strike_usd": 718,
+            "net_gex_usd": 182383163.4616,
+            "node_type": "king|call_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 719,
+            "net_gex_usd": 111364766.7052,
+            "node_type": "gatekeeper|put_wall",
+            "rank": 2,
+            "relative_strength": 0.2905
+          },
+          {
+            "strike_usd": 720,
+            "net_gex_usd": 44752910.897,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.0189
+          }
+        ]
+      },
+      {
+        "ticker": "QQQ",
+        "snapshot_at": "2026-08-27T19:05:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 718.4649,
+        "total_gex_usd": 247817676.7302869,
+        "call_wall_usd": 718,
+        "put_wall_usd": 719,
+        "gamma_flip_usd": 717.3130134545331,
+        "nodes": [
+          {
+            "strike_usd": 715,
+            "net_gex_usd": 17310276.590958,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0.0009
+          },
+          {
+            "strike_usd": 717,
+            "net_gex_usd": -88041946.15957499,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.1211
+          },
+          {
+            "strike_usd": 718,
+            "net_gex_usd": 193230136.18878898,
+            "node_type": "king|call_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 719,
+            "net_gex_usd": 116482170.87125398,
+            "node_type": "gatekeeper|put_wall",
+            "rank": 2,
+            "relative_strength": 0.2804
+          },
+          {
+            "strike_usd": 720,
+            "net_gex_usd": 17949731.905904993,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.0022
+          }
+        ]
+      },
+      {
+        "ticker": "QQQ",
+        "snapshot_at": "2026-08-27T19:10:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 718.825,
+        "total_gex_usd": 255918721.77599993,
+        "call_wall_usd": 718,
+        "put_wall_usd": 719,
+        "gamma_flip_usd": 717.281272016245,
+        "nodes": [
+          {
+            "strike_usd": 717,
+            "net_gex_usd": -72839205.75725,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.0739
+          },
+          {
+            "strike_usd": 718,
+            "net_gex_usd": 186124365.2715,
+            "node_type": "king|call_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 719,
+            "net_gex_usd": 107592619.00949998,
+            "node_type": "gatekeeper|put_wall",
+            "rank": 2,
+            "relative_strength": 0.4005
+          },
+          {
+            "strike_usd": 720,
+            "net_gex_usd": 20682126.34725,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.0039
+          },
+          {
+            "strike_usd": 721,
+            "net_gex_usd": 11438741.29575,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0.0002
+          }
+        ]
+      },
+      {
+        "ticker": "QQQ",
+        "snapshot_at": "2026-08-27T19:15:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 718.87,
+        "total_gex_usd": 279570929.64839995,
+        "call_wall_usd": 718,
+        "put_wall_usd": 719,
+        "gamma_flip_usd": 717.2324377607538,
+        "nodes": [
+          {
+            "strike_usd": 717,
+            "net_gex_usd": -60738764.04000001,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.035
+          },
+          {
+            "strike_usd": 718,
+            "net_gex_usd": 200573183.91120002,
+            "node_type": "king|call_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 719,
+            "net_gex_usd": 89715134.1514,
+            "node_type": "gatekeeper|put_wall",
+            "rank": 2,
+            "relative_strength": 0.453
+          },
+          {
+            "strike_usd": 720,
+            "net_gex_usd": 32404502.990000002,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.0053
+          },
+          {
+            "strike_usd": 721,
+            "net_gex_usd": 12566142.3367,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0.0003
+          }
+        ]
+      },
+      {
+        "ticker": "QQQ",
+        "snapshot_at": "2026-08-27T19:20:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 719.01,
+        "total_gex_usd": 323882627.4036001,
+        "call_wall_usd": 718,
+        "put_wall_usd": 719,
+        "gamma_flip_usd": 717.2142386705357,
+        "nodes": [
+          {
+            "strike_usd": 717,
+            "net_gex_usd": -59444273.9817,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.0203
+          },
+          {
+            "strike_usd": 718,
+            "net_gex_usd": 218023252.4601,
+            "node_type": "king|call_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 719,
+            "net_gex_usd": 96315164.30250001,
+            "node_type": "gatekeeper|put_wall",
+            "rank": 2,
+            "relative_strength": 0.3998
+          },
+          {
+            "strike_usd": 720,
+            "net_gex_usd": 45372816.8757,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.009
+          },
+          {
+            "strike_usd": 721,
+            "net_gex_usd": 14186225.4822,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0.0003
+          }
+        ]
+      }
+    ],
+    "IWM": [
+      {
+        "ticker": "IWM",
+        "snapshot_at": "2026-08-27T18:05:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 299.555,
+        "total_gex_usd": 30429587.725200005,
+        "call_wall_usd": 300,
+        "put_wall_usd": 298,
+        "gamma_flip_usd": 299.4492154363138,
+        "nodes": [
+          {
+            "strike_usd": 297,
+            "net_gex_usd": -2854726.19895,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0
+          },
+          {
+            "strike_usd": 298,
+            "net_gex_usd": 30792876.047,
+            "node_type": "gex_node|put_wall",
+            "rank": 3,
+            "relative_strength": 0.0393
+          },
+          {
+            "strike_usd": 299,
+            "net_gex_usd": -38177005.65015,
+            "node_type": "gatekeeper",
+            "rank": 2,
+            "relative_strength": 0.0733
+          },
+          {
+            "strike_usd": 300,
+            "net_gex_usd": 46808955.57020001,
+            "node_type": "king|call_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 301,
+            "net_gex_usd": -5246076.7595,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.0002
+          }
+        ]
+      },
+      {
+        "ticker": "IWM",
+        "snapshot_at": "2026-08-27T18:10:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 299.47,
+        "total_gex_usd": 27259002.20050001,
+        "call_wall_usd": 300,
+        "put_wall_usd": 298,
+        "gamma_flip_usd": 299.4618040910465,
+        "nodes": [
+          {
+            "strike_usd": 297,
+            "net_gex_usd": -2989701.8457,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0
+          },
+          {
+            "strike_usd": 298,
+            "net_gex_usd": 30907816.553300004,
+            "node_type": "gex_node|put_wall",
+            "rank": 3,
+            "relative_strength": 0.0427
+          },
+          {
+            "strike_usd": 299,
+            "net_gex_usd": -38920396.942200005,
+            "node_type": "gatekeeper",
+            "rank": 2,
+            "relative_strength": 0.0843
+          },
+          {
+            "strike_usd": 300,
+            "net_gex_usd": 45358624.610000014,
+            "node_type": "king|call_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 301,
+            "net_gex_usd": -6212705.7949,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.0003
+          }
+        ]
+      },
+      {
+        "ticker": "IWM",
+        "snapshot_at": "2026-08-27T18:15:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 299.77,
+        "total_gex_usd": 17883327.92910001,
+        "call_wall_usd": 300,
+        "put_wall_usd": 300,
+        "gamma_flip_usd": 299.4602564957747,
+        "nodes": [
+          {
+            "strike_usd": 297,
+            "net_gex_usd": -2679970.7793,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0
+          },
+          {
+            "strike_usd": 298,
+            "net_gex_usd": 23224938.552199997,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.0166
+          },
+          {
+            "strike_usd": 299,
+            "net_gex_usd": -34149294.7864,
+            "node_type": "gatekeeper",
+            "rank": 2,
+            "relative_strength": 0.0492
+          },
+          {
+            "strike_usd": 300,
+            "net_gex_usd": 40046930.79630001,
+            "node_type": "king|call_wall|put_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 301,
+            "net_gex_usd": -7685686.1197,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.0006
+          }
+        ]
+      },
+      {
+        "ticker": "IWM",
+        "snapshot_at": "2026-08-27T18:20:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 299.515,
+        "total_gex_usd": 20012457.138150007,
+        "call_wall_usd": 300,
+        "put_wall_usd": 298,
+        "gamma_flip_usd": 299.48848560287166,
+        "nodes": [
+          {
+            "strike_usd": 297,
+            "net_gex_usd": -2983963.11475,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0
+          },
+          {
+            "strike_usd": 298,
+            "net_gex_usd": 27002643.038399998,
+            "node_type": "gex_node|put_wall",
+            "rank": 3,
+            "relative_strength": 0.0373
+          },
+          {
+            "strike_usd": 299,
+            "net_gex_usd": -39924244.28964999,
+            "node_type": "gatekeeper",
+            "rank": 2,
+            "relative_strength": 0.1115
+          },
+          {
+            "strike_usd": 300,
+            "net_gex_usd": 41806402.53995,
+            "node_type": "king|call_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 301,
+            "net_gex_usd": -4793824.434350001,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.0002
+          }
+        ]
+      },
+      {
+        "ticker": "IWM",
+        "snapshot_at": "2026-08-27T18:40:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 299.64,
+        "total_gex_usd": 17190134.055600002,
+        "call_wall_usd": 300,
+        "put_wall_usd": 298,
+        "gamma_flip_usd": 299.48578884513165,
+        "nodes": [
+          {
+            "strike_usd": 297,
+            "net_gex_usd": -2626464.456,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0
+          },
+          {
+            "strike_usd": 298,
+            "net_gex_usd": 24978011.3748,
+            "node_type": "gex_node|put_wall",
+            "rank": 3,
+            "relative_strength": 0.0275
+          },
+          {
+            "strike_usd": 299,
+            "net_gex_usd": -41776264.252799995,
+            "node_type": "gatekeeper",
+            "rank": 2,
+            "relative_strength": 0.1195
+          },
+          {
+            "strike_usd": 300,
+            "net_gex_usd": 44220490.6572,
+            "node_type": "king|call_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 301,
+            "net_gex_usd": -6764417.946,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.0005
+          }
+        ]
+      },
+      {
+        "ticker": "IWM",
+        "snapshot_at": "2026-08-27T18:45:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 299.81,
+        "total_gex_usd": 22792707.470399994,
+        "call_wall_usd": 300,
+        "put_wall_usd": 300,
+        "gamma_flip_usd": 299.3959479619813,
+        "nodes": [
+          {
+            "strike_usd": 297,
+            "net_gex_usd": -2413092.7394000003,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0
+          },
+          {
+            "strike_usd": 298,
+            "net_gex_usd": 16614633.7301,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.0063
+          },
+          {
+            "strike_usd": 299,
+            "net_gex_usd": -34080224.1794,
+            "node_type": "gatekeeper",
+            "rank": 2,
+            "relative_strength": 0.0493
+          },
+          {
+            "strike_usd": 300,
+            "net_gex_usd": 51992258.70159999,
+            "node_type": "king|call_wall|put_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 301,
+            "net_gex_usd": -8364123.3648,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.0007
+          }
+        ]
+      },
+      {
+        "ticker": "IWM",
+        "snapshot_at": "2026-08-27T18:55:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 299.905,
+        "total_gex_usd": 43588417.628750004,
+        "call_wall_usd": 300,
+        "put_wall_usd": 300,
+        "gamma_flip_usd": 299.2997731417415,
+        "nodes": [
+          {
+            "strike_usd": 297,
+            "net_gex_usd": -2227766.3172,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0
+          },
+          {
+            "strike_usd": 298,
+            "net_gex_usd": 15181464.013549998,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.0028
+          },
+          {
+            "strike_usd": 299,
+            "net_gex_usd": -29679546.499799993,
+            "node_type": "gatekeeper",
+            "rank": 2,
+            "relative_strength": 0.019
+          },
+          {
+            "strike_usd": 300,
+            "net_gex_usd": 69327143.4504,
+            "node_type": "king|call_wall|put_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 301,
+            "net_gex_usd": -8410853.7193,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.0004
+          }
+        ]
+      },
+      {
+        "ticker": "IWM",
+        "snapshot_at": "2026-08-27T19:00:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 300.0763,
+        "total_gex_usd": 59680812.96059801,
+        "call_wall_usd": 300,
+        "put_wall_usd": 300,
+        "gamma_flip_usd": 300.89751062653045,
+        "nodes": [
+          {
+            "strike_usd": 298,
+            "net_gex_usd": 13871402.062874999,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.0017
+          },
+          {
+            "strike_usd": 299,
+            "net_gex_usd": -22463519.769167997,
+            "node_type": "gatekeeper",
+            "rank": 2,
+            "relative_strength": 0.0068
+          },
+          {
+            "strike_usd": 300,
+            "net_gex_usd": 77855066.10367,
+            "node_type": "king|call_wall|put_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 301,
+            "net_gex_usd": -8890498.575198002,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.0004
+          },
+          {
+            "strike_usd": 302,
+            "net_gex_usd": -424334.89506700006,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0
+          }
+        ]
+      },
+      {
+        "ticker": "IWM",
+        "snapshot_at": "2026-08-27T19:05:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 299.925,
+        "total_gex_usd": 51725896.29224998,
+        "call_wall_usd": 300,
+        "put_wall_usd": 300,
+        "gamma_flip_usd": 299.28033891667803,
+        "nodes": [
+          {
+            "strike_usd": 298,
+            "net_gex_usd": 15738390.4185,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.0023
+          },
+          {
+            "strike_usd": 299,
+            "net_gex_usd": -26800188.277500004,
+            "node_type": "gatekeeper",
+            "rank": 2,
+            "relative_strength": 0.0109
+          },
+          {
+            "strike_usd": 300,
+            "net_gex_usd": 68799054.93524998,
+            "node_type": "king|call_wall|put_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 301,
+            "net_gex_usd": -5417458.296750001,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.0001
+          },
+          {
+            "strike_usd": 302,
+            "net_gex_usd": -425947.4865,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0
+          }
+        ]
+      },
+      {
+        "ticker": "IWM",
+        "snapshot_at": "2026-08-27T19:10:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 300.0191,
+        "total_gex_usd": 53907791.91092002,
+        "call_wall_usd": 300,
+        "put_wall_usd": 300,
+        "gamma_flip_usd": 299.25864934650093,
+        "nodes": [
+          {
+            "strike_usd": 298,
+            "net_gex_usd": 14124572.207180997,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.0021
+          },
+          {
+            "strike_usd": 299,
+            "net_gex_usd": -24779111.502998,
+            "node_type": "gatekeeper",
+            "rank": 2,
+            "relative_strength": 0.0105
+          },
+          {
+            "strike_usd": 300,
+            "net_gex_usd": 71022837.49945201,
+            "node_type": "king|call_wall|put_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 301,
+            "net_gex_usd": -5802579.407369999,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.0001
+          },
+          {
+            "strike_usd": 302,
+            "net_gex_usd": -409310.05774799996,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0
+          }
+        ]
+      },
+      {
+        "ticker": "IWM",
+        "snapshot_at": "2026-08-27T19:15:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 299.9414,
+        "total_gex_usd": 73804138.775004,
+        "call_wall_usd": 300,
+        "put_wall_usd": 300,
+        "gamma_flip_usd": 299.20063778338357,
+        "nodes": [
+          {
+            "strike_usd": 298,
+            "net_gex_usd": 14769210.517248,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.0022
+          },
+          {
+            "strike_usd": 299,
+            "net_gex_usd": -21419883.165384,
+            "node_type": "gatekeeper",
+            "rank": 2,
+            "relative_strength": 0.0063
+          },
+          {
+            "strike_usd": 300,
+            "net_gex_usd": 85339087.17488001,
+            "node_type": "king|call_wall|put_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 301,
+            "net_gex_usd": -4305658.797,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0.0001
+          },
+          {
+            "strike_usd": 302,
+            "net_gex_usd": -361057.45966399997,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0
+          }
+        ]
+      },
+      {
+        "ticker": "IWM",
+        "snapshot_at": "2026-08-27T19:20:00.000Z",
+        "session_date_et": "2026-08-27",
+        "state": "fresh",
+        "spot_usd": 299.99,
+        "total_gex_usd": 82048926.9446,
+        "call_wall_usd": 300,
+        "put_wall_usd": 300,
+        "gamma_flip_usd": 299.17478539118804,
+        "nodes": [
+          {
+            "strike_usd": 298,
+            "net_gex_usd": 14994481.167299999,
+            "node_type": null,
+            "rank": 3,
+            "relative_strength": 0.0019
+          },
+          {
+            "strike_usd": 299,
+            "net_gex_usd": -19088528.6945,
+            "node_type": "gatekeeper",
+            "rank": 2,
+            "relative_strength": 0.0037
+          },
+          {
+            "strike_usd": 300,
+            "net_gex_usd": 90122707.8096,
+            "node_type": "king|call_wall|put_wall",
+            "rank": 1,
+            "relative_strength": 1
+          },
+          {
+            "strike_usd": 301,
+            "net_gex_usd": -3536102.126,
+            "node_type": null,
+            "rank": 4,
+            "relative_strength": 0
+          },
+          {
+            "strike_usd": 302,
+            "net_gex_usd": -263649.21140000003,
+            "node_type": null,
+            "rank": 5,
+            "relative_strength": 0
+          }
+        ]
+      }
+    ]
+  },
+  "last_scanned_bucket_by_ticker": {
+    "SPY": "2026-08-27T19:20:00.000Z",
+    "QQQ": "2026-08-27T19:20:00.000Z",
+    "IWM": "2026-08-27T19:20:00.000Z"
+  },
+  "executed_signal_ids": [],
+  "orders": {},
+  "last_error": null,
+  "updated_at": "2026-08-27T22:47:37.319Z"
+}

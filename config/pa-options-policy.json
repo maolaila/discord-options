@@ -3,8 +3,9 @@
   "version": 1,
   "business_line": {
     "id": "pa-options",
-    "status": "active",
-    "description": "PA Discord option-following simulation. This line is not 0DTE."
+    "status": "disabled",
+    "disabled_reason": "manual_discord_signal_latency",
+    "description": "Retired PA Discord option-following simulation. New entries are permanently disabled; exit-only draining is allowed for legacy simulated positions."
   },
   "execution": {
     "broker": "moomoo_opend",

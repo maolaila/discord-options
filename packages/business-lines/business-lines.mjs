@@ -9,7 +9,7 @@ export const BUSINESS_LINES = Object.freeze({
     policyPath: path.join(PROJECT_ROOT, 'config', 'pa-options-policy.json'),
     logPrefix: 'pa-options',
     requiredAdviceFormat: 'pa',
-    enabled: true,
+    enabled: false,
     legacyLogPrefixes: ['moomoo'],
   }),
   'zero-dte-options': Object.freeze({

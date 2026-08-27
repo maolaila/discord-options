@@ -513,6 +513,20 @@ async function writeEntryStatus(payload) {
   await fsp.rename(tmp, entryStatusPath);
 }
 
+async function paEntryIsDisabled(config) {
+  const policyStatus = String(config.policy?.business_line?.status || '').trim().toLowerCase();
+  if (businessLine.enabled !== false && policyStatus !== 'disabled') return false;
+  await writeEntryStatus({
+    phase: 'disabled',
+    mode: 'disabled',
+    entry_allowed: false,
+    blocked_reasons: ['business_line_permanently_disabled'],
+    disabled_reason: config.policy?.business_line?.disabled_reason || null,
+  });
+  console.log('PA options entry is permanently disabled; no broker connection or order submission was attempted.');
+  return true;
+}
+
 function latestEntryAttemptAtMs(executionRows = []) {
   let latest = Number.NEGATIVE_INFINITY;
   for (const row of executionRows || []) {
@@ -1077,6 +1091,7 @@ async function processBatch(intents, signalMaps, config, mode, options = {}) {
 
 async function runOnce() {
   const config = loadMoomooConfig(moomooConfigOptionsForBusinessLine(businessLine, args));
+  if (await paEntryIsDisabled(config)) return;
   const mode = getMode(config);
   assertPaSimulationInvariants(config, mode);
   const connectionHolder = { connection: null };
@@ -1169,6 +1184,7 @@ function initialWatchOffset() {
 
 async function runWatch() {
   const config = loadMoomooConfig(moomooConfigOptionsForBusinessLine(businessLine, args));
+  if (await paEntryIsDisabled(config)) return;
   const mode = getMode(config);
   assertPaSimulationInvariants(config, mode);
   if (isTruthyFlag(args['from-start'])) throw new Error('--from-start is forbidden for the PA execution watcher.');

@@ -67,6 +67,7 @@ $paSupervisorPath = Join-Path $rootPath 'run-pa-options.ps1'
 $policyPath = Join-Path $rootPath 'config\zero-dte-options-policy.json'
 $junkMultiPolicyPath = Join-Path $rootPath 'config\junk-multi-options-policy.json'
 $paPolicyPath = Join-Path $rootPath 'config\pa-options-policy.json'
+$paExitStatusPath = Join-Path $logDirectory 'pa-options-exit-status.json'
 $envPath = Join-Path $rootPath '.env'
 $powershellPath = Join-Path $PSHOME 'powershell.exe'
 
@@ -561,7 +562,7 @@ function Assert-SimulationOnlyConfiguration {
   }
   if (-not (Test-Path -LiteralPath $paSupervisorPath -PathType Leaf) -or
       -not (Test-Path -LiteralPath $paPolicyPath -PathType Leaf)) {
-    throw 'The PA simulation supervisor or policy is missing.'
+    throw 'The retired PA exit-drain supervisor or policy is missing.'
   }
   if (-not (Test-Path -LiteralPath $moomooCheckScriptPath -PathType Leaf)) {
     throw 'apps/opend-check/moomoo-check.mjs is missing; JUNKMAN was not started.'
@@ -585,10 +586,10 @@ function Assert-SimulationOnlyConfiguration {
 
   $paPolicy = Get-Content -LiteralPath $paPolicyPath -Raw | ConvertFrom-Json
   if ($paPolicy.business_line.id -ne 'pa-options' -or
+      $paPolicy.business_line.status -ne 'disabled' -or
       $paPolicy.execution.environment -ne 'simulate_only' -or
-      [bool]$paPolicy.execution.real_trading_allowed -or
-      [double]$paPolicy.position_sizing.paper_equity_usd -ne 10000) {
-    throw 'The PA policy is not simulation-only with exactly $10,000 paper equity.'
+      [bool]$paPolicy.execution.real_trading_allowed) {
+    throw 'The PA policy must remain disabled and simulation-only.'
   }
 
   $junkMultiPolicy = Get-Content -LiteralPath $junkMultiPolicyPath -Raw | ConvertFrom-Json
@@ -1491,19 +1492,39 @@ function Ensure-JunkMultiSupervisor {
   return $true
 }
 
-function Ensure-PaSupervisor {
+function Test-PaExitDrainRequired {
+  if (-not (Test-Path -LiteralPath $paExitStatusPath -PathType Leaf)) { return $false }
+  try {
+    $status = Get-Content -LiteralPath $paExitStatusPath -Raw | ConvertFrom-Json
+    return (
+      [string]$status.business_line -eq 'pa-options' -and
+      ([bool]$status.active_pa_position -or
+       [bool]$status.unresolved_exit_submission -or
+       [int]$status.watched -gt 0)
+    )
+  } catch {
+    Set-ComponentState -Name 'pa_exit_drain' -State 'status_unreadable' -Detail $_.Exception.Message -Level 'WARN'
+    return $false
+  }
+}
+
+function Ensure-PaExitDrainSupervisor {
   Assert-SimulationOnlyConfiguration
   $supervisors = @(Get-RepositoryProcesses `
     -CommandLineToken 'run-pa-options.ps1' `
     -ProcessNames @('powershell.exe', 'pwsh.exe') `
     -ExactPowerShellFilePath $paSupervisorPath)
+  if (-not (Test-PaExitDrainRequired)) {
+    Set-ComponentState -Name 'pa_exit_drain' -State 'retired' -Detail 'new_entries_disabled=true; legacy_position=false'
+    return $true
+  }
   if ($supervisors.Count -gt 0) {
-    Set-ComponentState -Name 'pa_supervisor' -State 'healthy' -Detail "process_count=$($supervisors.Count); mode=simulate_only"
+    Set-ComponentState -Name 'pa_exit_drain' -State 'draining' -Detail "process_count=$($supervisors.Count); new_entries_disabled=true"
     return $true
   }
   $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-  $stdoutPath = Join-Path $logDirectory "pa-supervisor-stack-$stamp.stdout.log"
-  $stderrPath = Join-Path $logDirectory "pa-supervisor-stack-$stamp.stderr.log"
+  $stdoutPath = Join-Path $logDirectory "pa-exit-drain-stack-$stamp.stdout.log"
+  $stderrPath = Join-Path $logDirectory "pa-exit-drain-stack-$stamp.stderr.log"
   $null = Start-Process -FilePath $powershellPath -ArgumentList @(
     '-NoProfile','-ExecutionPolicy','Bypass','-File',('"{0}"' -f $paSupervisorPath)
   ) -WorkingDirectory $rootPath -WindowStyle Hidden `
@@ -1514,10 +1535,10 @@ function Ensure-PaSupervisor {
     -ProcessNames @('powershell.exe', 'pwsh.exe') `
     -ExactPowerShellFilePath $paSupervisorPath)
   if ($supervisors.Count -lt 1) {
-    Set-ComponentState -Name 'pa_supervisor' -State 'unavailable' -Detail 'launch_not_observed' -Level 'ERROR'
+    Set-ComponentState -Name 'pa_exit_drain' -State 'unavailable' -Detail 'launch_not_observed' -Level 'ERROR'
     return $false
   }
-  Set-ComponentState -Name 'pa_supervisor' -State 'healthy' -Detail 'mode=simulate_only; launch_confirmed=true'
+  Set-ComponentState -Name 'pa_exit_drain' -State 'draining' -Detail 'launch_confirmed=true; new_entries_disabled=true'
   return $true
 }
 
@@ -1726,9 +1747,9 @@ try {
         Set-ComponentState -Name 'junk_multi_supervisor' -State 'error' -Detail $_.Exception.Message -Level 'ERROR'
       }
       try {
-        $null = Ensure-PaSupervisor
+        $null = Ensure-PaExitDrainSupervisor
       } catch {
-        Set-ComponentState -Name 'pa_supervisor' -State 'error' -Detail $_.Exception.Message -Level 'ERROR'
+        Set-ComponentState -Name 'pa_exit_drain' -State 'error' -Detail $_.Exception.Message -Level 'ERROR'
       }
     } else {
       Set-JunkApiGateState

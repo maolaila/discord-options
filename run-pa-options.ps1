@@ -16,6 +16,7 @@ $policyPath = Join-Path $rootPath 'config\pa-options-policy.json'
 $envPath = Join-Path $rootPath '.env'
 $entryPath = Join-Path $rootPath 'apps\options-sim\moomoo-signal-trader.mjs'
 $exitPath = Join-Path $rootPath 'apps\options-sim\moomoo-exit-monitor.mjs'
+$exitStatusPath = Join-Path $logDirectory 'pa-options-exit-status.json'
 $supervisorLogPath = Join-Path $logDirectory 'pa-options-supervisor.log'
 
 New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
@@ -77,10 +78,35 @@ function Assert-PaSimulationOnly {
   $policy = Get-Content -LiteralPath $policyPath -Raw | ConvertFrom-Json
   if (
     $policy.business_line.id -ne 'pa-options' -or
+    $policy.business_line.status -notin @('active', 'disabled') -or
     $policy.execution.environment -ne 'simulate_only' -or
     [bool]$policy.execution.real_trading_allowed
   ) {
     throw 'The PA options policy is not simulation-only.'
+  }
+}
+
+function Get-PaPolicyStatus {
+  $policy = Get-Content -LiteralPath $policyPath -Raw | ConvertFrom-Json
+  return [string]$policy.business_line.status
+}
+
+function Test-PaExitDrainComplete {
+  if (-not (Test-Path -LiteralPath $exitStatusPath -PathType Leaf)) { return $false }
+  try {
+    $status = Get-Content -LiteralPath $exitStatusPath -Raw | ConvertFrom-Json
+    $updatedAt = [DateTimeOffset]::Parse([string]$status.updated_at)
+    $maximumAgeSeconds = [Math]::Max(120, $CheckIntervalSeconds * 4)
+    if (([DateTimeOffset]::UtcNow - $updatedAt).TotalSeconds -gt $maximumAgeSeconds) { return $false }
+    return (
+      [string]$status.business_line -eq 'pa-options' -and
+      [string]$status.phase -eq 'ok' -and
+      -not [bool]$status.active_pa_position -and
+      -not [bool]$status.unresolved_exit_submission -and
+      [int]$status.watched -eq 0
+    )
+  } catch {
+    return $false
   }
 }
 
@@ -160,12 +186,40 @@ $definitions = @{
 $children = @{}
 $attempts = @{ entry = 0; exit = 0 }
 $restartAfter = @{ entry = [DateTimeOffset]::MinValue; exit = [DateTimeOffset]::MinValue }
+$lastLoggedPolicyStatus = $null
 
 try {
-  Write-SupervisorLog 'PA options supervisor started; entry and exit are locked to simulation.'
+  Write-SupervisorLog 'PA options supervisor started; simulation-only policy will choose active or exit-drain mode.'
   while ($true) {
     Assert-PaSimulationOnly
+    $policyStatus = Get-PaPolicyStatus
+    $desiredNames = if ($policyStatus -eq 'active') { @('entry', 'exit') } else { @('exit') }
+    if ($policyStatus -ne $lastLoggedPolicyStatus) {
+      $modeLabel = if ($policyStatus -eq 'active') { 'entry_and_exit' } else { 'exit_only_drain' }
+      Write-SupervisorLog "PA policy status=$policyStatus; mode=$modeLabel"
+      $lastLoggedPolicyStatus = $policyStatus
+    }
+
     foreach ($name in @('entry', 'exit')) {
+      if ($name -in $desiredNames) { continue }
+      $child = $children[$name]
+      if ($null -ne $child) {
+        try {
+          $child.Refresh()
+          if (-not $child.HasExited) { Stop-Process -Id $child.Id -Force -ErrorAction SilentlyContinue }
+          $child.Dispose()
+        } catch { }
+        $children.Remove($name)
+        Write-SupervisorLog "$name stopped because PA policy status=$policyStatus"
+      }
+    }
+
+    if ($policyStatus -eq 'disabled' -and (Test-PaExitDrainComplete)) {
+      Write-SupervisorLog 'PA exit drain is complete; no position or unresolved exit remains. Supervisor will stop permanently.'
+      break
+    }
+
+    foreach ($name in $desiredNames) {
       $child = $children[$name]
       if ($null -ne $child) {
         $liveChild = Get-Process -Id $child.Id -ErrorAction SilentlyContinue

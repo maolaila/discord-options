@@ -141,7 +141,7 @@ test('entry quote blocks immediate round-trip loss beyond the option stop', () =
   assert.ok(quote.reasons.includes('immediate_round_trip_loss_pct_above_stop_loss:27.78>25'));
 });
 
-test('JUNKMAN remains the default while PA is an independent simulation-only business line', () => {
+test('JUNKMAN remains the default while retired PA aliases stay fail-closed', () => {
   assert.equal(path.basename(DEFAULT_POLICY_PATH), 'zero-dte-options-policy.json');
   const aliases = [undefined, '0dte', 'zero-dte', 'junk-gex', 'junkman'];
   for (const alias of aliases) {
@@ -164,7 +164,7 @@ test('JUNKMAN remains the default while PA is an independent simulation-only bus
   for (const alias of ['pa-options', 'pa', 'pa-option', 'pa-options-sim', 'options', 'options-sim', 'moomoo']) {
     const paLine = resolveBusinessLine(alias);
     assert.equal(paLine.key, 'pa-options');
-    assert.equal(paLine.enabled, true);
+    assert.equal(paLine.enabled, false);
     const paConfig = loadMoomooConfig({
       ...moomooConfigOptionsForBusinessLine(paLine, { env: './__missing_test_env__' }),
     });
@@ -172,6 +172,8 @@ test('JUNKMAN remains the default while PA is an independent simulation-only bus
     assert.equal(paConfig.requiredAdviceFormat, 'pa');
     assert.equal(paConfig.policyRealTradingAllowed, false);
     assert.equal(paConfig.policyExecutionEnvironment, 'simulate_only');
+    assert.equal(paConfig.policy.business_line.status, 'disabled');
+    assert.equal(paConfig.policy.business_line.disabled_reason, 'manual_discord_signal_latency');
     assert.equal(path.basename(paConfig.policyPath), 'pa-options-policy.json');
   }
   assert.equal(

@@ -169,7 +169,14 @@ All JUNKMAN state uses the `zero-dte-options` prefix:
 - `logs/zero-dte-options-oi-structure-background.json`: compact, non-directional OI research context used in decision audits.
 - `data/junk-oi-research/`: ignored local SQLite history and redacted daily source snapshots.
 
-Runtime data normally remains local. At explicit audit points, the repository may include a reviewed snapshot of `zero-dte-options-trades.ndjson`; other dynamic logs remain ignored. Trade records must not contain account IDs, API keys, Bearer values, cookies, or browser tokens.
+Raw runtime data remains local. Before every repository push, generate and include the latest public-safe review snapshot:
+
+```powershell
+npm run review:export
+git add review-data
+```
+
+The dated `review-data/` export contains redacted SPX and JUNKMAN-MULTI decisions, entry/exit plans when present, trades, experiment results, runtime/status snapshots, the MULTI universe, and redacted daily OI source files. Large cumulative decision streams are gzip-compressed. The manifest records source mappings, counts, hashes, and exclusions; an export with invalid lines must be investigated before publishing. Raw `logs/`, browser data, SQLite runtime files, credentials, account identifiers, and Discord identifiers must never be published directly.
 
 Strategy evidence, attributed source material, and engineering boundaries are documented in `docs/junkman-strategy-v3-evidence-2026-08-11.md`.
 

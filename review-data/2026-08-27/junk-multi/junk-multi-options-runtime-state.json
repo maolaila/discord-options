@@ -1,0 +1,181 @@
+{
+  "schema_version": 1,
+  "business_line": "junk-multi-options",
+  "strategy": "junk_gex_nodes_v3",
+  "session_date_et": "2026-08-27",
+  "universe": {
+    "refreshed_at": "2026-08-27T04:00:26.405Z",
+    "session_date_et": "2026-08-27",
+    "expected_rank_trading_date": "2026-08-26",
+    "rank_trading_date": "2026-08-26",
+    "top100_row_count": 100,
+    "nightwatch_working_set_count": 284,
+    "intersected_candidate_count": 85,
+    "probed_candidate_count": 85,
+    "finalists": [
+      {
+        "rank": 1,
+        "ticker": "SPY",
+        "market": 11,
+        "name": "标普500ETF-SPDR",
+        "total_volume": 6812834,
+        "total_open_interest": 19481346,
+        "put_call_volume_ratio_pct": 1.10115,
+        "put_call_open_interest_ratio_pct": 2.46978,
+        "iv_pct": 15.154,
+        "iv_rank_pct": 11.681,
+        "iv_percentile_pct": 12.301,
+        "underlying_price_usd": 766.08,
+        "change_rate_pct": 0.022195819352143202,
+        "market_cap_usd": 811456539425.28,
+        "nightwatch_supported": true,
+        "reserved_for_other_business_line": false,
+        "expiration": "2026-08-27",
+        "option_contract_count": 358,
+        "call_contract_count": 179,
+        "put_contract_count": 179,
+        "option_strike_step_points": 1,
+        "nightwatch_gate": "dealer-heatmap-working-set",
+        "zero_dte_chain_verified": true
+      },
+      {
+        "rank": 2,
+        "ticker": "QQQ",
+        "market": 11,
+        "name": "纳指100ETF-Invesco QQQ Trust",
+        "total_volume": 5007673,
+        "total_open_interest": 12064225,
+        "put_call_volume_ratio_pct": 1.12918,
+        "put_call_open_interest_ratio_pct": 1.21607,
+        "iv_pct": 21.257,
+        "iv_rank_pct": 24.808,
+        "iv_percentile_pct": 28.571,
+        "underlying_price_usd": 711.37,
+        "change_rate_pct": 0.0914565511031067,
+        "market_cap_usd": 484229559000,
+        "nightwatch_supported": true,
+        "reserved_for_other_business_line": false,
+        "expiration": "2026-08-27",
+        "option_contract_count": 332,
+        "call_contract_count": 166,
+        "put_contract_count": 166,
+        "option_strike_step_points": 1,
+        "nightwatch_gate": "dealer-heatmap-working-set",
+        "zero_dte_chain_verified": true
+      },
+      {
+        "rank": 7,
+        "ticker": "IWM",
+        "market": 11,
+        "name": "罗素2000ETF-iShares",
+        "total_volume": 878715,
+        "total_open_interest": 9504558,
+        "put_call_volume_ratio_pct": 1.3132,
+        "put_call_open_interest_ratio_pct": 2.51036,
+        "iv_pct": 19.324,
+        "iv_rank_pct": 8.494,
+        "iv_percentile_pct": 4.365,
+        "underlying_price_usd": 298.93,
+        "change_rate_pct": -0.10025732713965846,
+        "market_cap_usd": 80845618500,
+        "nightwatch_supported": true,
+        "reserved_for_other_business_line": false,
+        "expiration": "2026-08-27",
+        "option_contract_count": 166,
+        "call_contract_count": 83,
+        "put_contract_count": 83,
+        "option_strike_step_points": 1,
+        "nightwatch_gate": "dealer-heatmap-working-set",
+        "zero_dte_chain_verified": true
+      }
+    ],
+    "probe_errors": [
+      {
+        "ticker": "MU",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "MSFT",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "IBIT",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "TLT",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "GLD",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "SLV",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "AMD",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "GOOGL",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "PLTR",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "MSTR",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "AVGO",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "SOFI",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "XLE",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "HYG",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "GDX",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "TQQQ",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "ORCL",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "IREN",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "NKE",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      },
+      {
+        "ticker": "DRAM",
+        "error": "{\"retType\":-1,\"retMsg\":\"获取期权链频率太高，请求失败，每30秒最多10次。\",\"errCode\":0}"
+      }
+    ]
+  },
+  "gex_history_by_ticker": {},
+  "last_scanned_bucket_by_ticker": {},
+  "executed_signal_ids": [],
+  "orders": {},
+  "last_error": null,
+  "updated_at": "2026-08-27T11:59:30.353Z"
+}

@@ -1,10 +1,64 @@
 import assert from 'node:assert/strict';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
 
 import {
+  jsonSources,
+  ndjsonSources,
+  exportNdjson,
   sanitizeValue,
   stableRedaction,
 } from '../ops/export-review-data.mjs';
+
+test('review export preserves a BOM-prefixed first NDJSON record', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'review-export-'));
+  const source = path.join(directory, 'source.ndjson');
+  const destination = path.join(directory, 'destination.ndjson');
+  writeFileSync(source, `\uFEFF${JSON.stringify({ event: 'first' })}\n${JSON.stringify({ event: 'second' })}\n`);
+
+  const result = await exportNdjson({ source, destination });
+
+  assert.deepEqual(result, { record_count: 2, invalid_line_count: 0 });
+  assert.deepEqual(
+    readFileSync(destination, 'utf8').trim().split('\n').map(JSON.parse),
+    [{ event: 'first' }, { event: 'second' }],
+  );
+  rmSync(directory, { recursive: true, force: true });
+});
+
+test('review export includes complete SPX and MULTI review datasets', () => {
+  const ndjson = new Map(ndjsonSources.map(([source, output, gzip]) => [source, { output, gzip }]));
+  const json = new Map(jsonSources.map(([source, output]) => [source, output]));
+
+  for (const source of [
+    'logs/zero-dte-options-decisions.ndjson',
+    'logs/zero-dte-options-entry-plans.ndjson',
+    'logs/zero-dte-options-exit-plans.ndjson',
+    'logs/zero-dte-options-trades.ndjson',
+    'logs/zero-dte-options-experiment-events.ndjson',
+    'logs/junk-multi-options-decisions.ndjson',
+    'logs/junk-multi-options-entry-plans.ndjson',
+    'logs/junk-multi-options-exit-plans.ndjson',
+    'logs/junk-multi-options-trades.ndjson',
+  ]) {
+    assert.ok(ndjson.has(source), `missing review NDJSON source: ${source}`);
+  }
+  assert.equal(ndjson.get('logs/zero-dte-options-decisions.ndjson').gzip, true);
+  assert.equal(ndjson.get('logs/junk-multi-options-decisions.ndjson').gzip, true);
+
+  for (const source of [
+    'logs/zero-dte-options-runtime-state.json',
+    'logs/zero-dte-options-experiment-summary.json',
+    'logs/junk-multi-options-runtime-state.json',
+    'logs/junk-multi-options-status.json',
+    'logs/junk-multi-options-universe.json',
+    'logs/junk-multi-options-experiment-summary.json',
+  ]) {
+    assert.ok(json.has(source), `missing review JSON source: ${source}`);
+  }
+});
 
 test('review export redacts Discord ids embedded in composite keys while retaining broker ids', () => {
   const messageId = '123456789012345678';

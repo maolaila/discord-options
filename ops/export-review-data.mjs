@@ -107,7 +107,7 @@ async function sha256File(filePath) {
   return hash.digest('hex');
 }
 
-async function exportNdjson({ source, destination, gzip = false }) {
+export async function exportNdjson({ source, destination, gzip = false }) {
   await mkdir(path.dirname(destination), { recursive: true });
   const output = createWriteStream(destination, { encoding: 'utf8' });
   const encoder = gzip ? createGzip({ level: 9 }) : output;
@@ -122,7 +122,7 @@ async function exportNdjson({ source, destination, gzip = false }) {
       if (!line.trim()) continue;
       let parsed;
       try {
-        parsed = JSON.parse(line);
+        parsed = JSON.parse(line.replace(/^\uFEFF/, ''));
       } catch {
         invalidLineCount += 1;
         continue;
@@ -146,12 +146,18 @@ async function exportJson({ source, destination }) {
   return { record_count: 1, invalid_line_count: 0 };
 }
 
-const ndjsonSources = [
+export const ndjsonSources = [
   ['logs/zero-dte-options-decisions.ndjson', 'junk/zero-dte-options-decisions.ndjson.gz', true],
   ['logs/zero-dte-options-entry-plans.ndjson', 'junk/zero-dte-options-entry-plans.ndjson', false],
   ['logs/zero-dte-options-exit-plans.ndjson', 'junk/zero-dte-options-exit-plans.ndjson', false],
   ['logs/zero-dte-options-trades.ndjson', 'junk/zero-dte-options-trades.ndjson', false],
+  ['logs/zero-dte-options-experiment-events.ndjson', 'junk/zero-dte-options-experiment-events.ndjson', false],
+  ['logs/zero-dte-options-flow-events.ndjson', 'junk/zero-dte-options-flow-events.ndjson', false],
   ['logs/zero-dte-options-incidents.ndjson', 'junk/zero-dte-options-incidents.ndjson', false],
+  ['logs/junk-multi-options-decisions.ndjson', 'junk-multi/junk-multi-options-decisions.ndjson.gz', true],
+  ['logs/junk-multi-options-entry-plans.ndjson', 'junk-multi/junk-multi-options-entry-plans.ndjson', false],
+  ['logs/junk-multi-options-exit-plans.ndjson', 'junk-multi/junk-multi-options-exit-plans.ndjson', false],
+  ['logs/junk-multi-options-trades.ndjson', 'junk-multi/junk-multi-options-trades.ndjson', false],
   ['logs/pa-options-order-plans.ndjson', 'pa/pa-options-order-plans.ndjson.gz', true],
   ['logs/pa-options-executions.ndjson', 'pa/pa-options-executions.ndjson', false],
   ['logs/pa-options-exit-orders.ndjson', 'pa/pa-options-exit-orders.ndjson', false],
@@ -160,12 +166,16 @@ const ndjsonSources = [
   ['logs/moomoo-exit-orders.ndjson', 'legacy/moomoo-exit-orders.ndjson', false],
 ];
 
-const jsonSources = [
+export const jsonSources = [
   ['logs/zero-dte-options-runtime-state.json', 'junk/zero-dte-options-runtime-state.json'],
   ['logs/zero-dte-options-status.json', 'junk/zero-dte-options-status.json'],
   ['logs/zero-dte-options-post-deploy-summary.json', 'junk/zero-dte-options-post-deploy-summary.json'],
   ['logs/zero-dte-options-experiment-summary.json', 'junk/zero-dte-options-experiment-summary.json'],
   ['logs/zero-dte-options-oi-structure-background.json', 'junk/zero-dte-options-oi-structure-background.json'],
+  ['logs/junk-multi-options-runtime-state.json', 'junk-multi/junk-multi-options-runtime-state.json'],
+  ['logs/junk-multi-options-status.json', 'junk-multi/junk-multi-options-status.json'],
+  ['logs/junk-multi-options-universe.json', 'junk-multi/junk-multi-options-universe.json'],
+  ['logs/junk-multi-options-experiment-summary.json', 'junk-multi/junk-multi-options-experiment-summary.json'],
   ['logs/pa-options-exit-state.json', 'pa/pa-options-exit-state.json'],
   ['logs/pa-options-entry-status.json', 'pa/pa-options-entry-status.json'],
   ['logs/pa-options-exit-status.json', 'pa/pa-options-exit-status.json'],
@@ -256,6 +266,14 @@ async function main() {
     }
   }
 
+  const invalidLineCount = manifest.files.reduce(
+    (sum, item) => sum + Number(item.invalid_line_count || 0),
+    0,
+  );
+  if (invalidLineCount > 0) {
+    throw new Error(`Review export refused: ${invalidLineCount} invalid NDJSON line(s) would be omitted.`);
+  }
+
   manifest.files.sort((left, right) => left.output.localeCompare(right.output));
   await writeFile(
     path.join(outputRoot, 'manifest.json'),
@@ -267,7 +285,7 @@ async function main() {
     + `Generated from local runtime records at ${manifest.generated_at}. This export is designed for a public repository. Credentials, account identifiers, Discord identifiers, and local user paths are redacted.\n\n`
     + `Files: ${manifest.files.length}\n\n`
     + `Exported bytes: ${totalOutputBytes}\n\n`
-    + `The full JUNK decision stream is gzip-compressed NDJSON. Use \`gzip -dc <file>\` or a gzip-capable analysis tool. See \`manifest.json\` for source mapping, counts, hashes, and exclusions.\n`;
+    + `The cumulative SPX and MULTI decision streams are gzip-compressed NDJSON. Use \`gzip -dc <file>\` or a gzip-capable analysis tool. See \`manifest.json\` for source mapping, counts, hashes, and exclusions.\n`;
   await writeFile(path.join(outputRoot, 'README.md'), readme, 'utf8');
 
   console.log(JSON.stringify({

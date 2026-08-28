@@ -104,7 +104,7 @@ const experimentSummaryPath = businessLineLogPath(businessLine, 'experiment-summ
 const runtimeLockPath = businessLineLogPath(businessLine, 'runtime.lock.json');
 const sourceFlowEventsPath = path.resolve('logs', 'zero-dte-options-flow-events.ndjson');
 const sharedSpxStatePath = businessLineLogPath(resolveBusinessLine('zero-dte-options'), 'runtime-state.json');
-const POLL_MS = FLOW_HEATMAP_MODE ? 30_000 : 15_000;
+const POLL_MS = 15_000;
 const FIVE_MINUTE_MS = 300_000;
 
 function flag(value) {
@@ -126,6 +126,19 @@ function positiveNumber(value, fallback = null) {
 
 function sleep(delayMs) {
   return new Promise((resolve) => setTimeout(resolve, Math.max(0, delayMs)));
+}
+
+export function shouldPollFlowSource({
+  universe_present,
+  last_poll_at,
+  now_ms = Date.now(),
+  poll_interval_seconds = 30,
+} = {}) {
+  if (!universe_present) return true;
+  const lastPollMs = Date.parse(String(last_poll_at || ''));
+  if (!Number.isFinite(lastPollMs)) return true;
+  const intervalMs = Math.max(30_000, finiteNumber(poll_interval_seconds, 30) * 1_000);
+  return Number(now_ms) - lastPollMs >= intervalMs;
 }
 
 function sanitizedError(error) {
@@ -255,6 +268,7 @@ function defaultState() {
     strategy: JUNK_GEX_STRATEGY,
     session_date_et: null,
     universe: null,
+    last_flow_source_poll_at: null,
     gex_history_by_ticker: {},
     last_scanned_bucket_by_ticker: {},
     executed_signal_ids: [],
@@ -543,17 +557,34 @@ export function moomooUnderlyingCode(ticker) {
     : String(ticker || '').trim().toUpperCase();
 }
 
-async function sharedSpxMarketContext(nowMs) {
+async function sharedSpxMarketContext(client, nowMs) {
   const state = await parseJson(sharedSpxStatePath);
   if (!state?.market_context) throw new Error('shared_spx_market_context_missing');
   const builder = create_junk_gex_market_context({
     ...state.market_context,
+    // The SPX owner persists its live SPY feed on a heartbeat. A bounded
+    // allowance keeps complete 5-minute bars reusable without weakening the
+    // final current-price check, which is refreshed from OpenD below.
+    max_latest_spy_quote_age_ms: 20_000,
     now_ms: () => Number(nowMs),
   });
   const context = builder.build_market_context({ at_ms: Number(nowMs) });
+  const snapshot = await getSecuritySnapshots(client, [{
+    market: QOT_MARKET_US_SECURITY,
+    code: 'SPY',
+  }]);
+  const currentSpyPrice = positiveNumber(snapshot?.s2c?.snapshotList?.[0]?.basic?.curPrice);
+  const mappedCurrentPrice = currentSpyPrice !== null && positiveNumber(context.spy_to_spx_scale_ratio) !== null
+    ? currentSpyPrice * context.spy_to_spx_scale_ratio
+    : null;
   const latest = context.bars_5m?.at(-1) || null;
   return {
     ...context,
+    last_price_usd: mappedCurrentPrice === null ? context.last_price_usd : mappedCurrentPrice,
+    current_price_source: mappedCurrentPrice === null
+      ? 'shared_spx_owner_state'
+      : 'moomoo_spy_snapshot_mapped_to_spx',
+    current_spy_snapshot_price_usd: currentSpyPrice,
     expected_bucket_at: latest?.timestamp || null,
     latest_closed_bar_at: latest?.timestamp || null,
   };
@@ -561,7 +592,7 @@ async function sharedSpxMarketContext(nowMs) {
 
 async function ownSymbolMarketContext(client, ticker, sessionDateEt, nowMs) {
   if (FLOW_HEATMAP_MODE && String(ticker || '').toUpperCase() === 'SPX') {
-    return sharedSpxMarketContext(nowMs);
+    return sharedSpxMarketContext(client, nowMs);
   }
   const response = await requestHistoryKL(client, {
     market: QOT_MARKET_US_SECURITY,
@@ -816,7 +847,7 @@ async function optionSnapshot(quoteFeed, row) {
 
 async function currentUnderlyingPrice(client, ticker) {
   if (FLOW_HEATMAP_MODE && String(ticker || '').toUpperCase() === 'SPX') {
-    return positiveNumber((await sharedSpxMarketContext(Date.now())).last_price_usd);
+    return positiveNumber((await sharedSpxMarketContext(client, Date.now())).last_price_usd);
   }
   const response = await getSecuritySnapshots(client, [{
     market: QOT_MARKET_US_SECURITY,
@@ -1117,6 +1148,7 @@ export async function runJunkMultiLine(cliArgs = process.argv.slice(2)) {
         if (state.session_date_et !== schedule.date_key) {
           state.session_date_et = schedule.date_key;
           state.universe = null;
+          state.last_flow_source_poll_at = null;
           state.gex_history_by_ticker = {};
           state.last_scanned_bucket_by_ticker = {};
           state.executed_signal_ids = [];
@@ -1133,31 +1165,45 @@ export async function runJunkMultiLine(cliArgs = process.argv.slice(2)) {
 
         const requiredUniversePolicySignature = universePolicySignature(config.policy?.universe || {});
         if (FLOW_HEATMAP_MODE) {
-          const source = await readRecentUnusualFlowSeeds(sourceFlowEventsPath, {
-            session_date_et: schedule.date_key,
+          const flowPollIntervalMs = Math.max(
+            30_000,
+            finiteNumber(config.policy?.universe?.poll_interval_seconds, 30) * 1_000,
+          );
+          const flowPollDue = shouldPollFlowSource({
+            universe_present: Boolean(state.universe),
+            last_poll_at: state.last_flow_source_poll_at,
             now_ms: Date.now(),
-            max_event_age_ms: Math.max(
-              30_000,
-              finiteNumber(config.policy?.strategy?.flow_event_max_age_seconds, 300) * 1_000,
-            ),
+            poll_interval_seconds: flowPollIntervalMs / 1_000,
           });
-          if (
-            !state.universe
-            || state.universe.session_date_et !== schedule.date_key
-            || state.universe.policy_signature !== requiredUniversePolicySignature
-            || state.universe.source_signature !== source.source_signature
-          ) {
-            state.universe = await refreshFlowHeatmapUniverse({
-              client: connection.client,
-              nightwatch,
-              config,
-              sessionDateEt: schedule.date_key,
-              source,
-              previousUniverse: state.universe,
+          if (flowPollDue) {
+            const sourcePollAt = Date.now();
+            const source = await readRecentUnusualFlowSeeds(sourceFlowEventsPath, {
+              session_date_et: schedule.date_key,
+              now_ms: sourcePollAt,
+              max_event_age_ms: Math.max(
+                30_000,
+                finiteNumber(config.policy?.strategy?.flow_event_max_age_seconds, 300) * 1_000,
+              ),
             });
-            state.universe.policy_signature = requiredUniversePolicySignature;
-            await writeJson(universePath, state.universe);
-            await persist();
+            state.last_flow_source_poll_at = new Date(sourcePollAt).toISOString();
+            if (
+              !state.universe
+              || state.universe.session_date_et !== schedule.date_key
+              || state.universe.policy_signature !== requiredUniversePolicySignature
+              || state.universe.source_signature !== source.source_signature
+            ) {
+              state.universe = await refreshFlowHeatmapUniverse({
+                client: connection.client,
+                nightwatch,
+                config,
+                sessionDateEt: schedule.date_key,
+                source,
+                previousUniverse: state.universe,
+              });
+              state.universe.policy_signature = requiredUniversePolicySignature;
+              await writeJson(universePath, state.universe);
+              await persist();
+            }
           }
         } else if (
           !state.universe

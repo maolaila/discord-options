@@ -9,6 +9,7 @@ import {
   readRecentUnusualFlowSeeds,
   selectRecentUnusualFlowEvents,
 } from '../apps/junk-flow-heatmap-options/junk-flow-heatmap-source.mjs';
+import { shouldPollFlowSource } from '../apps/junk-multi-options/junk-multi-line.mjs';
 import { resolveBusinessLine } from '../packages/business-lines/business-lines.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -57,6 +58,21 @@ test('flow plus Heatmap line is deterministic simulation-only with seven $10k le
   assert.equal(policy.strategy.require_heatmap_confirmation, true);
   assert.equal(policy.exit_experiment.lines.length, 7);
   assert.ok(policy.exit_experiment.lines.every((line) => line.paper_equity_usd === 10_000));
+});
+
+test('Flow source cadence remains 30 seconds independently of the 15-second broker loop', () => {
+  const lastPollAt = '2026-08-28T14:50:00.000Z';
+  assert.equal(shouldPollFlowSource({ universe_present: false, last_poll_at: lastPollAt, now_ms: nowMs }), true);
+  assert.equal(shouldPollFlowSource({
+    universe_present: true,
+    last_poll_at: lastPollAt,
+    now_ms: Date.parse('2026-08-28T14:50:29.999Z'),
+  }), false);
+  assert.equal(shouldPollFlowSource({
+    universe_present: true,
+    last_poll_at: lastPollAt,
+    now_ms: Date.parse('2026-08-28T14:50:30.000Z'),
+  }), true);
 });
 
 test('crawler source accepts only fresh authenticated 0DTE ask-side alerts', () => {

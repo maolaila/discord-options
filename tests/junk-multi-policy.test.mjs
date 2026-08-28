@@ -94,6 +94,7 @@ test('JUNKMAN-MULTI policy is isolated, simulation-only, and has seven $10k virt
   assert.equal(policy.universe.zero_dte_chain_required, true);
   assert.equal(policy.universe.finalist_limit, 100);
   assert.equal(policy.universe.option_chain_probe_interval_ms, 3100);
+  assert.ok(policy.universe.underlying_history_probe_interval_ms >= 1000);
   assert.equal(policy.strategy.require_heatmap_snapshot, false);
   assert.equal(policy.evidence_gates.heatmap.missing_or_degraded_is_neutral, true);
   assert.equal(policy.execution_quality.require_open_interest_and_volume, false);

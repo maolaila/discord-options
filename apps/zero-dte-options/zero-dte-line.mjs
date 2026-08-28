@@ -71,6 +71,7 @@ import {
 import { open_junk_oi_research_store } from './junk-oi-research-store.mjs';
 import {
   JUNK_GEX_STRATEGY,
+  JUNK_FLOW_HEATMAP_BUSINESS_LINE,
   JUNK_MULTI_BUSINESS_LINE,
   ZERO_DTE_BUSINESS_LINE,
   assertZeroDteSimulationOnly,
@@ -123,6 +124,7 @@ const oi_research_db_path = path.join(PROJECT_ROOT, 'data', 'junk-oi-research', 
 const oi_research_raw_dir = path.join(PROJECT_ROOT, 'data', 'junk-oi-research', 'raw');
 const runtime_lock_path = businessLineLogPath(business_line, 'runtime.lock.json');
 const junk_multi_state_path = businessLineLogPath(resolveBusinessLine(JUNK_MULTI_BUSINESS_LINE), 'runtime-state.json');
+const junk_flow_heatmap_state_path = businessLineLogPath(resolveBusinessLine(JUNK_FLOW_HEATMAP_BUSINESS_LINE), 'runtime-state.json');
 const spy_security = Object.freeze({ market: QOT_MARKET_US_SECURITY, code: 'SPY' });
 const JUNK_MOOMOO_CONNECT_TIMEOUT_MS = 25_000;
 const JUNK_MOOMOO_ACCOUNTS_TIMEOUT_MS = 15_000;
@@ -1919,10 +1921,15 @@ async function broker_contract_conflict(runtime, code) {
   const multi_active_rows = Object.values(multi_state?.orders || {}).filter((row) => (
     !['closed', 'entry_unfilled_terminal'].includes(String(row?.status || ''))
   ));
+  const flow_heatmap_state = await read_json(junk_flow_heatmap_state_path, null);
+  const flow_heatmap_active_rows = Object.values(flow_heatmap_state?.orders || {}).filter((row) => (
+    !['closed', 'entry_unfilled_terminal'].includes(String(row?.status || ''))
+  ));
   const reasons = [];
   if (positions.length > 0) reasons.push('broker_contract_position_already_exists');
   if (pending_orders.length > 0) reasons.push('broker_contract_order_already_pending');
   if (multi_active_rows.length > 0) reasons.push('junk_multi_business_line_exposure_already_exists');
+  if (flow_heatmap_active_rows.length > 0) reasons.push('junk_flow_heatmap_business_line_exposure_already_exists');
   return { conflict: reasons.length > 0, reasons };
 }
 

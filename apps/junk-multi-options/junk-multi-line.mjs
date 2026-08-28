@@ -39,6 +39,7 @@ import {
 import { apply_junk_v3_evidence } from '../zero-dte-options/junk-trading-model-v2.mjs';
 import {
   JUNK_GEX_STRATEGY,
+  JUNK_FLOW_HEATMAP_BUSINESS_LINE,
   JUNK_MULTI_BUSINESS_LINE,
   assertZeroDteSimulationOnly,
   executeZeroDteSimulatedEntry,
@@ -72,12 +73,26 @@ import {
 import {
   buildTop100NightwatchCandidates,
   inferOptionStrikeStep,
+  nightwatchWorkingSetTickers,
   previousCompletedTradingDate,
   validateNightwatchTickerEvidence,
 } from './junk-multi-universe.mjs';
 import { buildMultiSymbolMarketContext } from './junk-multi-market-context.mjs';
+import { create_junk_gex_market_context } from '../zero-dte-options/junk-gex-market-context.mjs';
+import {
+  applyUnusualFlowHeatmapGate,
+  readRecentUnusualFlowSeeds,
+} from '../junk-flow-heatmap-options/junk-flow-heatmap-source.mjs';
 
-const businessLine = resolveBusinessLine(JUNK_MULTI_BUSINESS_LINE);
+const bootstrapArgs = parseCliArgs(process.argv.slice(2));
+const ACTIVE_BUSINESS_LINE = String(
+  process.env.JUNK_ACTIVE_BUSINESS_LINE || bootstrapArgs['business-line'] || JUNK_MULTI_BUSINESS_LINE,
+).trim().toLowerCase();
+const FLOW_HEATMAP_MODE = ACTIVE_BUSINESS_LINE === JUNK_FLOW_HEATMAP_BUSINESS_LINE;
+if (![JUNK_MULTI_BUSINESS_LINE, JUNK_FLOW_HEATMAP_BUSINESS_LINE].includes(ACTIVE_BUSINESS_LINE)) {
+  throw new Error(`Unsupported multi-symbol JUNKMAN runtime: ${ACTIVE_BUSINESS_LINE}`);
+}
+const businessLine = resolveBusinessLine(ACTIVE_BUSINESS_LINE);
 const statusPath = businessLineLogPath(businessLine, 'status.json');
 const statePath = businessLineLogPath(businessLine, 'runtime-state.json');
 const decisionsPath = businessLineLogPath(businessLine, 'decisions.ndjson');
@@ -87,7 +102,9 @@ const tradesPath = businessLineLogPath(businessLine, 'trades.ndjson');
 const universePath = businessLineLogPath(businessLine, 'universe.json');
 const experimentSummaryPath = businessLineLogPath(businessLine, 'experiment-summary.json');
 const runtimeLockPath = businessLineLogPath(businessLine, 'runtime.lock.json');
-const POLL_MS = 15_000;
+const sourceFlowEventsPath = path.resolve('logs', 'zero-dte-options-flow-events.ndjson');
+const sharedSpxStatePath = businessLineLogPath(resolveBusinessLine('zero-dte-options'), 'runtime-state.json');
+const POLL_MS = FLOW_HEATMAP_MODE ? 30_000 : 15_000;
 const FIVE_MINUTE_MS = 300_000;
 
 function flag(value) {
@@ -214,7 +231,7 @@ async function acquireRuntimeLock() {
   await ensureDir(path.dirname(runtimeLockPath));
   const existing = await parseJson(runtimeLockPath);
   if (existing?.process_id && processRunning(existing.process_id)) {
-    throw new Error(`JUNKMAN-MULTI is already running with pid=${existing.process_id}.`);
+    throw new Error(`${ACTIVE_BUSINESS_LINE} is already running with pid=${existing.process_id}.`);
   }
   await fsp.unlink(runtimeLockPath).catch(() => {});
   const token = randomUUID();
@@ -234,7 +251,7 @@ async function acquireRuntimeLock() {
 function defaultState() {
   return {
     schema_version: 1,
-    business_line: JUNK_MULTI_BUSINESS_LINE,
+    business_line: ACTIVE_BUSINESS_LINE,
     strategy: JUNK_GEX_STRATEGY,
     session_date_et: null,
     universe: null,
@@ -249,7 +266,7 @@ function defaultState() {
 
 function normalizeState(value) {
   const base = defaultState();
-  if (!value || value.business_line !== JUNK_MULTI_BUSINESS_LINE) return base;
+  if (!value || value.business_line !== ACTIVE_BUSINESS_LINE) return base;
   return {
     ...base,
     ...value,
@@ -300,6 +317,21 @@ function activeRows(state) {
   return Object.values(state.orders || {}).filter((row) => !['closed', 'entry_unfilled_terminal'].includes(row?.status));
 }
 
+async function activeOtherJunkRows() {
+  const lineIds = ['zero-dte-options', JUNK_MULTI_BUSINESS_LINE, JUNK_FLOW_HEATMAP_BUSINESS_LINE]
+    .filter((lineId) => lineId !== ACTIVE_BUSINESS_LINE);
+  const rows = [];
+  for (const lineId of lineIds) {
+    const line = resolveBusinessLine(lineId);
+    const state = await parseJson(businessLineLogPath(line, 'runtime-state.json'));
+    for (const row of Object.values(state?.orders || {})) {
+      if (['closed', 'entry_unfilled_terminal'].includes(row?.status)) continue;
+      rows.push({ business_line: lineId, ...row });
+    }
+  }
+  return rows;
+}
+
 function compactRow(row) {
   return {
     plan_id: row.plan_id,
@@ -316,7 +348,7 @@ function compactRow(row) {
 function configureForFinalists(baseConfig, finalists) {
   return {
     ...baseConfig,
-    businessLine: JUNK_MULTI_BUSINESS_LINE,
+    businessLine: ACTIVE_BUSINESS_LINE,
     trdEnv: TRD_ENV_SIMULATE,
     allowRealTrading: false,
     policyExecutionEnvironment: 'simulate_only',
@@ -410,10 +442,130 @@ async function refreshUniverse({ client, nightwatch, config, sessionDateEt }) {
   };
 }
 
+async function refreshFlowHeatmapUniverse({
+  client,
+  nightwatch,
+  config,
+  sessionDateEt,
+  source,
+  previousUniverse = null,
+}) {
+  const universePolicy = config.policy?.universe || {};
+  const cachedFinalists = new Map(
+    (previousUniverse?.session_date_et === sessionDateEt ? previousUniverse?.finalists : [])
+      .filter((row) => row?.nightwatch_supported === true && row?.zero_dte_chain_verified === true)
+      .map((row) => [String(row.ticker || '').toUpperCase(), row]),
+  );
+  const needsCoverageRefresh = (source?.seeds || []).some((seed) => !cachedFinalists.has(seed.ticker));
+  let coverage = new Set(cachedFinalists.keys());
+  let coverageCount = finiteNumber(previousUniverse?.nightwatch_working_set_count, coverage.size);
+  if (needsCoverageRefresh) {
+    const discoverResponse = await nightwatch.discover_datasets();
+    coverage = nightwatchWorkingSetTickers(
+      discoverResponse,
+      String(universePolicy.nightwatch_working_set || 'dealer-heatmap'),
+    );
+    coverageCount = coverage.size;
+  }
+  const finalists = [];
+  const probeErrors = [];
+  const candidates = (source?.seeds || []).filter((seed) => coverage.has(seed.ticker));
+  const probeIntervalMs = Math.max(
+    3_000,
+    finiteNumber(universePolicy.option_chain_probe_interval_ms, 3_100),
+  );
+  let previousProbeAt = null;
+  let optionChainProbeCount = 0;
+  for (const seed of candidates) {
+    const cached = cachedFinalists.get(seed.ticker);
+    if (cached) {
+      finalists.push({
+        ...cached,
+        ...seed,
+        expiration: sessionDateEt,
+        nightwatch_supported: true,
+        zero_dte_chain_verified: true,
+        option_chain_cache_hit: true,
+      });
+      continue;
+    }
+    try {
+      if (previousProbeAt !== null) {
+        await sleep(Math.max(0, probeIntervalMs - (Date.now() - previousProbeAt)));
+      }
+      previousProbeAt = Date.now();
+      optionChainProbeCount += 1;
+      const chain = await listOptionContracts(client, { ticker: seed.ticker, expiration: sessionDateEt });
+      const strikeStep = inferOptionStrikeStep(chain.contracts);
+      const callCount = chain.contracts.filter((row) => row.optionRight === 'C').length;
+      const putCount = chain.contracts.filter((row) => row.optionRight === 'P').length;
+      if (callCount < 1 || putCount < 1 || strikeStep === null) continue;
+      finalists.push({
+        ...seed,
+        expiration: sessionDateEt,
+        option_contract_count: chain.contracts.length,
+        call_contract_count: callCount,
+        put_contract_count: putCount,
+        option_strike_step_points: strikeStep,
+        nightwatch_gate: 'dealer-heatmap-working-set',
+        nightwatch_supported: true,
+        zero_dte_chain_verified: true,
+        option_chain_cache_hit: false,
+      });
+    } catch (error) {
+      probeErrors.push({ ticker: seed.ticker, error: sanitizedError(error) });
+    }
+  }
+  return {
+    refreshed_at: new Date().toISOString(),
+    session_date_et: sessionDateEt,
+    source: 'discord_nightwatch_0dte_flow_alert_plus_nightwatch_heatmap',
+    source_status: source?.source_status || 'unknown',
+    source_error: source?.source_error || null,
+    source_signature: source?.source_signature || 'missing',
+    source_tail_diagnostics: source?.tail_diagnostics || null,
+    observed_event_count: source?.observed_event_count || 0,
+    recent_live_event_count: source?.accepted?.length || 0,
+    rejected_event_count: source?.rejected?.length || 0,
+    nightwatch_working_set_count: coverageCount,
+    intersected_candidate_count: candidates.length,
+    probed_candidate_count: optionChainProbeCount,
+    option_chain_cache_hit_count: finalists.filter((row) => row.option_chain_cache_hit === true).length,
+    option_chain_probe_interval_ms: probeIntervalMs,
+    finalists,
+    probe_errors: probeErrors,
+  };
+}
+
+export function moomooUnderlyingCode(ticker) {
+  return String(ticker || '').trim().toUpperCase() === 'SPX'
+    ? '.SPX'
+    : String(ticker || '').trim().toUpperCase();
+}
+
+async function sharedSpxMarketContext(nowMs) {
+  const state = await parseJson(sharedSpxStatePath);
+  if (!state?.market_context) throw new Error('shared_spx_market_context_missing');
+  const builder = create_junk_gex_market_context({
+    ...state.market_context,
+    now_ms: () => Number(nowMs),
+  });
+  const context = builder.build_market_context({ at_ms: Number(nowMs) });
+  const latest = context.bars_5m?.at(-1) || null;
+  return {
+    ...context,
+    expected_bucket_at: latest?.timestamp || null,
+    latest_closed_bar_at: latest?.timestamp || null,
+  };
+}
+
 async function ownSymbolMarketContext(client, ticker, sessionDateEt, nowMs) {
+  if (FLOW_HEATMAP_MODE && String(ticker || '').toUpperCase() === 'SPX') {
+    return sharedSpxMarketContext(nowMs);
+  }
   const response = await requestHistoryKL(client, {
     market: QOT_MARKET_US_SECURITY,
-    code: ticker,
+    code: moomooUnderlyingCode(ticker),
   }, {
     klType: KL_TYPE_5MIN,
     beginTime: `${sessionDateEt} 09:30:00`,
@@ -457,12 +609,19 @@ async function evaluateTicker({ nightwatch, config, finalist, marketContext, his
   } catch (error) {
     heatmapFetchError = sanitizedError(error);
   }
+  const heatmapContext = heatmap_summary(heatmapResponse, {
+    now_ms: nowMs,
+    max_age_ms: config.policy?.strategy?.max_snapshot_age_ms,
+  });
   const evidenceBase = validateNightwatchTickerEvidence({
     ticker,
     session_date_et: finalist.expiration,
     expected_bucket_at: expectedBucketAt,
     gex_response: gexResponse,
-    heatmap_response: heatmapResponse,
+    // The current Heatmap schema does not expose a raw `data.state` field.
+    // Use the normalized context so freshness is evaluated from generated_at
+    // plus the response metadata instead of being misclassified as missing.
+    heatmap_response: heatmapContext,
     now_ms: nowMs,
     max_age_ms: config.policy?.strategy?.max_snapshot_age_ms,
     require_heatmap_snapshot: config.policy?.strategy?.require_heatmap_snapshot === true,
@@ -492,10 +651,6 @@ async function evaluateTicker({ nightwatch, config, finalist, marketContext, his
     });
     core = evaluate_junk_gex_strategy({ ...input, option_chain_snapshot: chainResponse });
   }
-  const heatmapContext = heatmap_summary(heatmapResponse, {
-    now_ms: nowMs,
-    max_age_ms: config.policy?.strategy?.max_snapshot_age_ms,
-  });
   let decision = apply_junk_v3_evidence({
     core_decision: core,
     heatmap_context: heatmapContext,
@@ -508,10 +663,19 @@ async function evaluateTicker({ nightwatch, config, finalist, marketContext, his
     now_ms: nowMs,
   });
   decision = hardNightwatchGate(decision, evidence);
+  if (FLOW_HEATMAP_MODE) {
+    decision = applyUnusualFlowHeatmapGate(decision, finalist, {
+      now_ms: nowMs,
+      max_event_age_ms: Math.max(
+        30_000,
+        finiteNumber(config.policy?.strategy?.flow_event_max_age_seconds, 300) * 1_000,
+      ),
+    });
+  }
   return {
     decision: {
       ...decision,
-      business_line: JUNK_MULTI_BUSINESS_LINE,
+      business_line: ACTIVE_BUSINESS_LINE,
       strategy: JUNK_GEX_STRATEGY,
       generated_at: new Date(nowMs).toISOString(),
       expiration: finalist.expiration,
@@ -520,8 +684,13 @@ async function evaluateTicker({ nightwatch, config, finalist, marketContext, his
         bars_5m: marketContext.bars_5m.slice(-20),
       },
       universe_provenance: {
-        top100_rank: finalist.rank,
-        top100_rank_trading_date: finalist.rank_trading_date || null,
+        source: FLOW_HEATMAP_MODE ? 'nightwatch_unusual_flow' : 'moomoo_options_volume_top100',
+        top100_rank: FLOW_HEATMAP_MODE ? null : finalist.rank,
+        top100_rank_trading_date: FLOW_HEATMAP_MODE ? null : (finalist.rank_trading_date || null),
+        flow_event_id: finalist.flow_event_id || null,
+        flow_message_id: finalist.flow_message_id || null,
+        flow_direction: finalist.flow_direction || null,
+        flow_strike_usd: finalist.flow_strike_usd || null,
         nightwatch_supported: true,
         same_day_zero_dte_chain_verified: true,
         option_strike_step_points: finalist.option_strike_step_points,
@@ -594,7 +763,7 @@ function entryRowFromExecution(plan, execution, now) {
 
 function variantOwnedPosition(row, variant) {
   return {
-    business_line: JUNK_MULTI_BUSINESS_LINE,
+    business_line: ACTIVE_BUSINESS_LINE,
     strategy: JUNK_GEX_STRATEGY,
     plan_id: row.plan_id,
     code: row.code,
@@ -618,7 +787,7 @@ function variantOwnedPosition(row, variant) {
 
 function aggregateOwnedPosition(row) {
   return {
-    business_line: JUNK_MULTI_BUSINESS_LINE,
+    business_line: ACTIVE_BUSINESS_LINE,
     strategy: JUNK_GEX_STRATEGY,
     plan_id: row.plan_id,
     experiment_id: row.experiment_ledger.experiment_id,
@@ -646,7 +815,13 @@ async function optionSnapshot(quoteFeed, row) {
 }
 
 async function currentUnderlyingPrice(client, ticker) {
-  const response = await getSecuritySnapshots(client, [{ market: QOT_MARKET_US_SECURITY, code: ticker }]);
+  if (FLOW_HEATMAP_MODE && String(ticker || '').toUpperCase() === 'SPX') {
+    return positiveNumber((await sharedSpxMarketContext(Date.now())).last_price_usd);
+  }
+  const response = await getSecuritySnapshots(client, [{
+    market: QOT_MARKET_US_SECURITY,
+    code: moomooUnderlyingCode(ticker),
+  }]);
   return positiveNumber(response?.s2c?.snapshotList?.[0]?.basic?.curPrice);
 }
 
@@ -767,7 +942,8 @@ async function reconcileRows({ client, config, quoteFeed, state, now, persist })
       const requestedQty = Object.values(allocations).reduce((sum, qty) => sum + Number(qty || 0), 0);
       if (requestedQty > 0) {
         const attemptNo = Number(row.exit_attempt_no || 0) + 1;
-        const remark = `junk_multi_exit:${String(row.plan_id).slice(-20)}:${attemptNo}`.slice(0, 60);
+        const remarkPrefix = FLOW_HEATMAP_MODE ? 'junk_flow_hm_exit' : 'junk_multi_exit';
+        const remark = `${remarkPrefix}:${String(row.plan_id).slice(-20)}:${attemptNo}`.slice(0, 60);
         row.experiment_ledger = begin_junk_experiment_exit_batch(row.experiment_ledger, {
           allocations,
           reason_by_line: reasonByLine,
@@ -780,7 +956,7 @@ async function reconcileRows({ client, config, quoteFeed, state, now, persist })
           option_snapshot: snapshot,
           requested_exit_qty: requestedQty,
           reason: Object.values(reasonByLine).join('|').slice(0, 200),
-          trigger_type: 'junk_multi_experiment_batch',
+          trigger_type: FLOW_HEATMAP_MODE ? 'junk_flow_heatmap_experiment_batch' : 'junk_multi_experiment_batch',
           order_type: marketExit ? 'market' : 'limit',
           config,
           now,
@@ -829,9 +1005,9 @@ async function reconcileRows({ client, config, quoteFeed, state, now, persist })
 async function writeStatus(payload) {
   await writeJson(statusPath, {
     updated_at: new Date().toISOString(),
-    business_line: JUNK_MULTI_BUSINESS_LINE,
+    business_line: ACTIVE_BUSINESS_LINE,
     strategy: JUNK_GEX_STRATEGY,
-    strategy_label: 'JUNKMAN-MULTI',
+    strategy_label: FLOW_HEATMAP_MODE ? 'JUNKMAN-FLOW-HEATMAP' : 'JUNKMAN-MULTI',
     execution_environment: 'simulate_only',
     real_trading_allowed: false,
     paper_equity_usd_per_line: 10_000,
@@ -874,12 +1050,12 @@ function experimentReport(manifest, state) {
 
 export async function runJunkMultiLine(cliArgs = process.argv.slice(2)) {
   const args = parseCliArgs(cliArgs);
-  if (flag(args['execute-real'])) throw new Error('JUNKMAN-MULTI is simulation-only.');
+  if (flag(args['execute-real'])) throw new Error(`${ACTIVE_BUSINESS_LINE} is simulation-only.`);
   const statusOnly = flag(args.status) && !flag(args.watch) && !flag(args['execute-simulate']) && !flag(args['dry-run']);
   if (statusOnly) {
     const status = await parseJson(statusPath) || {
       phase: 'not_started',
-      business_line: JUNK_MULTI_BUSINESS_LINE,
+      business_line: ACTIVE_BUSINESS_LINE,
       execution_environment: 'simulate_only',
       real_trading_allowed: false,
     };
@@ -892,7 +1068,7 @@ export async function runJunkMultiLine(cliArgs = process.argv.slice(2)) {
   assertZeroDteSimulationOnly(config);
   const manifest = load_junk_exit_experiment(config.policy);
   if (!manifest.enabled || manifest.line_count !== 7 || manifest.total_paper_equity_usd !== 70_000) {
-    throw new Error('JUNKMAN-MULTI requires exactly seven independent $10,000 virtual lines.');
+    throw new Error(`${ACTIVE_BUSINESS_LINE} requires exactly seven independent $10,000 virtual lines.`);
   }
   const executeSimulate = flag(args['execute-simulate']);
   const watch = flag(args.watch);
@@ -918,7 +1094,7 @@ export async function runJunkMultiLine(cliArgs = process.argv.slice(2)) {
     const accounts = await fetchMoomooAccounts(connection.client);
     const account = selectSimulatedUsOptionAccount(accounts);
     if (!account || Number(account.trdEnv) !== TRD_ENV_SIMULATE || Number(account.simAccType) !== 4) {
-      throw new Error('JUNKMAN-MULTI requires the authenticated simulated US options account (simAccType=4).');
+      throw new Error(`${ACTIVE_BUSINESS_LINE} requires the authenticated simulated US options account (simAccType=4).`);
     }
     config = { ...config, accId: String(account.accID), trdEnv: TRD_ENV_SIMULATE };
     quoteFeed = createMoomooQuoteFeed(connection.client, config);
@@ -956,7 +1132,34 @@ export async function runJunkMultiLine(cliArgs = process.argv.slice(2)) {
         });
 
         const requiredUniversePolicySignature = universePolicySignature(config.policy?.universe || {});
-        if (
+        if (FLOW_HEATMAP_MODE) {
+          const source = await readRecentUnusualFlowSeeds(sourceFlowEventsPath, {
+            session_date_et: schedule.date_key,
+            now_ms: Date.now(),
+            max_event_age_ms: Math.max(
+              30_000,
+              finiteNumber(config.policy?.strategy?.flow_event_max_age_seconds, 300) * 1_000,
+            ),
+          });
+          if (
+            !state.universe
+            || state.universe.session_date_et !== schedule.date_key
+            || state.universe.policy_signature !== requiredUniversePolicySignature
+            || state.universe.source_signature !== source.source_signature
+          ) {
+            state.universe = await refreshFlowHeatmapUniverse({
+              client: connection.client,
+              nightwatch,
+              config,
+              sessionDateEt: schedule.date_key,
+              source,
+              previousUniverse: state.universe,
+            });
+            state.universe.policy_signature = requiredUniversePolicySignature;
+            await writeJson(universePath, state.universe);
+            await persist();
+          }
+        } else if (
           !state.universe
           || state.universe.session_date_et !== schedule.date_key
           || state.universe.policy_signature !== requiredUniversePolicySignature
@@ -967,17 +1170,24 @@ export async function runJunkMultiLine(cliArgs = process.argv.slice(2)) {
             config,
             sessionDateEt: schedule.date_key,
           });
-          config = configureForFinalists(config, state.universe.finalists);
           await writeJson(universePath, state.universe);
           await persist();
-        } else {
-          config = configureForFinalists(config, state.universe.finalists || []);
         }
+        config = configureForFinalists(config, state.universe?.finalists || []);
 
         const decisions = [];
-        if (schedule.entry_open && activeRows(state).length === 0 && (await activeSpxRows()).length === 0) {
+        if (schedule.entry_open && activeRows(state).length === 0 && (await activeOtherJunkRows()).length === 0) {
+          let previousHistoryProbeAt = null;
           for (const finalist of state.universe.finalists || []) {
             try {
+              if (!FLOW_HEATMAP_MODE && previousHistoryProbeAt !== null) {
+                const intervalMs = Math.max(
+                  1_000,
+                  finiteNumber(config.policy?.universe?.underlying_history_probe_interval_ms, 1_100),
+                );
+                await sleep(Math.max(0, intervalMs - (Date.now() - previousHistoryProbeAt)));
+              }
+              previousHistoryProbeAt = Date.now();
               const marketContext = await ownSymbolMarketContext(
                 connection.client,
                 finalist.ticker,
@@ -986,8 +1196,9 @@ export async function runJunkMultiLine(cliArgs = process.argv.slice(2)) {
               );
               if (!marketContext.price_action_ready || marketContext.bars_5m.length < 1) continue;
               const bucket = marketContext.expected_bucket_at;
-              if (!bucket || state.last_scanned_bucket_by_ticker[finalist.ticker] === bucket) continue;
-              state.last_scanned_bucket_by_ticker[finalist.ticker] = bucket;
+              const scanKey = bucket;
+              if (!bucket || state.last_scanned_bucket_by_ticker[finalist.ticker] === scanKey) continue;
+              state.last_scanned_bucket_by_ticker[finalist.ticker] = scanKey;
               const evaluated = await evaluateTicker({
                 nightwatch,
                 config,
@@ -1002,7 +1213,7 @@ export async function runJunkMultiLine(cliArgs = process.argv.slice(2)) {
             } catch (error) {
               const decision = {
                 generated_at: new Date().toISOString(),
-                business_line: JUNK_MULTI_BUSINESS_LINE,
+                business_line: ACTIVE_BUSINESS_LINE,
                 strategy: JUNK_GEX_STRATEGY,
                 ticker: finalist.ticker,
                 decision: 'no_trade',
@@ -1037,7 +1248,7 @@ export async function runJunkMultiLine(cliArgs = process.argv.slice(2)) {
           plan = build_junk_experiment_cohort(plan, manifest);
           const releaseEntryLock = executeSimulate && plan.gate.passed
             ? await acquireSimulatedOptionsEntryLock({
-              business_line: JUNK_MULTI_BUSINESS_LINE,
+              business_line: ACTIVE_BUSINESS_LINE,
               signal_id: plan.signal?.signal_id,
             })
             : async () => {};

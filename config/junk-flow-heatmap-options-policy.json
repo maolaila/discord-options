@@ -1,10 +1,10 @@
 {
-  "name": "junk_man_top100_multi_0dte_simulation",
+  "name": "junk_man_unusual_flow_heatmap_0dte_simulation",
   "version": 1,
   "business_line": {
-    "id": "junk-multi-options",
+    "id": "junk-flow-heatmap-options",
     "status": "active_simulation",
-    "description": "Independent JUNKMAN multi-symbol 0DTE simulation. Moomoo options-volume Top100 seeds the universe; only current Nightwatch-supported tickers with a real same-day option chain can become finalists."
+    "description": "Independent JUNKMAN 0DTE simulation. Fresh authenticated Nightwatch unusual-flow alerts select candidates; the standard JUNKMAN GEX/closed-5m setup and an exact fresh Heatmap node confirmation are both required."
   },
   "execution": {
     "broker": "moomoo_opend",
@@ -17,31 +17,25 @@
   "provider": {
     "name": "nightwatch",
     "base_url": "https://api.yehangshe.com",
-    "api_key_env": "YEHANGSHE_API_KEY",
     "fixed_sample_interval_seconds": 300,
     "snapshot_min_interval_ms": 1000,
     "max_429_retries": 0,
     "request_timeout_ms": 10000
   },
   "universe": {
-    "source": "moomoo_opend_get_option_underlying_rank",
-    "rank_sort": "options_volume_desc",
-    "rank_count": 100,
-    "require_previous_completed_nyse_trading_date": true,
+    "source": "discord_nightwatch_0dte_flow_alert",
+    "source_file": "logs/zero-dte-options-flow-events.ndjson",
+    "poll_interval_seconds": 30,
     "nightwatch_working_set": "dealer-heatmap",
     "nightwatch_coverage_required": true,
     "zero_dte_chain_required": true,
-    "reserved_underlyings": ["SPX"],
-    "finalist_limit": 100,
-    "max_option_chain_probes": 100,
-    "option_chain_probe_interval_ms": 3100,
-    "underlying_history_probe_interval_ms": 1100,
-    "refresh_time_et": "08:45"
+    "option_chain_probe_interval_ms": 3100
   },
   "strategy": {
     "id": "junk_gex_nodes_v3",
-    "flow_dependency": "none",
+    "flow_dependency": "required_for_this_business_line",
     "manual_discord_flow_allowed": false,
+    "flow_event_max_age_seconds": 300,
     "allowed_snapshot_states": ["fresh"],
     "max_snapshot_age_ms": 600000,
     "require_exact_fixed_sample_bucket": true,
@@ -53,17 +47,17 @@
     "entry_start_time_et": "09:30",
     "entry_cutoff_time_et": "15:45",
     "cooldown_seconds": 0,
-    "require_heatmap_snapshot": false,
-    "require_heatmap_confirmation": false
+    "require_heatmap_snapshot": true,
+    "require_heatmap_confirmation": true
   },
   "evidence_gates": {
     "heatmap": {
       "enabled": true,
       "max_age_ms": 600000,
       "direction_from_price_reaction_only": true,
-      "missing_or_degraded_is_neutral": true,
-      "fresh_snapshot_required_for_entry": false,
-      "exact_node_confirmation_required": false
+      "missing_or_degraded_is_neutral": false,
+      "fresh_snapshot_required_for_entry": true,
+      "exact_node_confirmation_required": true
     },
     "contract_confirmation": {
       "source": "moomoo_execution_quote_with_nightwatch_directional_chain",
@@ -73,12 +67,9 @@
       "audit_max_age_ms": 600000,
       "require_bid_ask": true,
       "require_open_interest_and_volume": false,
-      "service_unavailable_is_neutral": true
+      "service_unavailable_is_neutral": false
     },
-    "oi_structure_background": {
-      "enabled": false,
-      "usage": "not_ported_from_spx"
-    }
+    "oi_structure_background": {"enabled": false, "usage": "not_ported_from_spx"}
   },
   "market_calendar": {
     "source": "cboe_us_options_2026",
@@ -95,7 +86,7 @@
   },
   "risk_limits": {
     "allowed_underlyings": [],
-    "allowed_underlyings_source": "validated_top100_nightwatch_0dte_finalists",
+    "allowed_underlyings_source": "fresh_flow_nightwatch_heatmap_0dte_finalists",
     "max_signal_age_seconds": 30,
     "max_gex_snapshot_age_seconds": 600,
     "max_future_clock_skew_seconds": 5,
@@ -114,48 +105,20 @@
   },
   "exit_experiment": {
     "enabled": true,
-    "experiment_id": "junk_multi_exit_grid_v1",
+    "experiment_id": "junk_flow_heatmap_exit_grid_v1",
     "version": 1,
     "paired_entry": true,
     "broker_execution_mode": "aggregate_single_position",
     "paper_equity_usd_per_line": 10000,
     "description": "Seven independent $10,000 virtual portfolios share one aggregate moomoo simulated position and differ only by fixed option stop/take-profit rules.",
     "lines": [
-      {
-        "line_id": "control_sl15_tp_off", "label": "Control SL15 TP off", "control": true,
-        "paper_equity_usd": 10000, "catastrophic_stop_loss_pct": 15,
-        "option_take_profit_enabled": false, "option_take_profit_pct": 25
-      },
-      {
-        "line_id": "sl10_tp_off", "label": "SL10 TP off", "control": false,
-        "paper_equity_usd": 10000, "catastrophic_stop_loss_pct": 10,
-        "option_take_profit_enabled": false, "option_take_profit_pct": 25
-      },
-      {
-        "line_id": "sl10_tp20", "label": "SL10 TP20", "control": false,
-        "paper_equity_usd": 10000, "catastrophic_stop_loss_pct": 10,
-        "option_take_profit_enabled": true, "option_take_profit_pct": 20
-      },
-      {
-        "line_id": "sl10_tp30", "label": "SL10 TP30", "control": false,
-        "paper_equity_usd": 10000, "catastrophic_stop_loss_pct": 10,
-        "option_take_profit_enabled": true, "option_take_profit_pct": 30
-      },
-      {
-        "line_id": "sl15_tp20", "label": "SL15 TP20", "control": false,
-        "paper_equity_usd": 10000, "catastrophic_stop_loss_pct": 15,
-        "option_take_profit_enabled": true, "option_take_profit_pct": 20
-      },
-      {
-        "line_id": "sl15_tp30", "label": "SL15 TP30", "control": false,
-        "paper_equity_usd": 10000, "catastrophic_stop_loss_pct": 15,
-        "option_take_profit_enabled": true, "option_take_profit_pct": 30
-      },
-      {
-        "line_id": "sl12p5_tp25", "label": "SL12.5 TP25", "control": false,
-        "paper_equity_usd": 10000, "catastrophic_stop_loss_pct": 12.5,
-        "option_take_profit_enabled": true, "option_take_profit_pct": 25
-      }
+      {"line_id":"control_sl15_tp_off","label":"Control SL15 TP off","control":true,"paper_equity_usd":10000,"catastrophic_stop_loss_pct":15,"option_take_profit_enabled":false,"option_take_profit_pct":25},
+      {"line_id":"sl10_tp_off","label":"SL10 TP off","control":false,"paper_equity_usd":10000,"catastrophic_stop_loss_pct":10,"option_take_profit_enabled":false,"option_take_profit_pct":25},
+      {"line_id":"sl10_tp20","label":"SL10 TP20","control":false,"paper_equity_usd":10000,"catastrophic_stop_loss_pct":10,"option_take_profit_enabled":true,"option_take_profit_pct":20},
+      {"line_id":"sl10_tp30","label":"SL10 TP30","control":false,"paper_equity_usd":10000,"catastrophic_stop_loss_pct":10,"option_take_profit_enabled":true,"option_take_profit_pct":30},
+      {"line_id":"sl15_tp20","label":"SL15 TP20","control":false,"paper_equity_usd":10000,"catastrophic_stop_loss_pct":15,"option_take_profit_enabled":true,"option_take_profit_pct":20},
+      {"line_id":"sl15_tp30","label":"SL15 TP30","control":false,"paper_equity_usd":10000,"catastrophic_stop_loss_pct":15,"option_take_profit_enabled":true,"option_take_profit_pct":30},
+      {"line_id":"sl12p5_tp25","label":"SL12.5 TP25","control":false,"paper_equity_usd":10000,"catastrophic_stop_loss_pct":12.5,"option_take_profit_enabled":true,"option_take_profit_pct":25}
     ]
   },
   "execution_quality": {
@@ -200,9 +163,10 @@
     "controlled_overnight": {"enabled": false}
   },
   "logging": {
-    "prefix": "junk-multi-options",
-    "strategy_label": "JUNKMAN-MULTI",
+    "prefix": "junk-flow-heatmap-options",
+    "strategy_label": "JUNKMAN-FLOW-HEATMAP",
     "separate_from_spx_junkman": true,
+    "separate_from_junk_multi": true,
     "separate_from_pa_options": true
   }
 }

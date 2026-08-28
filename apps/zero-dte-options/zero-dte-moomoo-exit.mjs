@@ -11,6 +11,7 @@ import {
 } from '../../packages/moomoo-opend/moomoo-opend.mjs';
 import {
   JUNK_GEX_STRATEGY,
+  JUNK_FLOW_HEATMAP_BUSINESS_LINE,
   JUNK_MULTI_BUSINESS_LINE,
   ZERO_DTE_BUSINESS_LINE,
   assertZeroDteSimulationOnly,
@@ -67,9 +68,10 @@ function expectedStrategy(config) {
 }
 
 function exitRemark(config, planId) {
-  const prefix = expectedBusinessLine(config) === JUNK_MULTI_BUSINESS_LINE
+  const line = expectedBusinessLine(config);
+  const prefix = line === JUNK_MULTI_BUSINESS_LINE
     ? 'junk_multi_exit'
-    : 'junk_gex_exit';
+    : (line === JUNK_FLOW_HEATMAP_BUSINESS_LINE ? 'junk_flow_hm_exit' : 'junk_gex_exit');
   return `${prefix}:${normalizedString(planId).slice(-20)}`.slice(0, 60);
 }
 

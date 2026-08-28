@@ -28,7 +28,7 @@ test('review export preserves a BOM-prefixed first NDJSON record', async () => {
   rmSync(directory, { recursive: true, force: true });
 });
 
-test('review export includes complete SPX and MULTI review datasets', () => {
+test('review export includes complete SPX, MULTI, and FLOW-HEATMAP review datasets', () => {
   const ndjson = new Map(ndjsonSources.map(([source, output, gzip]) => [source, { output, gzip }]));
   const json = new Map(jsonSources.map(([source, output]) => [source, output]));
 
@@ -42,11 +42,16 @@ test('review export includes complete SPX and MULTI review datasets', () => {
     'logs/junk-multi-options-entry-plans.ndjson',
     'logs/junk-multi-options-exit-plans.ndjson',
     'logs/junk-multi-options-trades.ndjson',
+    'logs/junk-flow-heatmap-options-decisions.ndjson',
+    'logs/junk-flow-heatmap-options-entry-plans.ndjson',
+    'logs/junk-flow-heatmap-options-exit-plans.ndjson',
+    'logs/junk-flow-heatmap-options-trades.ndjson',
   ]) {
     assert.ok(ndjson.has(source), `missing review NDJSON source: ${source}`);
   }
   assert.equal(ndjson.get('logs/zero-dte-options-decisions.ndjson').gzip, true);
   assert.equal(ndjson.get('logs/junk-multi-options-decisions.ndjson').gzip, true);
+  assert.equal(ndjson.get('logs/junk-flow-heatmap-options-decisions.ndjson').gzip, true);
 
   for (const source of [
     'logs/zero-dte-options-runtime-state.json',
@@ -55,6 +60,10 @@ test('review export includes complete SPX and MULTI review datasets', () => {
     'logs/junk-multi-options-status.json',
     'logs/junk-multi-options-universe.json',
     'logs/junk-multi-options-experiment-summary.json',
+    'logs/junk-flow-heatmap-options-runtime-state.json',
+    'logs/junk-flow-heatmap-options-status.json',
+    'logs/junk-flow-heatmap-options-universe.json',
+    'logs/junk-flow-heatmap-options-experiment-summary.json',
   ]) {
     assert.ok(json.has(source), `missing review JSON source: ${source}`);
   }

@@ -14,10 +14,12 @@ import { JUNK_GEX_MAX_AGE_MS } from './junk-gex-freshness.mjs';
 
 export const ZERO_DTE_BUSINESS_LINE = 'zero-dte-options';
 export const JUNK_MULTI_BUSINESS_LINE = 'junk-multi-options';
+export const JUNK_FLOW_HEATMAP_BUSINESS_LINE = 'junk-flow-heatmap-options';
 export const JUNK_GEX_STRATEGY = 'junk_gex_nodes_v3';
 const SUPPORTED_JUNK_BUSINESS_LINES = Object.freeze([
   ZERO_DTE_BUSINESS_LINE,
   JUNK_MULTI_BUSINESS_LINE,
+  JUNK_FLOW_HEATMAP_BUSINESS_LINE,
 ]);
 
 const DEFAULT_ALLOWED_UNDERLYINGS = Object.freeze(['SPX', 'SPY']);
@@ -604,7 +606,10 @@ export function buildZeroDteSimulatedEntryPlan({
     max_option_quote_age_ms: maxQuoteAgeMs,
   };
   const plannedAt = now.toISOString();
-  const remarkPrefix = expectedBusinessLine(config) === JUNK_MULTI_BUSINESS_LINE ? 'junk_multi' : 'junk_gex';
+  const line = expectedBusinessLine(config);
+  const remarkPrefix = line === JUNK_MULTI_BUSINESS_LINE
+    ? 'junk_multi'
+    : (line === JUNK_FLOW_HEATMAP_BUSINESS_LINE ? 'junk_flow_hm' : 'junk_gex');
   const remark = `${remarkPrefix}:${signal.signal_id}`.slice(0, 60);
   const exitRules = config?.policy?.exit_rules || {};
 

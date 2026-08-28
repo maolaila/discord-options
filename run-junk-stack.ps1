@@ -63,9 +63,11 @@ $openDAuthRecoverySensitivePaths = @(
 )
 $junkSupervisorPath = Join-Path $rootPath 'run-junk-gex.ps1'
 $junkMultiSupervisorPath = Join-Path $rootPath 'run-junk-multi.ps1'
+$junkFlowHeatmapSupervisorPath = Join-Path $rootPath 'run-junk-flow-heatmap.ps1'
 $paSupervisorPath = Join-Path $rootPath 'run-pa-options.ps1'
 $policyPath = Join-Path $rootPath 'config\zero-dte-options-policy.json'
 $junkMultiPolicyPath = Join-Path $rootPath 'config\junk-multi-options-policy.json'
+$junkFlowHeatmapPolicyPath = Join-Path $rootPath 'config\junk-flow-heatmap-options-policy.json'
 $paPolicyPath = Join-Path $rootPath 'config\pa-options-policy.json'
 $paExitStatusPath = Join-Path $logDirectory 'pa-options-exit-status.json'
 $envPath = Join-Path $rootPath '.env'
@@ -560,6 +562,10 @@ function Assert-SimulationOnlyConfiguration {
       -not (Test-Path -LiteralPath $junkMultiPolicyPath -PathType Leaf)) {
     throw 'The JUNKMAN-MULTI simulation supervisor or policy is missing.'
   }
+  if (-not (Test-Path -LiteralPath $junkFlowHeatmapSupervisorPath -PathType Leaf) -or
+      -not (Test-Path -LiteralPath $junkFlowHeatmapPolicyPath -PathType Leaf)) {
+    throw 'The JUNKMAN-FLOW-HEATMAP simulation supervisor or policy is missing.'
+  }
   if (-not (Test-Path -LiteralPath $paSupervisorPath -PathType Leaf) -or
       -not (Test-Path -LiteralPath $paPolicyPath -PathType Leaf)) {
     throw 'The retired PA exit-drain supervisor or policy is missing.'
@@ -603,6 +609,18 @@ function Assert-SimulationOnlyConfiguration {
     throw 'The JUNKMAN-MULTI policy is not simulation-only with seven $10,000 lines.'
   }
 
+  $junkFlowHeatmapPolicy = Get-Content -LiteralPath $junkFlowHeatmapPolicyPath -Raw | ConvertFrom-Json
+  if ($junkFlowHeatmapPolicy.business_line.id -ne 'junk-flow-heatmap-options' -or
+      $junkFlowHeatmapPolicy.execution.environment -ne 'simulate_only' -or
+      [bool]$junkFlowHeatmapPolicy.execution.real_trading_allowed -or
+      [bool]$junkFlowHeatmapPolicy.execution.ai_decisioning_allowed -or
+      @($junkFlowHeatmapPolicy.exit_experiment.lines).Count -ne 7 -or
+      @($junkFlowHeatmapPolicy.exit_experiment.lines | Where-Object {
+        [double]$_.paper_equity_usd -ne 10000
+      }).Count -ne 0) {
+    throw 'The JUNKMAN-FLOW-HEATMAP policy is not deterministic simulation-only with seven $10,000 lines.'
+  }
+
   $supervisorText = Get-Content -LiteralPath $junkSupervisorPath -Raw
   if ($supervisorText -notmatch '--execute-simulate' -or $supervisorText -match '--execute-real') {
     throw 'run-junk-gex.ps1 is not locked to --execute-simulate.'
@@ -610,6 +628,10 @@ function Assert-SimulationOnlyConfiguration {
   $multiSupervisorText = Get-Content -LiteralPath $junkMultiSupervisorPath -Raw
   if ($multiSupervisorText -notmatch '--execute-simulate' -or $multiSupervisorText -match '--execute-real') {
     throw 'run-junk-multi.ps1 is not locked to --execute-simulate.'
+  }
+  $flowHeatmapSupervisorText = Get-Content -LiteralPath $junkFlowHeatmapSupervisorPath -Raw
+  if ($flowHeatmapSupervisorText -notmatch '--execute-simulate' -or $flowHeatmapSupervisorText -match '--execute-real') {
+    throw 'run-junk-flow-heatmap.ps1 is not locked to --execute-simulate.'
   }
 }
 
@@ -1492,6 +1514,68 @@ function Ensure-JunkMultiSupervisor {
   return $true
 }
 
+function Start-JunkFlowHeatmapSupervisor {
+  $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+  $stdoutPath = Join-Path $logDirectory "junk-flow-heatmap-supervisor-stack-$stamp.stdout.log"
+  $stderrPath = Join-Path $logDirectory "junk-flow-heatmap-supervisor-stack-$stamp.stderr.log"
+  Write-StackLog -Message 'Starting the simulation-only JUNKMAN-FLOW-HEATMAP strategy supervisor.'
+  $null = Start-Process `
+    -FilePath $powershellPath `
+    -ArgumentList @(
+      '-NoProfile',
+      '-ExecutionPolicy',
+      'Bypass',
+      '-File',
+      ('"{0}"' -f $junkFlowHeatmapSupervisorPath)
+    ) `
+    -WorkingDirectory $rootPath `
+    -WindowStyle Hidden `
+    -RedirectStandardOutput $stdoutPath `
+    -RedirectStandardError $stderrPath `
+    -PassThru
+}
+
+function Ensure-JunkFlowHeatmapSupervisor {
+  Assert-SimulationOnlyConfiguration
+  $supervisors = @(
+    Get-RepositoryProcesses `
+      -CommandLineToken 'run-junk-flow-heatmap.ps1' `
+      -ProcessNames @('powershell.exe', 'pwsh.exe') `
+      -ExactPowerShellFilePath $junkFlowHeatmapSupervisorPath
+  )
+  if ($supervisors.Count -gt 0) {
+    Set-ComponentState -Name 'junk_flow_heatmap_supervisor' -State 'healthy' -Detail "process_count=$($supervisors.Count); mode=simulate_only"
+    return $true
+  }
+  $watchers = @(
+    Get-RepositoryProcesses `
+      -CommandLineToken 'apps\junk-flow-heatmap-options\junk-flow-heatmap-line.mjs' `
+      -ProcessNames @('node.exe')
+  )
+  if ($watchers.Count -gt 0) {
+    Set-ComponentState `
+      -Name 'junk_flow_heatmap_supervisor' `
+      -State 'orphan_watcher' `
+      -Detail 'a watcher is running; deferring supervisor launch to avoid a duplicate runtime' `
+      -Level 'WARN'
+    return $true
+  }
+  Start-JunkFlowHeatmapSupervisor
+  Start-Sleep -Seconds 3
+  $supervisors = @(
+    Get-RepositoryProcesses `
+      -CommandLineToken 'run-junk-flow-heatmap.ps1' `
+      -ProcessNames @('powershell.exe', 'pwsh.exe') `
+      -ExactPowerShellFilePath $junkFlowHeatmapSupervisorPath
+  )
+  if ($supervisors.Count -lt 1) {
+    Set-ComponentState -Name 'junk_flow_heatmap_supervisor' -State 'unavailable' -Detail 'launch_not_observed' -Level 'ERROR'
+    return $false
+  }
+  Set-ComponentState -Name 'junk_flow_heatmap_supervisor' -State 'healthy' -Detail 'mode=simulate_only; launch_confirmed=true'
+  return $true
+}
+
 function Test-PaExitDrainRequired {
   if (-not (Test-Path -LiteralPath $paExitStatusPath -PathType Leaf)) { return $false }
   try {
@@ -1573,6 +1657,21 @@ function Set-JunkApiGateState {
       -Level 'WARN' `
       -Message "Moomoo API health is unavailable; stopping $($multiSupervisors.Count) JUNKMAN-MULTI restart supervisor process(es) while leaving any existing watcher running."
     foreach ($supervisor in $multiSupervisors) {
+      Stop-Process -Id $supervisor.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+  }
+
+  $flowHeatmapSupervisors = @(
+    Get-RepositoryProcesses `
+      -CommandLineToken 'run-junk-flow-heatmap.ps1' `
+      -ProcessNames @('powershell.exe', 'pwsh.exe') `
+      -ExactPowerShellFilePath $junkFlowHeatmapSupervisorPath
+  )
+  if ($flowHeatmapSupervisors.Count -gt 0) {
+    Write-StackLog `
+      -Level 'WARN' `
+      -Message "Moomoo API health is unavailable; stopping $($flowHeatmapSupervisors.Count) JUNKMAN-FLOW-HEATMAP restart supervisor process(es) while leaving any existing watcher running."
+    foreach ($supervisor in $flowHeatmapSupervisors) {
       Stop-Process -Id $supervisor.ProcessId -Force -ErrorAction SilentlyContinue
     }
   }
@@ -1745,6 +1844,11 @@ try {
         $null = Ensure-JunkMultiSupervisor
       } catch {
         Set-ComponentState -Name 'junk_multi_supervisor' -State 'error' -Detail $_.Exception.Message -Level 'ERROR'
+      }
+      try {
+        $null = Ensure-JunkFlowHeatmapSupervisor
+      } catch {
+        Set-ComponentState -Name 'junk_flow_heatmap_supervisor' -State 'error' -Detail $_.Exception.Message -Level 'ERROR'
       }
       try {
         $null = Ensure-PaExitDrainSupervisor

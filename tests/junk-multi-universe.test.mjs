@@ -10,6 +10,7 @@ import {
 import {
   buildMultiSymbolMarketContext,
 } from '../apps/junk-multi-options/junk-multi-market-context.mjs';
+import { moomooUnderlyingCode } from '../apps/junk-multi-options/junk-multi-line.mjs';
 
 test('Top100 candidates require the previous completed trading date and Nightwatch coverage', () => {
   const result = buildTop100NightwatchCandidates({
@@ -99,4 +100,10 @@ test('own-symbol five-minute history produces closed bars and VWAP', () => {
   assert.equal(context.bars_5m.length, 2);
   assert.equal(context.last_price_usd, 102);
   assert.equal(context.vwap_usd, 101.666667);
+});
+
+test('moomoo uses its index code for SPX without changing ordinary tickers', () => {
+  assert.equal(moomooUnderlyingCode('SPX'), '.SPX');
+  assert.equal(moomooUnderlyingCode('spy'), 'SPY');
+  assert.equal(moomooUnderlyingCode('AAPL'), 'AAPL');
 });

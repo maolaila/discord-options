@@ -375,6 +375,10 @@ function statusPayload() {
   const captureStatus = readJson(path.join(logsDir, 'capture-status.json'));
   const junkStatus = readJson(path.join(logsDir, 'zero-dte-options-status.json'));
   const experimentSummary = readJson(path.join(logsDir, 'zero-dte-options-experiment-summary.json'));
+  const junkMultiStatus = readJson(path.join(logsDir, 'junk-multi-options-status.json'));
+  const junkMultiExperimentSummary = readJson(path.join(logsDir, 'junk-multi-options-experiment-summary.json'));
+  const junkFlowHeatmapStatus = readJson(path.join(logsDir, 'junk-flow-heatmap-options-status.json'));
+  const junkFlowHeatmapExperimentSummary = readJson(path.join(logsDir, 'junk-flow-heatmap-options-experiment-summary.json'));
   const runtimeLock = readJson(path.join(logsDir, 'zero-dte-options-runtime.lock.json'));
   const moomooCheck = redactMoomooCheck(readJson(path.join(logsDir, 'moomoo-check.json')));
   const captureHealth = deriveCaptureHealth(captureStatus, {
@@ -397,6 +401,10 @@ function statusPayload() {
     capture_health: captureHealth,
     junk_status: junkStatus,
     experiment_summary: experimentSummary,
+    junk_multi_status: junkMultiStatus,
+    junk_multi_experiment_summary: junkMultiExperimentSummary,
+    junk_flow_heatmap_status: junkFlowHeatmapStatus,
+    junk_flow_heatmap_experiment_summary: junkFlowHeatmapExperimentSummary,
     moomoo_check: moomooCheck,
     files: [
       fileInfo('logs/capture-status.json'),
@@ -409,6 +417,12 @@ function statusPayload() {
       fileInfo('logs/zero-dte-options-decisions.ndjson'),
       fileInfo('logs/zero-dte-options-entry-plans.ndjson'),
       fileInfo('logs/zero-dte-options-exit-plans.ndjson'),
+      fileInfo('logs/junk-multi-options-status.json'),
+      fileInfo('logs/junk-multi-options-runtime-state.json'),
+      fileInfo('logs/junk-multi-options-experiment-summary.json'),
+      fileInfo('logs/junk-flow-heatmap-options-status.json'),
+      fileInfo('logs/junk-flow-heatmap-options-runtime-state.json'),
+      fileInfo('logs/junk-flow-heatmap-options-experiment-summary.json'),
       fileInfo('logs/moomoo-check.json'),
     ],
     latest_flow_events: tailNdjson('logs/zero-dte-options-flow-events.ndjson', 10).reverse(),

@@ -587,9 +587,6 @@ function candidate_plan(candidate, nodes) {
   const risk_points = Math.abs(candidate.entry_usd - stop_underlying_usd);
   const reward_points = Math.abs(target.strike_usd - candidate.entry_usd);
   const reward_risk_ratio = risk_points > 0 ? reward_points / risk_points : 0;
-  if (reward_points <= risk_points) {
-    return { blocked_reason: 'structural_reward_not_greater_than_risk' };
-  }
   return {
     ...candidate,
     signal_type,
@@ -669,7 +666,6 @@ function compare_candidates(left, right) {
   const right_rank = finite_number(right.tested_node.rank) ?? Number.POSITIVE_INFINITY;
   return left_rank - right_rank
     || Math.abs(right.tested_node.net_gex_usd) - Math.abs(left.tested_node.net_gex_usd)
-    || right.reward_risk_ratio - left.reward_risk_ratio
     || left.tested_node.strike_usd - right.tested_node.strike_usd;
 }
 

@@ -1,6 +1,6 @@
 import fsp from 'node:fs/promises';
 import path from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import {
   KL_TYPE_5MIN,
@@ -87,7 +87,6 @@ const tradesPath = businessLineLogPath(businessLine, 'trades.ndjson');
 const universePath = businessLineLogPath(businessLine, 'universe.json');
 const experimentSummaryPath = businessLineLogPath(businessLine, 'experiment-summary.json');
 const runtimeLockPath = businessLineLogPath(businessLine, 'runtime.lock.json');
-const spxStatePath = businessLineLogPath(resolveBusinessLine('zero-dte-options'), 'runtime-state.json');
 const POLL_MS = 15_000;
 const FIVE_MINUTE_MS = 300_000;
 
@@ -145,6 +144,21 @@ function parseMinutes(value, fallback) {
   const hour = Number(match[1]);
   const minute = Number(match[2]);
   return hour >= 0 && hour < 24 && minute >= 0 && minute < 60 ? hour * 60 + minute : fallback;
+}
+
+function universePolicySignature(policy = {}) {
+  const identity = {
+    rank_count: finiteNumber(policy.rank_count, 100),
+    require_previous_completed_nyse_trading_date: policy.require_previous_completed_nyse_trading_date !== false,
+    nightwatch_working_set: String(policy.nightwatch_working_set || 'dealer-heatmap'),
+    nightwatch_coverage_required: policy.nightwatch_coverage_required !== false,
+    zero_dte_chain_required: policy.zero_dte_chain_required !== false,
+    reserved_underlyings: [...(policy.reserved_underlyings || [])].map(String).sort(),
+    finalist_limit: finiteNumber(policy.finalist_limit, 100),
+    max_option_chain_probes: finiteNumber(policy.max_option_chain_probes, 100),
+    option_chain_probe_interval_ms: finiteNumber(policy.option_chain_probe_interval_ms, 3_100),
+  };
+  return createHash('sha256').update(JSON.stringify(identity)).digest('hex').slice(0, 16);
 }
 
 function marketSchedule(policy, now = new Date()) {
@@ -344,9 +358,18 @@ async function refreshUniverse({ client, nightwatch, config, sessionDateEt }) {
     intersection.candidates.length,
     Math.max(1, finiteNumber(universePolicy.max_option_chain_probes, 100)),
   );
-  const finalistLimit = Math.max(1, finiteNumber(universePolicy.finalist_limit, 10));
+  const finalistLimit = Math.max(1, finiteNumber(universePolicy.finalist_limit, 100));
+  const optionChainProbeIntervalMs = Math.max(
+    3_000,
+    finiteNumber(universePolicy.option_chain_probe_interval_ms, 3_100),
+  );
+  let previousProbeAt = null;
   for (const candidate of intersection.candidates.slice(0, probeLimit)) {
     try {
+      if (previousProbeAt !== null) {
+        await sleep(Math.max(0, optionChainProbeIntervalMs - (Date.now() - previousProbeAt)));
+      }
+      previousProbeAt = Date.now();
       const chain = await listOptionContracts(client, { ticker: candidate.ticker, expiration: sessionDateEt });
       const strikeStep = inferOptionStrikeStep(chain.contracts);
       const callCount = chain.contracts.filter((row) => row.optionRight === 'C').length;
@@ -380,6 +403,8 @@ async function refreshUniverse({ client, nightwatch, config, sessionDateEt }) {
     nightwatch_working_set_count: intersection.nightwatch_working_set_count,
     intersected_candidate_count: intersection.candidates.length,
     probed_candidate_count: Math.min(probeLimit, intersection.candidates.length),
+    policy_signature: universePolicySignature(universePolicy),
+    option_chain_probe_interval_ms: optionChainProbeIntervalMs,
     finalists,
     probe_errors: probeErrors.slice(0, 20),
   };
@@ -424,11 +449,15 @@ function hardNightwatchGate(decision, evidence) {
 async function evaluateTicker({ nightwatch, config, finalist, marketContext, history, nowMs }) {
   const ticker = finalist.ticker;
   const expectedBucketAt = marketContext.expected_bucket_at;
-  const [gexResponse, heatmapResponse] = await Promise.all([
-    nightwatch.get_dealer_gex_snapshot(ticker),
-    nightwatch.get_heatmap_snapshot(ticker),
-  ]);
-  const evidence = validateNightwatchTickerEvidence({
+  const gexResponse = await nightwatch.get_dealer_gex_snapshot(ticker);
+  let heatmapResponse = null;
+  let heatmapFetchError = null;
+  try {
+    heatmapResponse = await nightwatch.get_heatmap_snapshot(ticker);
+  } catch (error) {
+    heatmapFetchError = sanitizedError(error);
+  }
+  const evidenceBase = validateNightwatchTickerEvidence({
     ticker,
     session_date_et: finalist.expiration,
     expected_bucket_at: expectedBucketAt,
@@ -436,7 +465,15 @@ async function evaluateTicker({ nightwatch, config, finalist, marketContext, his
     heatmap_response: heatmapResponse,
     now_ms: nowMs,
     max_age_ms: config.policy?.strategy?.max_snapshot_age_ms,
+    require_heatmap_snapshot: config.policy?.strategy?.require_heatmap_snapshot === true,
   });
+  const evidence = {
+    ...evidenceBase,
+    advisory_reasons: [...new Set([
+      ...(evidenceBase.advisory_reasons || []),
+      ...(heatmapFetchError ? [`heatmap_request_failed_neutral:${heatmapFetchError}`] : []),
+    ])],
+  };
   const currentHistory = [...(history || []), normalize_gex_snapshot(gexResponse)]
     .filter((row) => row.snapshot_at && row.session_date_et === finalist.expiration)
     .slice(-12);
@@ -489,13 +526,15 @@ async function evaluateTicker({ nightwatch, config, finalist, marketContext, his
         same_day_zero_dte_chain_verified: true,
         option_strike_step_points: finalist.option_strike_step_points,
       },
+      nightwatch_ticker_evidence: evidence,
     },
     history: currentHistory,
   };
 }
 
 function rankTradeDecisions(left, right) {
-  return finiteNumber(right?.reward_risk_ratio, 0) - finiteNumber(left?.reward_risk_ratio, 0)
+  return finiteNumber(left?.tested_node?.rank, 999) - finiteNumber(right?.tested_node?.rank, 999)
+    || Math.abs(finiteNumber(right?.tested_node?.net_gex_usd, 0)) - Math.abs(finiteNumber(left?.tested_node?.net_gex_usd, 0))
     || finiteNumber(left?.universe_provenance?.top100_rank, 999) - finiteNumber(right?.universe_provenance?.top100_rank, 999);
 }
 
@@ -509,21 +548,7 @@ function accountExposure(positions, orders) {
   };
 }
 
-async function activeSpxRows() {
-  const spxState = await parseJson(spxStatePath);
-  return Object.values(spxState?.orders || {}).filter((row) => (
-    ![
-      'closed',
-      'entry_unfilled_terminal',
-      'entry_cancelled',
-      'submit_failed',
-      'expired_settled_unpriced',
-      'expired_no_submission_evidence',
-    ].includes(String(row?.status || ''))
-  ));
-}
-
-async function scopedEntryExposure(positions, orders, contractCode) {
+export function scopedEntryExposure(positions, orders, contractCode) {
   const code = String(contractCode || '');
   const sameContractPositions = positions.filter((row) => (
     String(row?.code || '') === code && finiteNumber(row?.qty, 0) > 0
@@ -531,12 +556,10 @@ async function scopedEntryExposure(positions, orders, contractCode) {
   const sameContractOrders = orders.filter((row) => (
     String(row?.code || '') === code && !is_terminal_broker_order(row?.orderStatus)
   ));
-  const spxRows = await activeSpxRows();
   return {
-    clear: sameContractPositions.length === 0 && sameContractOrders.length === 0 && spxRows.length === 0,
+    clear: sameContractPositions.length === 0 && sameContractOrders.length === 0,
     same_contract_position_count: sameContractPositions.length,
     same_contract_pending_order_count: sameContractOrders.length,
-    spx_junkman_active_row_count: spxRows.length,
   };
 }
 
@@ -932,7 +955,12 @@ export async function runJunkMultiLine(cliArgs = process.argv.slice(2)) {
           persist,
         });
 
-        if (!state.universe || state.universe.session_date_et !== schedule.date_key) {
+        const requiredUniversePolicySignature = universePolicySignature(config.policy?.universe || {});
+        if (
+          !state.universe
+          || state.universe.session_date_et !== schedule.date_key
+          || state.universe.policy_signature !== requiredUniversePolicySignature
+        ) {
           state.universe = await refreshUniverse({
             client: connection.client,
             nightwatch,
@@ -956,7 +984,7 @@ export async function runJunkMultiLine(cliArgs = process.argv.slice(2)) {
                 schedule.date_key,
                 Date.now(),
               );
-              if (!marketContext.price_action_ready || marketContext.bars_5m.length < 3) continue;
+              if (!marketContext.price_action_ready || marketContext.bars_5m.length < 1) continue;
               const bucket = marketContext.expected_bucket_at;
               if (!bucket || state.last_scanned_bucket_by_ticker[finalist.ticker] === bucket) continue;
               state.last_scanned_bucket_by_ticker[finalist.ticker] = bucket;
@@ -1018,7 +1046,7 @@ export async function runJunkMultiLine(cliArgs = process.argv.slice(2)) {
               fetchOrderList(connection.client, config),
               fetchPositionList(connection.client, config),
             ]);
-            const exposure = await scopedEntryExposure(
+            const exposure = scopedEntryExposure(
               brokerRows(positionsResponse, 'positionList'),
               brokerRows(ordersResponse, 'orderList'),
               plan.order?.code,
@@ -1092,6 +1120,8 @@ export async function runJunkMultiLine(cliArgs = process.argv.slice(2)) {
             expected_rank_trading_date: state.universe.expected_rank_trading_date,
             rank_trading_date: state.universe.rank_trading_date,
             intersected_candidate_count: state.universe.intersected_candidate_count,
+            finalist_count: state.universe.finalists.length,
+            policy_signature: state.universe.policy_signature,
             finalists: state.universe.finalists.map((row) => ({
               ticker: row.ticker,
               top100_rank: row.rank,

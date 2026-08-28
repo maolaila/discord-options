@@ -90,7 +90,7 @@ function latestMarketContext(overrides = {}) {
   };
 }
 
-test('latest line admits a stable Heatmap-confirmed trend staircase without creating a signal', () => {
+test('latest line observes regime and lifecycle without creating or filtering a base signal', () => {
   const result = evaluate_junk_latest_line_entry({
     candidate: candidate({
       setup_type: 'breakout_retest',
@@ -104,12 +104,12 @@ test('latest line admits a stable Heatmap-confirmed trend staircase without crea
     now_ms: NOW,
   });
   assert.equal(result.participate, true);
-  assert.equal(result.classified_regime, 'trend_staircase');
-  assert.equal(result.lifecycle_state, 'tested_second_touch');
-  assert.deepEqual(result.reason_codes, ['latest_line_quality_filter_passed']);
+  assert.equal(result.classified_regime, 'breakout_retest');
+  assert.equal(result.lifecycle_state, 'second_touch_observed');
+  assert.deepEqual(result.reason_codes, ['base_v3_entry_shared_regime_lifecycle_observation_only']);
 });
 
-test('latest line fails closed on an unconfirmed Heatmap node or a consumed third touch', () => {
+test('unconfirmed Heatmap and repeated touches remain diagnostics and do not veto the latest line', () => {
   const base = {
     candidate: candidate({
       setup_type: 'breakout_retest',
@@ -121,8 +121,8 @@ test('latest line fails closed on an unconfirmed Heatmap node or a consumed thir
     now_ms: NOW,
   };
   const unconfirmed = evaluate_junk_latest_line_entry(base);
-  assert.equal(unconfirmed.participate, false);
-  assert.ok(unconfirmed.reason_codes.includes('latest_line_heatmap_exact_node_not_confirmed'));
+  assert.equal(unconfirmed.participate, true);
+  assert.equal(unconfirmed.diagnostics.heatmap_assessment, 'neutral');
 
   const consumed = evaluate_junk_latest_line_entry({
     ...base,
@@ -144,12 +144,12 @@ test('latest line fails closed on an unconfirmed Heatmap node or a consumed thir
       ],
     }),
   });
-  assert.equal(consumed.participate, false);
-  assert.equal(consumed.lifecycle_state, 'consumed');
-  assert.ok(consumed.reason_codes.includes('latest_line_node_consumed_three_or_more_touches'));
+  assert.equal(consumed.participate, true);
+  assert.equal(consumed.lifecycle_state, 'repeated_touch_observed');
+  assert.equal(consumed.diagnostics.node_touch_count, 3);
 });
 
-test('latest line recognizes a positive-Gamma range boundary moving inward to VWAP', () => {
+test('latest line records a node rejection without requiring positive Gamma or inward VWAP', () => {
   const bars = [
     {
       timestamp: '2026-08-10T14:50:00Z',
@@ -183,8 +183,8 @@ test('latest line recognizes a positive-Gamma range boundary moving inward to VW
     now_ms: NOW,
   });
   assert.equal(result.participate, true);
-  assert.equal(result.classified_regime, 'range_boundary');
-  assert.equal(result.lifecycle_state, 'fresh_first_touch');
+  assert.equal(result.classified_regime, 'node_rejection');
+  assert.equal(result.lifecycle_state, 'first_touch_observed');
 });
 
 test('fresh heatmap confirms only an exact ranked structure node regardless of GEX sign', () => {

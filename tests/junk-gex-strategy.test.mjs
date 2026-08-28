@@ -621,6 +621,18 @@ test('the confirmed retest wick defines the structural invalidation instead of a
   assert.equal(result.stop_underlying_usd, 4998.5);
 });
 
+test('a confirmed JUNKMAN node reaction is not vetoed by an invented reward-risk threshold', () => {
+  const bars_1m = bullish_bars.map((bar, index) => (
+    index === 2 ? { ...bar, low_usd: 4997 } : bar
+  ));
+  const result = evaluate_bullish({ market_context: bullish_context({ bars_1m }) });
+
+  assert.equal(result.decision, 'trade');
+  assert.ok(result.reward_risk_ratio < 1);
+  assert.equal(result.target_underlying_usd, 5010);
+  assert.equal(result.stop_underlying_usd, 4997);
+});
+
 test('a breakout impulse that starts on the destination side is rejected', () => {
   const bars_1m = bullish_bars.map((bar, index) => (
     index === 1

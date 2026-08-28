@@ -47,7 +47,7 @@ function basePlan(qty = 1) {
   };
 }
 
-test('manifest has seven base-entry lines plus one independently filtered latest line', () => {
+test('manifest has seven exit-grid lines plus one observation-only latest line sharing base entry', () => {
   const manifest = load_junk_exit_experiment(policy);
   assert.equal(manifest.enabled, true);
   assert.equal(manifest.line_count, 8);
@@ -59,6 +59,16 @@ test('manifest has seven base-entry lines plus one independently filtered latest
   const control = manifest.lines.find((line) => line.control);
   const latest = manifest.lines.find((line) => line.line_id === 'latest_regime_lifecycle');
   assert.equal(latest.entry_profile, 'latest_regime_lifecycle_v1');
+  assert.equal(policy.exit_experiment.latest_entry_profile.participation, 'base_v3_entry_always');
+  for (const removedGate of [
+    'minimum_node_samples',
+    'minimum_node_strength_ratio',
+    'minimum_structure_overlap_ratio',
+    'maximum_node_touches',
+    'minimum_relative_confirmation_volume',
+    'require_heatmap_confirmation',
+    'require_vwap_context',
+  ]) assert.equal(removedGate in policy.exit_experiment.latest_entry_profile, false);
   assert.equal(latest.exit_profile_hash, control.exit_profile_hash);
   assert.notEqual(latest.line_profile_hash, control.line_profile_hash);
 });

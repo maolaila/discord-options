@@ -131,29 +131,36 @@ export function validateNightwatchTickerEvidence({
   heatmap_response,
   now_ms = Date.now(),
   max_age_ms = 600_000,
+  require_heatmap_snapshot = true,
 } = {}) {
   const expectedTicker = normalizedTicker(ticker);
   const expectedSession = validDateKey(session_date_et);
   const gex = gex_response?.data || gex_response || {};
   const heatmap = heatmap_response?.data || heatmap_response || {};
   const reasons = [];
+  const heatmapReasons = [];
   const gexTicker = normalizedTicker(gex.ticker);
   const heatmapTicker = normalizedTicker(heatmap.ticker || ticker);
   const gexAt = gex.snapshot_at || gex.sample_at || gex.timestamp;
   const heatmapAt = heatmap.generated_at || heatmap.snapshot_at || heatmap.sample_at;
   if (!expectedTicker) reasons.push('ticker_missing');
   if (gexTicker !== expectedTicker) reasons.push(`gex_ticker_mismatch:${gexTicker || 'missing'}`);
-  if (heatmapTicker && heatmapTicker !== expectedTicker) reasons.push(`heatmap_ticker_mismatch:${heatmapTicker}`);
+  if (heatmapTicker && heatmapTicker !== expectedTicker) heatmapReasons.push(`heatmap_ticker_mismatch:${heatmapTicker}`);
   if (validDateKey(gex.session_date_et) !== expectedSession) reasons.push('gex_session_date_mismatch');
-  if (validDateKey(heatmap.session_date_et) !== expectedSession) reasons.push('heatmap_session_date_mismatch');
+  if (validDateKey(heatmap.session_date_et) !== expectedSession) heatmapReasons.push('heatmap_session_date_mismatch');
   if (String(gex.state || '').toLowerCase() !== 'fresh') reasons.push(`gex_state_not_fresh:${gex.state || 'missing'}`);
-  if (String(heatmap.state || '').toLowerCase() !== 'fresh') reasons.push(`heatmap_state_not_fresh:${heatmap.state || 'missing'}`);
-  for (const [label, value] of [['gex', gexAt], ['heatmap', heatmapAt]]) {
+  if (String(heatmap.state || '').toLowerCase() !== 'fresh') heatmapReasons.push(`heatmap_state_not_fresh:${heatmap.state || 'missing'}`);
+  for (const [label, value, target] of [['gex', gexAt, reasons], ['heatmap', heatmapAt, heatmapReasons]]) {
     const atMs = Date.parse(String(value || ''));
-    if (!Number.isFinite(atMs)) reasons.push(`${label}_timestamp_invalid`);
-    else if (Number(now_ms) - atMs > Number(max_age_ms)) reasons.push(`${label}_stale`);
-    else if (atMs > Number(now_ms) + 5_000) reasons.push(`${label}_from_future`);
-    if (!exactFixedSampleBucket(value, expected_bucket_at)) reasons.push(`${label}_fixed_sample_bucket_mismatch`);
+    if (!Number.isFinite(atMs)) target.push(`${label}_timestamp_invalid`);
+    else if (Number(now_ms) - atMs > Number(max_age_ms)) target.push(`${label}_stale`);
+    else if (atMs > Number(now_ms) + 5_000) target.push(`${label}_from_future`);
+    if (!exactFixedSampleBucket(value, expected_bucket_at)) target.push(`${label}_fixed_sample_bucket_mismatch`);
   }
-  return { passed: reasons.length === 0, reasons: [...new Set(reasons)] };
+  if (require_heatmap_snapshot) reasons.push(...heatmapReasons);
+  return {
+    passed: reasons.length === 0,
+    reasons: [...new Set(reasons)],
+    advisory_reasons: require_heatmap_snapshot ? [] : [...new Set(heatmapReasons)],
+  };
 }

@@ -32,8 +32,9 @@
     "nightwatch_coverage_required": true,
     "zero_dte_chain_required": true,
     "reserved_underlyings": ["SPX"],
-    "finalist_limit": 10,
+    "finalist_limit": 100,
     "max_option_chain_probes": 100,
+    "option_chain_probe_interval_ms": 3100,
     "refresh_time_et": "08:45"
   },
   "strategy": {
@@ -48,10 +49,10 @@
     "require_volume_confirmation": true,
     "option_expiry_days": 0,
     "option_strike_offset_steps": 1,
-    "entry_start_time_et": "09:35",
-    "entry_cutoff_time_et": "15:30",
+    "entry_start_time_et": "09:30",
+    "entry_cutoff_time_et": "15:45",
     "cooldown_seconds": 0,
-    "require_heatmap_snapshot": true,
+    "require_heatmap_snapshot": false,
     "require_heatmap_confirmation": false
   },
   "evidence_gates": {
@@ -59,8 +60,8 @@
       "enabled": true,
       "max_age_ms": 600000,
       "direction_from_price_reaction_only": true,
-      "missing_or_degraded_is_neutral": false,
-      "fresh_snapshot_required_for_entry": true,
+      "missing_or_degraded_is_neutral": true,
+      "fresh_snapshot_required_for_entry": false,
       "exact_node_confirmation_required": false
     },
     "contract_confirmation": {
@@ -70,8 +71,8 @@
       "allowed_states": ["fresh"],
       "audit_max_age_ms": 600000,
       "require_bid_ask": true,
-      "require_open_interest_and_volume": true,
-      "service_unavailable_is_neutral": false
+      "require_open_interest_and_volume": false,
+      "service_unavailable_is_neutral": true
     },
     "oi_structure_background": {
       "enabled": false,
@@ -160,19 +161,19 @@
     "quote_source": "opend_push_orderbook_with_snapshot_fallback",
     "require_bid_ask": true,
     "require_tick_size": true,
-    "require_open_interest_and_volume": true,
-    "min_bid_price": 0.05,
-    "max_spread_pct_of_mid": 20,
+    "require_open_interest_and_volume": false,
+    "min_bid_price": 0.01,
+    "max_spread_pct_of_mid": null,
     "max_spread_abs": null,
-    "max_round_trip_loss_pct": 25,
+    "max_round_trip_loss_pct": null,
     "buy_limit_basis": "ask_plus_slippage_buffer",
     "sell_estimate_basis": "bid_minus_slippage_buffer",
     "slippage_ticks": 1,
     "slippage_pct_of_spread": 0,
     "cap_qty_by_visible_ask": true,
     "max_qty_to_ask_volume_ratio": 1,
-    "min_open_interest": 100,
-    "min_option_day_volume": 100
+    "min_open_interest": 0,
+    "min_option_day_volume": 0
   },
   "exit_rules": {
     "price_basis": "option_entry_fill_price",

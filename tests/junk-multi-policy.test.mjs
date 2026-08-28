@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { load_junk_exit_experiment } from '../apps/zero-dte-options/junk-exit-experiment.mjs';
 import { buildZeroDteSimulatedEntryPlan } from '../apps/zero-dte-options/zero-dte-moomoo-executor.mjs';
 import { buildZeroDteSimulatedExplicitExitPlan } from '../apps/zero-dte-options/zero-dte-moomoo-exit.mjs';
+import { scopedEntryExposure } from '../apps/junk-multi-options/junk-multi-line.mjs';
 import { resolveBusinessLine } from '../packages/business-lines/business-lines.mjs';
 import { acquireSimulatedOptionsEntryLock } from '../packages/business-lines/simulated-options-entry-lock.mjs';
 
@@ -91,10 +92,33 @@ test('JUNKMAN-MULTI policy is isolated, simulation-only, and has seven $10k virt
   assert.equal(policy.execution.real_trading_allowed, false);
   assert.equal(policy.universe.nightwatch_coverage_required, true);
   assert.equal(policy.universe.zero_dte_chain_required, true);
+  assert.equal(policy.universe.finalist_limit, 100);
+  assert.equal(policy.universe.option_chain_probe_interval_ms, 3100);
+  assert.equal(policy.strategy.require_heatmap_snapshot, false);
+  assert.equal(policy.evidence_gates.heatmap.missing_or_degraded_is_neutral, true);
+  assert.equal(policy.execution_quality.require_open_interest_and_volume, false);
+  assert.equal(policy.execution_quality.min_open_interest, 0);
+  assert.equal(policy.execution_quality.min_option_day_volume, 0);
+  assert.equal(policy.execution_quality.max_spread_pct_of_mid, null);
+  assert.equal(policy.execution_quality.max_round_trip_loss_pct, null);
   const manifest = load_junk_exit_experiment(policy);
   assert.equal(manifest.line_count, 7);
   assert.equal(manifest.total_paper_equity_usd, 70_000);
   assert.ok(manifest.lines.every((line) => line.paper_equity_usd === 10_000));
+});
+
+test('an unrelated SPX or retired PA position does not become an invented MULTI entry veto', () => {
+  const unrelated = scopedEntryExposure([
+    { code: 'SPXW260825C07000000', qty: 8 },
+    { code: 'MRNA261120C185000', qty: 1 },
+  ], [], 'QQQ260825C00707000');
+  assert.equal(unrelated.clear, true);
+
+  const sameContract = scopedEntryExposure([
+    { code: 'QQQ260825C00707000', qty: 1 },
+  ], [], 'QQQ260825C00707000');
+  assert.equal(sameContract.clear, false);
+  assert.equal(sameContract.same_contract_position_count, 1);
 });
 
 test('multi-symbol entry and exit plans retain isolated ownership and remarks', () => {

@@ -69,6 +69,22 @@ test('Nightwatch ticker evidence requires matching ticker, session, freshness, a
   assert.equal(exactFixedSampleBucket('2026-08-25T14:39:59.000Z', '2026-08-25T14:35:00.000Z'), true);
 });
 
+test('Heatmap degradation is advisory when the sourced entry model treats it as neutral', () => {
+  const evidence = validateNightwatchTickerEvidence({
+    ticker: 'QQQ',
+    session_date_et: '2026-08-25',
+    expected_bucket_at: '2026-08-25T14:35:00.000Z',
+    now_ms: Date.parse('2026-08-25T14:42:00.000Z'),
+    require_heatmap_snapshot: false,
+    gex_response: { data: { ticker: 'QQQ', session_date_et: '2026-08-25', state: 'fresh', snapshot_at: '2026-08-25T14:35:00.000Z' } },
+    heatmap_response: null,
+  });
+  assert.equal(evidence.passed, true);
+  assert.deepEqual(evidence.reasons, []);
+  assert.ok(evidence.advisory_reasons.includes('heatmap_state_not_fresh:missing'));
+  assert.ok(evidence.advisory_reasons.includes('heatmap_timestamp_invalid'));
+});
+
 test('own-symbol five-minute history produces closed bars and VWAP', () => {
   const context = buildMultiSymbolMarketContext({
     s2c: { klList: [

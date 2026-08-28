@@ -67,19 +67,12 @@ function structure_overlap(left, right) {
 
 const LATEST_LINE_DEFAULTS = Object.freeze({
   entry_profile: 'latest_regime_lifecycle_v1',
-  minimum_node_samples: 2,
   node_sample_window: 3,
-  minimum_node_strength_ratio: 0.75,
-  minimum_structure_overlap_ratio: 0.5,
-  maximum_node_touches: 2,
-  minimum_relative_confirmation_volume: 0.8,
-  require_heatmap_confirmation: true,
-  require_vwap_context: true,
 });
 
-// Conservative participation filter for one virtual experiment line. It can
-// skip a base-v3 trade, but can never create one. Numeric thresholds are
-// explicit engineering hypotheses, not attributed JUNKMAN rules.
+// Regime/lifecycle fields are retained for replay and review only. They must
+// not veto a sourced base-v3 JUNKMAN entry unless a future, attributable rule
+// explicitly defines such a gate.
 export function evaluate_junk_latest_line_entry({
   candidate,
   gex_node_history,
@@ -91,7 +84,6 @@ export function evaluate_junk_latest_line_entry({
   const reasons = [];
   const tested_strike = finite_number(candidate?.tested_node?.strike_usd);
   const tested_sign = Math.sign(finite_number(candidate?.tested_node?.net_gex_usd) ?? 0);
-  const direction = canonical_direction(candidate?.direction);
   const setup_type = String(candidate?.setup_type || candidate?.regime || '').trim();
   const heatmap_assessment = candidate?.evidence_model?.heatmap?.assessment || null;
   const bars = (Array.isArray(market_context?.bars_5m) ? market_context.bars_5m : [])
@@ -101,14 +93,6 @@ export function evaluate_junk_latest_line_entry({
   const last_price_usd = finite_number(market_context?.last_price_usd ?? candidate?.last_price_usd);
 
   if (candidate?.decision !== 'trade') reasons.push('latest_line_requires_base_trade');
-  if (tested_strike === null || tested_sign === 0) reasons.push('latest_line_tested_node_invalid');
-  if (!direction) reasons.push('latest_line_direction_invalid');
-  if (resolved.require_heatmap_confirmation !== false && heatmap_assessment !== 'confirm') {
-    reasons.push('latest_line_heatmap_exact_node_not_confirmed');
-  }
-  if (resolved.require_vwap_context !== false && vwap_usd === null) {
-    reasons.push('latest_line_vwap_missing');
-  }
 
   const history = normalized_history(gex_node_history, candidate?.session_date_et, now_ms);
   const sample_window = history.slice(-Math.max(2, Number(resolved.node_sample_window) || 3));
@@ -122,41 +106,25 @@ export function evaluate_junk_latest_line_entry({
       net_gex_usd: node.net_gex_usd,
     } : null;
   }).filter(Boolean);
-  const minimum_node_samples = Math.max(2, Number(resolved.minimum_node_samples) || 2);
   const node_present_in_latest_sample = Boolean(
     sample_window.at(-1)?.nodes.some((row) => (
       Math.abs(Number(row.strike_usd) - tested_strike) <= 1e-6
       && Math.sign(Number(row.net_gex_usd)) === tested_sign
     )),
   );
-  if (node_samples.length < minimum_node_samples || !node_present_in_latest_sample) {
-    reasons.push('latest_line_node_not_stable_across_samples');
-  }
   const first_strength = Math.abs(finite_number(node_samples[0]?.net_gex_usd) ?? 0);
   const last_strength = Math.abs(finite_number(node_samples.at(-1)?.net_gex_usd) ?? 0);
   const node_strength_ratio = first_strength > 0 ? last_strength / first_strength : null;
-  if (
-    node_strength_ratio === null
-    || node_strength_ratio < Number(resolved.minimum_node_strength_ratio)
-  ) reasons.push('latest_line_node_decaying');
 
   const overlap_ratio = sample_window.length >= 2
     ? structure_overlap(sample_window.at(-2), sample_window.at(-1))
     : null;
-  if (
-    overlap_ratio === null
-    || overlap_ratio < Number(resolved.minimum_structure_overlap_ratio)
-  ) reasons.push('latest_line_structure_shuffle');
 
   const node_touch_count = tested_strike === null ? 0 : bars.filter((bar) => {
     const low = finite_number(bar?.low_usd);
     const high = finite_number(bar?.high_usd);
     return low !== null && high !== null && low <= tested_strike && high >= tested_strike;
   }).length;
-  if (node_touch_count < 1) reasons.push('latest_line_node_touch_missing');
-  if (node_touch_count > Number(resolved.maximum_node_touches)) {
-    reasons.push('latest_line_node_consumed_three_or_more_touches');
-  }
 
   const confirmation_at = timestamp_ms(candidate?.confirmation_bar_at);
   const confirmation_index = confirmation_at === null
@@ -171,38 +139,11 @@ export function evaluate_junk_latest_line_entry({
   const relative_confirmation_volume = confirmation_volume !== null && prior_volume_median > 0
     ? confirmation_volume / prior_volume_median
     : null;
-  if (
-    relative_confirmation_volume === null
-    || relative_confirmation_volume < Number(resolved.minimum_relative_confirmation_volume)
-  ) reasons.push('latest_line_relative_volume_weak_or_unknown');
-
-  const latest_snapshot = sample_window.at(-1) || null;
-  const positive_nodes = (latest_snapshot?.nodes || [])
-    .filter((node) => Number(node.net_gex_usd) > 0)
-    .map((node) => Number(node.strike_usd));
   let classified_regime = null;
   if (setup_type === 'breakout_retest') {
-    classified_regime = 'trend_staircase';
-    const vwap_aligned = direction === 'bullish'
-      ? last_price_usd !== null && vwap_usd !== null && last_price_usd >= vwap_usd
-      : last_price_usd !== null && vwap_usd !== null && last_price_usd <= vwap_usd;
-    if (!vwap_aligned) reasons.push('latest_line_trend_not_vwap_aligned');
+    classified_regime = 'breakout_retest';
   } else if (setup_type === 'node_rejection') {
-    classified_regime = 'range_boundary';
-    if (tested_sign <= 0) reasons.push('latest_line_range_boundary_not_positive_gamma');
-    const has_positive_below = last_price_usd !== null
-      && positive_nodes.some((strike) => strike < last_price_usd);
-    const has_positive_above = last_price_usd !== null
-      && positive_nodes.some((strike) => strike > last_price_usd);
-    if (!has_positive_below || !has_positive_above) {
-      reasons.push('latest_line_range_not_bracketed_by_positive_nodes');
-    }
-    const vwap_inward = direction === 'bullish'
-      ? vwap_usd !== null && tested_strike !== null && vwap_usd > tested_strike
-      : vwap_usd !== null && tested_strike !== null && vwap_usd < tested_strike;
-    if (!vwap_inward) reasons.push('latest_line_range_target_not_inward_to_vwap');
-  } else {
-    reasons.push('latest_line_regime_unclassified');
+    classified_regime = 'node_rejection';
   }
 
   const participate = reasons.length === 0;
@@ -213,12 +154,15 @@ export function evaluate_junk_latest_line_entry({
     participate,
     decision: participate ? 'trade' : 'no_trade',
     classified_regime,
-    lifecycle_state: node_touch_count <= 1 ? 'fresh_first_touch'
-      : (node_touch_count === 2 ? 'tested_second_touch' : 'consumed'),
-    reason_codes: participate ? ['latest_line_quality_filter_passed'] : unique_strings(reasons),
+    lifecycle_state: node_touch_count <= 1 ? 'first_touch_observed'
+      : (node_touch_count === 2 ? 'second_touch_observed' : 'repeated_touch_observed'),
+    reason_codes: participate
+      ? ['base_v3_entry_shared_regime_lifecycle_observation_only']
+      : unique_strings(reasons),
     diagnostics: {
       heatmap_assessment,
       node_sample_count: node_samples.length,
+      node_present_in_latest_sample,
       node_strength_ratio: node_strength_ratio === null ? null : Number(node_strength_ratio.toFixed(4)),
       structure_overlap_ratio: overlap_ratio === null ? null : Number(overlap_ratio.toFixed(4)),
       node_touch_count,

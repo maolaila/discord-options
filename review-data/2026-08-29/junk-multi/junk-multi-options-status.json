@@ -1,0 +1,1018 @@
+{
+  "updated_at": "2026-08-28T15:14:57.389Z",
+  "business_line": "junk-multi-options",
+  "strategy": "junk_gex_nodes_v3",
+  "strategy_label": "JUNKMAN-MULTI",
+  "execution_environment": "simulate_only",
+  "real_trading_allowed": false,
+  "paper_equity_usd_per_line": 10000,
+  "line_count": 7,
+  "phase": "watching_simulation",
+  "mode": "execute_simulate",
+  "process_id": 64252,
+  "session_date_et": "2026-08-28",
+  "market_schedule": {
+    "date_key": "2026-08-28",
+    "minute_of_day": 673,
+    "weekday": 5,
+    "market_open": true,
+    "early_close": false,
+    "entry_open": true,
+    "session_open": true
+  },
+  "universe": {
+    "expected_rank_trading_date": "2026-08-27",
+    "rank_trading_date": "2026-08-27",
+    "intersected_candidate_count": 90,
+    "finalist_count": 84,
+    "policy_signature": "97b131ce2d15f743",
+    "finalists": [
+      {
+        "ticker": "SPY",
+        "top100_rank": 1,
+        "option_contract_count": 354,
+        "option_strike_step_points": 1,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "NVDA",
+        "top100_rank": 2,
+        "option_contract_count": 162,
+        "option_strike_step_points": 2.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "QQQ",
+        "top100_rank": 3,
+        "option_contract_count": 422,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "TSLA",
+        "top100_rank": 4,
+        "option_contract_count": 270,
+        "option_strike_step_points": 2.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "IWM",
+        "top100_rank": 5,
+        "option_contract_count": 208,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "AAPL",
+        "top100_rank": 6,
+        "option_contract_count": 160,
+        "option_strike_step_points": 2.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "IBIT",
+        "top100_rank": 7,
+        "option_contract_count": 120,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "MSTR",
+        "top100_rank": 8,
+        "option_contract_count": 188,
+        "option_strike_step_points": 1,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "MU",
+        "top100_rank": 9,
+        "option_contract_count": 626,
+        "option_strike_step_points": 2.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "SPCX",
+        "top100_rank": 10,
+        "option_contract_count": 232,
+        "option_strike_step_points": 1,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "PLTR",
+        "top100_rank": 11,
+        "option_contract_count": 192,
+        "option_strike_step_points": 1,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "AMZN",
+        "top100_rank": 12,
+        "option_contract_count": 110,
+        "option_strike_step_points": 2.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "INTC",
+        "top100_rank": 13,
+        "option_contract_count": 180,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "MSFT",
+        "top100_rank": 15,
+        "option_contract_count": 180,
+        "option_strike_step_points": 2.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "CRM",
+        "top100_rank": 16,
+        "option_contract_count": 164,
+        "option_strike_step_points": 2.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "TLT",
+        "top100_rank": 17,
+        "option_contract_count": 90,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "META",
+        "top100_rank": 18,
+        "option_contract_count": 378,
+        "option_strike_step_points": 2.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "IREN",
+        "top100_rank": 19,
+        "option_contract_count": 130,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "MRVL",
+        "top100_rank": 20,
+        "option_contract_count": 186,
+        "option_strike_step_points": 2.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "GLD",
+        "top100_rank": 21,
+        "option_contract_count": 348,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "HYG",
+        "top100_rank": 22,
+        "option_contract_count": 84,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "GOOGL",
+        "top100_rank": 23,
+        "option_contract_count": 208,
+        "option_strike_step_points": 2.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "SOFI",
+        "top100_rank": 24,
+        "option_contract_count": 62,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "SLV",
+        "top100_rank": 25,
+        "option_contract_count": 194,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "CRWD",
+        "top100_rank": 27,
+        "option_contract_count": 120,
+        "option_strike_step_points": 2.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "MARA",
+        "top100_rank": 28,
+        "option_contract_count": 70,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "NFLX",
+        "top100_rank": 29,
+        "option_contract_count": 102,
+        "option_strike_step_points": 1,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "AVGO",
+        "top100_rank": 30,
+        "option_contract_count": 196,
+        "option_strike_step_points": 2.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "BMNR",
+        "top100_rank": 31,
+        "option_contract_count": 104,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "TQQQ",
+        "top100_rank": 32,
+        "option_contract_count": 142,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "DRAM",
+        "top100_rank": 34,
+        "option_contract_count": 154,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "SMCI",
+        "top100_rank": 35,
+        "option_contract_count": 132,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "NOW",
+        "top100_rank": 36,
+        "option_contract_count": 166,
+        "option_strike_step_points": 1,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "ORCL",
+        "top100_rank": 37,
+        "option_contract_count": 140,
+        "option_strike_step_points": 1,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "WMT",
+        "top100_rank": 38,
+        "option_contract_count": 104,
+        "option_strike_step_points": 1,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "COIN",
+        "top100_rank": 40,
+        "option_contract_count": 182,
+        "option_strike_step_points": 1,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "IGV",
+        "top100_rank": 41,
+        "option_contract_count": 124,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "NKE",
+        "top100_rank": 46,
+        "option_contract_count": 78,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "CRWV",
+        "top100_rank": 48,
+        "option_contract_count": 166,
+        "option_strike_step_points": 1,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "MRNA",
+        "top100_rank": 49,
+        "option_contract_count": 284,
+        "option_strike_step_points": 1,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "GME",
+        "top100_rank": 50,
+        "option_contract_count": 82,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "WULF",
+        "top100_rank": 51,
+        "option_contract_count": 100,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "NBIS",
+        "top100_rank": 52,
+        "option_contract_count": 172,
+        "option_strike_step_points": 2.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "GDX",
+        "top100_rank": 53,
+        "option_contract_count": 178,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "HOOD",
+        "top100_rank": 54,
+        "option_contract_count": 152,
+        "option_strike_step_points": 1,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "BULL",
+        "top100_rank": 56,
+        "option_contract_count": 50,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "PURR",
+        "top100_rank": 57,
+        "option_contract_count": 92,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "ONDS",
+        "top100_rank": 58,
+        "option_contract_count": 56,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "ETHA",
+        "top100_rank": 59,
+        "option_contract_count": 94,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "NOK",
+        "top100_rank": 60,
+        "option_contract_count": 74,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "TSM",
+        "top100_rank": 61,
+        "option_contract_count": 188,
+        "option_strike_step_points": 2.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "KWEB",
+        "top100_rank": 62,
+        "option_contract_count": 72,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "CIFR",
+        "top100_rank": 63,
+        "option_contract_count": 110,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "BAC",
+        "top100_rank": 64,
+        "option_contract_count": 70,
+        "option_strike_step_points": 1,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "USO",
+        "top100_rank": 67,
+        "option_contract_count": 206,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "GOOG",
+        "top100_rank": 68,
+        "option_contract_count": 140,
+        "option_strike_step_points": 2.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "OKTA",
+        "top100_rank": 69,
+        "option_contract_count": 174,
+        "option_strike_step_points": 1,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "PDD",
+        "top100_rank": 71,
+        "option_contract_count": 80,
+        "option_strike_step_points": 1,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "XLF",
+        "top100_rank": 72,
+        "option_contract_count": 74,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "UBER",
+        "top100_rank": 73,
+        "option_contract_count": 80,
+        "option_strike_step_points": 1,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "ASTS",
+        "top100_rank": 74,
+        "option_contract_count": 102,
+        "option_strike_step_points": 1,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "CRCL",
+        "top100_rank": 75,
+        "option_contract_count": 156,
+        "option_strike_step_points": 1,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "SQQQ",
+        "top100_rank": 76,
+        "option_contract_count": 110,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "BE",
+        "top100_rank": 77,
+        "option_contract_count": 182,
+        "option_strike_step_points": 2.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "HIMS",
+        "top100_rank": 79,
+        "option_contract_count": 98,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "EEM",
+        "top100_rank": 80,
+        "option_contract_count": 88,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "APLD",
+        "top100_rank": 82,
+        "option_contract_count": 94,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "EWY",
+        "top100_rank": 83,
+        "option_contract_count": 204,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "FIG",
+        "top100_rank": 84,
+        "option_contract_count": 106,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "RIOT",
+        "top100_rank": 85,
+        "option_contract_count": 92,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "S",
+        "top100_rank": 86,
+        "option_contract_count": 82,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "RKLB",
+        "top100_rank": 87,
+        "option_contract_count": 112,
+        "option_strike_step_points": 1,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "HPQ",
+        "top100_rank": 88,
+        "option_contract_count": 88,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "PATH",
+        "top100_rank": 89,
+        "option_contract_count": 66,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "TSLL",
+        "top100_rank": 90,
+        "option_contract_count": 72,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "RIVN",
+        "top100_rank": 91,
+        "option_contract_count": 64,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "NU",
+        "top100_rank": 92,
+        "option_contract_count": 60,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "SKHY",
+        "top100_rank": 93,
+        "option_contract_count": 200,
+        "option_strike_step_points": 1,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "BB",
+        "top100_rank": 94,
+        "option_contract_count": 72,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "DELL",
+        "top100_rank": 95,
+        "option_contract_count": 300,
+        "option_strike_step_points": 2.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "KO",
+        "top100_rank": 96,
+        "option_contract_count": 76,
+        "option_strike_step_points": 1,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "KRE",
+        "top100_rank": 98,
+        "option_contract_count": 84,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "CLSK",
+        "top100_rank": 99,
+        "option_contract_count": 78,
+        "option_strike_step_points": 0.5,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      },
+      {
+        "ticker": "OXY",
+        "top100_rank": 100,
+        "option_contract_count": 74,
+        "option_strike_step_points": 1,
+        "nightwatch_supported": true,
+        "zero_dte_chain_verified": true
+      }
+    ]
+  },
+  "moomoo": {
+    "connected": true,
+    "simulated_us_options_account": true,
+    "sim_acc_type": 4
+  },
+  "account_exposure": {
+    "clear": true,
+    "open_position_count": 0,
+    "pending_order_count": 0
+  },
+  "active_orders": [],
+  "experiment": {
+    "manifest": {
+      "enabled": true,
+      "experiment_id": "junk_multi_exit_grid_v1",
+      "version": 1,
+      "paired_entry": true,
+      "broker_execution_mode": "aggregate_single_position",
+      "paper_equity_usd_per_line": 10000,
+      "shared_exit_rules": {
+        "price_basis": "option_entry_fill_price",
+        "option_price_exit": true,
+        "breakeven_activation_pct": 20,
+        "breakeven_floor_pct": 0,
+        "setup_time_stop_enabled": true,
+        "setup_time_stop_minutes": 5,
+        "setup_time_stop_setup_types": [
+          "range_mean_reversion"
+        ],
+        "structural_target_partial_exit_enabled": true,
+        "structural_target_partial_exit_ratio": 0.5,
+        "structural_target_profit_floor_pct": 0,
+        "use_underlying_confirmation_bar_wick_invalidation": true,
+        "use_next_gex_node_target": true,
+        "exit_before_regular_session_close": true,
+        "close_exit_start_time_et": "15:45",
+        "force_close_exit_start_time_et": "15:55",
+        "no_overnight_holding": true,
+        "controlled_overnight": {
+          "enabled": false
+        }
+      },
+      "shared_exit_rules_hash": "035076552b201abc",
+      "execution_quality": {
+        "cap_qty_by_visible_ask": true,
+        "max_qty_to_ask_volume_ratio": 1
+      },
+      "lines": [
+        {
+          "line_id": "control_sl15_tp_off",
+          "label": "Control SL15 TP off",
+          "control": true,
+          "paper_equity_usd": 10000,
+          "exit_profile": {
+            "catastrophic_stop_loss_pct": 15,
+            "option_stop_loss_pct": 15,
+            "option_take_profit_enabled": false,
+            "option_take_profit_pct": 25
+          },
+          "exit_profile_hash": "4cd710f1efa2bf62",
+          "entry_profile": "base_v3",
+          "line_profile_hash": "28ebb3426d9649c6"
+        },
+        {
+          "line_id": "sl10_tp_off",
+          "label": "SL10 TP off",
+          "control": false,
+          "paper_equity_usd": 10000,
+          "exit_profile": {
+            "catastrophic_stop_loss_pct": 10,
+            "option_stop_loss_pct": 10,
+            "option_take_profit_enabled": false,
+            "option_take_profit_pct": 25
+          },
+          "exit_profile_hash": "23cf6d869ad9789c",
+          "entry_profile": "base_v3",
+          "line_profile_hash": "5fcf75f6e8224d5b"
+        },
+        {
+          "line_id": "sl10_tp20",
+          "label": "SL10 TP20",
+          "control": false,
+          "paper_equity_usd": 10000,
+          "exit_profile": {
+            "catastrophic_stop_loss_pct": 10,
+            "option_stop_loss_pct": 10,
+            "option_take_profit_enabled": true,
+            "option_take_profit_pct": 20
+          },
+          "exit_profile_hash": "c1d9421dfd88b163",
+          "entry_profile": "base_v3",
+          "line_profile_hash": "e14f64c81e91c0c5"
+        },
+        {
+          "line_id": "sl10_tp30",
+          "label": "SL10 TP30",
+          "control": false,
+          "paper_equity_usd": 10000,
+          "exit_profile": {
+            "catastrophic_stop_loss_pct": 10,
+            "option_stop_loss_pct": 10,
+            "option_take_profit_enabled": true,
+            "option_take_profit_pct": 30
+          },
+          "exit_profile_hash": "805a9fbe9f413011",
+          "entry_profile": "base_v3",
+          "line_profile_hash": "fe85fefc12e03918"
+        },
+        {
+          "line_id": "sl15_tp20",
+          "label": "SL15 TP20",
+          "control": false,
+          "paper_equity_usd": 10000,
+          "exit_profile": {
+            "catastrophic_stop_loss_pct": 15,
+            "option_stop_loss_pct": 15,
+            "option_take_profit_enabled": true,
+            "option_take_profit_pct": 20
+          },
+          "exit_profile_hash": "c0507eacd503db17",
+          "entry_profile": "base_v3",
+          "line_profile_hash": "52e439b49bd0921e"
+        },
+        {
+          "line_id": "sl15_tp30",
+          "label": "SL15 TP30",
+          "control": false,
+          "paper_equity_usd": 10000,
+          "exit_profile": {
+            "catastrophic_stop_loss_pct": 15,
+            "option_stop_loss_pct": 15,
+            "option_take_profit_enabled": true,
+            "option_take_profit_pct": 30
+          },
+          "exit_profile_hash": "3daea578d60df044",
+          "entry_profile": "base_v3",
+          "line_profile_hash": "614d7627ae6d935e"
+        },
+        {
+          "line_id": "sl12p5_tp25",
+          "label": "SL12.5 TP25",
+          "control": false,
+          "paper_equity_usd": 10000,
+          "exit_profile": {
+            "catastrophic_stop_loss_pct": 12.5,
+            "option_stop_loss_pct": 12.5,
+            "option_take_profit_enabled": true,
+            "option_take_profit_pct": 25
+          },
+          "exit_profile_hash": "84f742491fd1bd9b",
+          "entry_profile": "base_v3",
+          "line_profile_hash": "9e2a57123061eec7"
+        }
+      ],
+      "manifest_hash": "6d411b5346db2743c4b7",
+      "line_count": 7,
+      "total_paper_equity_usd": 70000,
+      "control_line_id": "control_sl15_tp_off"
+    },
+    "performance": {
+      "experiment_id": "junk_multi_exit_grid_v1",
+      "enabled": true,
+      "pnl_basis": "gross_option_price_change",
+      "fees_included": false,
+      "cohort_count": 0,
+      "lines": [
+        {
+          "manifest_hash": "6d411b5346db2743c4b7",
+          "experiment_version": 1,
+          "experiment_line_id": "control_sl15_tp_off",
+          "label": "Control SL15 TP off",
+          "control": true,
+          "paper_equity_usd": 10000,
+          "cohort_count": 0,
+          "closed_trade_count": 0,
+          "win_count": 0,
+          "loss_count": 0,
+          "realized_pnl_usd": 0,
+          "realized_pnl_to_date_usd": 0,
+          "open_contract_qty": 0,
+          "win_rate_pct": null,
+          "return_on_paper_equity_pct": 0
+        },
+        {
+          "manifest_hash": "6d411b5346db2743c4b7",
+          "experiment_version": 1,
+          "experiment_line_id": "sl10_tp_off",
+          "label": "SL10 TP off",
+          "control": false,
+          "paper_equity_usd": 10000,
+          "cohort_count": 0,
+          "closed_trade_count": 0,
+          "win_count": 0,
+          "loss_count": 0,
+          "realized_pnl_usd": 0,
+          "realized_pnl_to_date_usd": 0,
+          "open_contract_qty": 0,
+          "win_rate_pct": null,
+          "return_on_paper_equity_pct": 0
+        },
+        {
+          "manifest_hash": "6d411b5346db2743c4b7",
+          "experiment_version": 1,
+          "experiment_line_id": "sl10_tp20",
+          "label": "SL10 TP20",
+          "control": false,
+          "paper_equity_usd": 10000,
+          "cohort_count": 0,
+          "closed_trade_count": 0,
+          "win_count": 0,
+          "loss_count": 0,
+          "realized_pnl_usd": 0,
+          "realized_pnl_to_date_usd": 0,
+          "open_contract_qty": 0,
+          "win_rate_pct": null,
+          "return_on_paper_equity_pct": 0
+        },
+        {
+          "manifest_hash": "6d411b5346db2743c4b7",
+          "experiment_version": 1,
+          "experiment_line_id": "sl10_tp30",
+          "label": "SL10 TP30",
+          "control": false,
+          "paper_equity_usd": 10000,
+          "cohort_count": 0,
+          "closed_trade_count": 0,
+          "win_count": 0,
+          "loss_count": 0,
+          "realized_pnl_usd": 0,
+          "realized_pnl_to_date_usd": 0,
+          "open_contract_qty": 0,
+          "win_rate_pct": null,
+          "return_on_paper_equity_pct": 0
+        },
+        {
+          "manifest_hash": "6d411b5346db2743c4b7",
+          "experiment_version": 1,
+          "experiment_line_id": "sl15_tp20",
+          "label": "SL15 TP20",
+          "control": false,
+          "paper_equity_usd": 10000,
+          "cohort_count": 0,
+          "closed_trade_count": 0,
+          "win_count": 0,
+          "loss_count": 0,
+          "realized_pnl_usd": 0,
+          "realized_pnl_to_date_usd": 0,
+          "open_contract_qty": 0,
+          "win_rate_pct": null,
+          "return_on_paper_equity_pct": 0
+        },
+        {
+          "manifest_hash": "6d411b5346db2743c4b7",
+          "experiment_version": 1,
+          "experiment_line_id": "sl15_tp30",
+          "label": "SL15 TP30",
+          "control": false,
+          "paper_equity_usd": 10000,
+          "cohort_count": 0,
+          "closed_trade_count": 0,
+          "win_count": 0,
+          "loss_count": 0,
+          "realized_pnl_usd": 0,
+          "realized_pnl_to_date_usd": 0,
+          "open_contract_qty": 0,
+          "win_rate_pct": null,
+          "return_on_paper_equity_pct": 0
+        },
+        {
+          "manifest_hash": "6d411b5346db2743c4b7",
+          "experiment_version": 1,
+          "experiment_line_id": "sl12p5_tp25",
+          "label": "SL12.5 TP25",
+          "control": false,
+          "paper_equity_usd": 10000,
+          "cohort_count": 0,
+          "closed_trade_count": 0,
+          "win_count": 0,
+          "loss_count": 0,
+          "realized_pnl_usd": 0,
+          "realized_pnl_to_date_usd": 0,
+          "open_contract_qty": 0,
+          "win_rate_pct": null,
+          "return_on_paper_equity_pct": 0
+        }
+      ],
+      "aggregate_realized_pnl_usd": 0,
+      "aggregate_realized_pnl_to_date_usd": 0,
+      "unallocated_realized_pnl_usd": 0,
+      "unallocated_closed_cohort_count": 0,
+      "unallocated_open_contract_qty": 0,
+      "comparison_pairing_issue_count": 0,
+      "physical_realized_pnl_usd": 0,
+      "physical_realized_pnl_to_date_usd": 0,
+      "session_date_et": "2026-08-28",
+      "session_cohort_count": 0,
+      "session_lines": [],
+      "session_aggregate_realized_pnl_usd": 0,
+      "session_aggregate_realized_pnl_to_date_usd": 0,
+      "session_unallocated_realized_pnl_usd": 0,
+      "session_physical_realized_pnl_usd": 0,
+      "session_physical_realized_pnl_to_date_usd": 0,
+      "generated_at": "2026-08-28T15:14:57.389Z"
+    }
+  },
+  "last_decision": {
+    "generated_at": "2026-08-28T15:13:37.568Z",
+    "ticker": "PLTR",
+    "decision": "no_trade",
+    "reason_codes": [
+      "ticker_scan_failed_closed:\"timeout\""
+    ]
+  },
+  "last_error": null
+}

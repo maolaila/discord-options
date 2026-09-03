@@ -5,6 +5,8 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { deriveCaptureHealth } from './capture-health.mjs';
+import { build_junk_performance_report, read_ndjson } from './junk-performance-report.mjs';
+import { publish_new_trade_records, trade_notary_status } from '../trade-notary/trade-notary.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const HOST = process.env.CONTROL_CONSOLE_HOST || '127.0.0.1';
@@ -13,6 +15,7 @@ const DEFAULT_ENV_FILE = process.env.MOOMOO_CONTROL_ENV_FILE || path.join(ROOT, 
 const MAX_LOG_LINES = 300;
 const DEFAULT_RESTART_DELAY_MS = 15_000;
 const RUNTIME_HEARTBEAT_FRESH_MS = 90_000;
+const PERFORMANCE_REPORT_FILE = path.join(ROOT, 'reports', 'junkman-performance.html');
 
 const logsDir = path.join(ROOT, 'logs');
 const processes = new Map();
@@ -431,12 +434,22 @@ function statusPayload() {
   };
 }
 
-function sendJson(res, payload, status = 200) {
+function junkPerformancePayload() {
+  const report = build_junk_performance_report({
+    events: read_ndjson(path.join(logsDir, 'zero-dte-options-trades.ndjson')),
+    policy: readJson(path.join(ROOT, 'config', 'zero-dte-options-policy.json')) || {},
+    experimentSummary: readJson(path.join(logsDir, 'zero-dte-options-experiment-summary.json')),
+  });
+  return { ...report, onchain: trade_notary_status() };
+}
+
+function sendJson(res, payload, status = 200, extraHeaders = {}) {
   const body = JSON.stringify(payload);
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Content-Length': Buffer.byteLength(body),
     'Cache-Control': 'no-store',
+    ...extraHeaders,
   });
   res.end(body);
 }
@@ -450,6 +463,21 @@ function sendHtml(res) {
     'X-Content-Type-Options': 'nosniff',
   });
   res.end(body);
+}
+
+function sendPerformanceHtml(res) {
+  if (!fs.existsSync(PERFORMANCE_REPORT_FILE)) {
+    return sendJson(res, { error: 'performance_report_file_missing' }, 404);
+  }
+  const body = fs.readFileSync(PERFORMANCE_REPORT_FILE);
+  res.writeHead(200, {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Content-Length': body.length,
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
+  });
+  res.end(body);
+  return undefined;
 }
 
 async function readBody(req) {
@@ -467,6 +495,23 @@ async function readBody(req) {
 async function routePost(req, res, pathname) {
   const body = await readBody(req);
   const envFile = body.env_file || body.envFile || DEFAULT_ENV_FILE;
+
+  if (pathname === '/api/junk-performance/publish') {
+    if (req.headers['x-junkman-publish'] !== 'confirm') {
+      sendJson(res, { error: 'missing_publish_confirmation' }, 403);
+      return;
+    }
+    try {
+      const result = await publish_new_trade_records();
+      sendJson(res, { ok: true, result });
+    } catch (error) {
+      const message = String(error?.message || 'unknown_error')
+        .replace(/https?:\/\/[^\s"']+/gi, '[redacted-url]')
+        .replace(/\b(?:0x)?[0-9a-f]{64}\b/gi, '[redacted-hex]');
+      sendJson(res, { ok: false, error: message }, 500);
+    }
+    return;
+  }
 
   if (pathname === '/api/start-all') startAll(envFile);
   else if (pathname === '/api/start-browser') startBrowser();
@@ -486,12 +531,18 @@ async function routePost(req, res, pathname) {
 async function handler(req, res) {
   const url = new URL(req.url || '/', `http://${HOST}:${PORT}`);
   if (req.method === 'GET' && url.pathname === '/') return sendHtml(res);
+  if (req.method === 'GET' && ['/junkman-performance', '/junkman-performance.html'].includes(url.pathname)) {
+    return sendPerformanceHtml(res);
+  }
   if (req.method === 'GET' && url.pathname === '/favicon.ico') {
     res.writeHead(204);
     res.end();
     return undefined;
   }
   if (req.method === 'GET' && url.pathname === '/api/status') return sendJson(res, statusPayload());
+  if (req.method === 'GET' && url.pathname === '/api/junk-performance') {
+    return sendJson(res, junkPerformancePayload(), 200, { 'Access-Control-Allow-Origin': '*' });
+  }
   if (req.method === 'POST' && url.pathname.startsWith('/api/')) {
     return routePost(req, res, url.pathname);
   }
@@ -526,6 +577,7 @@ function dashboardHtmlPage() {
     .toolbar { display:grid; grid-template-columns:minmax(260px,1fr) repeat(7,minmax(120px,auto)); gap:10px; align-items:end; }
     label { color:var(--muted); font-size:12px; display:grid; gap:6px; }
     input,button { height:38px; border:1px solid var(--line); border-radius:6px; font:inherit; }
+    .report-link { color:var(--text); text-decoration:none; border:1px solid var(--line); border-radius:6px; padding:7px 11px; background:var(--soft); font-weight:600; }
     input { width:100%; background:#101317; color:var(--text); padding:0 10px; }
     button { background:var(--soft); color:var(--text); font-weight:600; cursor:pointer; padding:0 12px; white-space:nowrap; }
     button.primary { background:#1f6f4a; border-color:#2b8b60; }
@@ -545,7 +597,7 @@ function dashboardHtmlPage() {
   </style>
 </head>
 <body>
-  <header><h1>JUNKMAN Simulation Console</h1><div class="mono" id="clock"></div></header>
+  <header><h1>JUNKMAN Simulation Console</h1><div style="display:flex;align-items:center;gap:12px"><a class="report-link" href="/junkman-performance.html">收益报表</a><div class="mono" id="clock"></div></div></header>
   <main>
     <section class="summary">
       <div class="metric"><div class="label">Discord Flow Capture</div><div class="value" id="capture">-</div></div>

@@ -21,6 +21,8 @@ stock-rebalance-targets.csv
 .codex-tmp/
 *.log
 *.ndjson
+onchain-data/.publish.lock
+onchain-data/**/*.tmp
 
 # Public-repository-safe review exports are redacted by ops/export-review-data.mjs
 # and are intentionally versioned for cross-machine strategy review.

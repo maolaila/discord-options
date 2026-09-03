@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JUNKMAN 收益报表</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b1118;
+      --panel: #121b25;
+      --panel-2: #172330;
+      --line: #2b3b4c;
+      --text: #edf4fb;
+      --muted: #94a8ba;
+      --green: #41d692;
+      --red: #ff7272;
+      --gold: #f3c969;
+      --blue: #79aef8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at 10% 0%, #172738 0, var(--bg) 32rem);
+      color: var(--text);
+      font: 14px/1.5 "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+    }
+    header {
+      padding: 24px clamp(18px, 4vw, 52px) 18px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(9, 15, 22, .78);
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 3;
+    }
+    .header-row, .section-title, .status-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+    h1 { margin: 0; font-size: clamp(22px, 3vw, 32px); letter-spacing: .02em; }
+    h2 { margin: 0; font-size: 18px; }
+    h3 { margin: 0 0 10px; font-size: 15px; color: var(--gold); }
+    button {
+      border: 1px solid #3c6287;
+      border-radius: 8px;
+      background: #1d4568;
+      color: white;
+      font: inherit;
+      font-weight: 650;
+      padding: 8px 14px;
+      cursor: pointer;
+    }
+    button:disabled { opacity: .55; cursor: wait; }
+    button.publish { background: #6d5014; border-color: #a9822d; }
+    main { max-width: 1900px; margin: 0 auto; padding: 22px clamp(18px, 4vw, 52px) 50px; display: grid; gap: 20px; }
+    .cards { display: grid; grid-template-columns: repeat(4, minmax(180px, 1fr)); gap: 12px; }
+    .card, .panel, .definition {
+      background: linear-gradient(145deg, rgba(23,35,48,.96), rgba(16,25,35,.96));
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.16);
+    }
+    .card { padding: 15px 17px; }
+    .card-label { color: var(--muted); font-size: 12px; margin-bottom: 5px; }
+    .card-value { font-size: 18px; font-weight: 700; }
+    .panel { overflow: hidden; }
+    .section-title { padding: 15px 17px; border-bottom: 1px solid var(--line); }
+    .section-note { color: var(--muted); font-size: 12px; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; min-width: 1450px; border-collapse: collapse; }
+    th, td { padding: 10px 9px; text-align: right; border-bottom: 1px solid rgba(43,59,76,.72); white-space: nowrap; }
+    th { color: var(--muted); font-size: 12px; font-weight: 600; background: rgba(8,15,22,.38); position: sticky; top: 0; }
+    th:first-child, td:first-child { text-align: left; position: sticky; left: 0; background: #14202b; z-index: 1; }
+    tbody tr:hover td { background-color: rgba(56,95,130,.12); }
+    tbody tr:last-child td { border-bottom: 0; }
+    .positive { color: var(--green); font-weight: 700; }
+    .negative { color: var(--red); font-weight: 700; }
+    .neutral { color: var(--muted); }
+    .badge { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 4px 9px; color: var(--muted); font-size: 12px; }
+    .badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--gold); }
+    .badge.live::before { background: var(--green); box-shadow: 0 0 9px var(--green); }
+    .badge.cached::before { background: var(--gold); }
+    .badge.error::before { background: var(--red); }
+    .observer { border-left: 3px solid var(--blue); }
+    .observer .section-title { background: rgba(45, 84, 126, .13); }
+    .definition { padding: 16px 18px; color: var(--muted); }
+    .definition strong { color: var(--text); }
+    .definition-grid { display: grid; grid-template-columns: repeat(2, minmax(260px, 1fr)); gap: 8px 24px; margin-top: 9px; }
+    .error-box { display: none; padding: 14px 16px; border: 1px solid #813d3d; background: #341c22; color: #ffd6d6; border-radius: 10px; }
+    .empty { text-align: center !important; color: var(--muted); padding: 22px !important; position: static !important; }
+    .mono { font-family: Consolas, "Cascadia Mono", monospace; }
+    @media (max-width: 950px) {
+      .cards { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
+      .definition-grid { grid-template-columns: 1fr; }
+      .header-row { align-items: flex-start; }
+    }
+    @media (max-width: 560px) {
+      .cards { grid-template-columns: 1fr; }
+      .header-row { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-row">
+      <div>
+        <h1>JUNKMAN 收益报表</h1>
+        <div class="status-row" style="justify-content:flex-start;margin-top:7px">
+          <span id="statusBadge" class="badge">正在读取最新交易数据</span>
+          <span id="generatedAt" class="section-note"></span>
+        </div>
+      </div>
+      <div style="display:flex;gap:9px;flex-wrap:wrap">
+        <button id="publishButton" class="publish" type="button">一键上链</button>
+        <button id="refreshButton" type="button">立即刷新</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div id="errorBox" class="error-box"></div>
+
+    <section class="cards">
+      <div class="card"><div class="card-label">最新有交易记录的美东交易日</div><div class="card-value" id="latestDate">—</div></div>
+      <div class="card"><div class="card-label">累计统计区间</div><div class="card-value" id="period">—</div></div>
+      <div class="card"><div class="card-label">每条线模拟账户本金</div><div class="card-value">$10,000</div></div>
+      <div class="card"><div class="card-label">费用口径</div><div class="card-value">毛收益，未扣手续费</div></div>
+      <div class="card"><div class="card-label">Base 链上证明</div><div class="card-value" id="chainStatus">—</div></div>
+    </section>
+    <div id="chainMessage" class="definition" style="display:none"></div>
+
+    <section class="panel">
+      <div class="section-title"><h2>最新交易日 · 七条止盈止损线</h2><div class="section-note">逐线独立，不计算七线合计</div></div>
+      <div class="table-wrap"><table><thead id="dailyHead"></thead><tbody id="dailyBody"></tbody></table></div>
+    </section>
+
+    <section class="panel observer">
+      <div class="section-title"><h2>最新交易日 · Regime/lifecycle 观察线</h2><div class="section-note">观察线不混入七条止盈止损线</div></div>
+      <div class="table-wrap"><table><thead id="dailyObserverHead"></thead><tbody id="dailyObserverBody"></tbody></table></div>
+    </section>
+
+    <section class="panel">
+      <div class="section-title"><h2>累计至今 · 七条止盈止损线</h2><div class="section-note" id="cumulativeHours">—</div></div>
+      <div class="table-wrap"><table><thead id="cumulativeHead"></thead><tbody id="cumulativeBody"></tbody></table></div>
+    </section>
+
+    <section class="panel observer">
+      <div class="section-title"><h2>累计至今 · Regime/lifecycle 观察线</h2><div class="section-note">只作旁证，不参与主线优选</div></div>
+      <div class="table-wrap"><table><thead id="cumulativeObserverHead"></thead><tbody id="cumulativeObserverBody"></tbody></table></div>
+    </section>
+
+    <section class="definition">
+      <strong>指标口径</strong>
+      <div class="definition-grid">
+        <div><strong>账户总收益率：</strong>毛盈亏 ÷ 每条线 $10,000 模拟本金。</div>
+        <div><strong>周转收益率：</strong>毛盈亏 ÷ 已完成交易的累计买入成本，用来观察每次实际投入的效率。</div>
+        <div><strong>平均仓位率：</strong>平均每笔买入成本 ÷ $10,000。</div>
+        <div><strong>资金时间利用率：</strong>持仓金额按持仓时间加权后的日均值 ÷ $10,000，按美股常规交易时段估算。</div>
+        <div><strong>胜/负/平：</strong>按每一笔完整定价闭仓的毛盈亏判断。</div>
+        <div><strong>Profit Factor：</strong>盈利交易毛利润 ÷ 亏损交易毛亏损；没有亏损样本时显示“—”。</div>
+      </div>
+      <div id="exclusions" style="margin-top:10px"></div>
+    </section>
+  </main>
+
+  <script>
+    const API_URL = location.protocol === 'http:' || location.protocol === 'https:'
+      ? '/api/junk-performance'
+      : 'http://127.0.0.1:18766/api/junk-performance';
+    const CACHE_KEY = 'junkman-performance-report-v1';
+    const CAN_PUBLISH = location.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(location.hostname);
+    const $ = (id) => document.getElementById(id);
+    const safe = (value) => String(value ?? '—')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    const money = (value) => Number.isFinite(Number(value))
+      ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(Number(value))
+      : '—';
+    const pct = (value, digits = 2) => Number.isFinite(Number(value)) ? Number(value).toFixed(digits) + '%' : '—';
+    const signedMoney = (value) => {
+      if (!Number.isFinite(Number(value))) return '—';
+      const n = Number(value);
+      return (n > 0 ? '+' : '') + money(n);
+    };
+    const tone = (value) => Number(value) > 0 ? 'positive' : (Number(value) < 0 ? 'negative' : 'neutral');
+    const signedPct = (value, digits = 2) => {
+      if (!Number.isFinite(Number(value))) return '—';
+      const n = Number(value);
+      return (n > 0 ? '+' : '') + n.toFixed(digits) + '%';
+    };
+    const displayDate = (value) => value || '暂无交易';
+
+    const header = `<tr>
+      <th>策略线</th><th>SL</th><th>TP</th><th>交易数</th><th>胜/负/平</th>
+      <th>累计买入</th><th>累计卖出</th><th>毛盈亏</th><th>账户总收益率</th>
+      <th>周转收益率</th><th>平均每笔投入</th><th>平均仓位率</th>
+      <th>资金时间利用率</th><th>Profit Factor</th><th>剩余持仓</th>
+    </tr>`;
+    for (const id of ['dailyHead', 'dailyObserverHead', 'cumulativeHead', 'cumulativeObserverHead']) $(id).innerHTML = header;
+
+    function lineRows(lines) {
+      if (!lines.length) return '<tr><td class="empty" colspan="15">暂无记录</td></tr>';
+      return lines.map((line) => `<tr>
+        <td>${safe(line.label)}${line.control ? ' <span class="badge live">主线</span>' : ''}</td>
+        <td>-${safe(line.stop_loss_pct)}%</td>
+        <td>${line.take_profit_enabled ? '+' + safe(line.take_profit_pct) + '%' : '关闭'}</td>
+        <td>${safe(line.trade_count)}</td>
+        <td>${safe(line.win_count)}/${safe(line.loss_count)}/${safe(line.flat_count)}</td>
+        <td>${money(line.purchase_cost_usd)}</td>
+        <td>${money(line.sale_proceeds_usd)}</td>
+        <td class="${tone(line.gross_pnl_usd)}">${signedMoney(line.gross_pnl_usd)}</td>
+        <td class="${tone(line.account_return_pct)}">${signedPct(line.account_return_pct)}</td>
+        <td class="${tone(line.turnover_return_pct)}">${signedPct(line.turnover_return_pct)}</td>
+        <td>${money(line.average_entry_usd)}</td>
+        <td>${pct(line.average_entry_rate_pct)}</td>
+        <td>${pct(line.time_weighted_utilization_pct, 3)}</td>
+        <td>${Number.isFinite(Number(line.profit_factor)) ? Number(line.profit_factor).toFixed(3) : '—'}</td>
+        <td>${safe(line.open_contract_qty)}</td>
+      </tr>`).join('');
+    }
+
+    function render(data, source) {
+      const daily = data.latest_day?.lines || [];
+      const cumulative = data.cumulative?.lines || [];
+      $('latestDate').textContent = displayDate(data.latest_date_et);
+      $('period').textContent = data.first_date_et && data.latest_date_et
+        ? `${data.first_date_et} 至 ${data.latest_date_et}` : '暂无交易';
+      $('cumulativeHours').textContent = `统计交易时段 ${Number(data.cumulative?.session_hours || 0).toFixed(1)} 小时`;
+      $('dailyBody').innerHTML = lineRows(daily.filter((line) => !line.observation_only));
+      $('dailyObserverBody').innerHTML = lineRows(daily.filter((line) => line.observation_only));
+      $('cumulativeBody').innerHTML = lineRows(cumulative.filter((line) => !line.observation_only));
+      $('cumulativeObserverBody').innerHTML = lineRows(cumulative.filter((line) => line.observation_only));
+      $('generatedAt').textContent = data.generated_at
+        ? `数据生成：${new Date(data.generated_at).toLocaleString()}` : '';
+      const incomplete = Number(data.exclusions?.entry_without_priced_close_count || 0);
+      $('exclusions').innerHTML = `<strong>排除说明：</strong>${incomplete} 条逐线入场记录没有完整定价闭仓记录（可能包含旧版本、到期未定价或仍持仓），不计入收益、胜率和资金利用率。`;
+      const chain = data.onchain || {};
+      const latest = chain.latest_batch;
+      $('chainStatus').innerHTML = latest
+        ? `<a href="${safe(latest.explorer_url)}" target="_blank" rel="noopener" style="color:var(--green)">${safe(chain.committed_trade_line_record_count)} 条记录 · 已确认</a>`
+        : (chain.configured ? '已配置 · 尚未发布' : '尚未配置');
+      $('statusBadge').className = `badge ${source === 'live' ? 'live' : 'cached'}`;
+      $('statusBadge').textContent = source === 'live' ? '已读取最新日志 · 每30秒自动刷新' : '控制台未连接 · 正在显示上次缓存';
+      $('errorBox').style.display = 'none';
+    }
+
+    async function publishOnchain() {
+      if (!CAN_PUBLISH) {
+        $('chainMessage').innerHTML = '为防止网页跨站触发钱包操作，一键上链只在 <a href="http://127.0.0.1:18766/junkman-performance.html" style="color:var(--blue)">本机控制台地址</a>中启用。';
+        $('chainMessage').style.display = 'block';
+        return;
+      }
+      if (!window.confirm('确认把尚未发布的 JUNKMAN 模拟交易记录哈希提交到 Base 链？这会消耗少量 Gas，不会读取或操作交易账户。')) return;
+      const button = $('publishButton');
+      button.disabled = true;
+      $('chainMessage').textContent = '正在生成增量 Merkle 批次并等待 Base 确认，请勿重复点击……';
+      $('chainMessage').style.display = 'block';
+      try {
+        const response = await fetch('/api/junk-performance/publish', {
+          method: 'POST',
+          headers: { 'X-JUNKMAN-PUBLISH': 'confirm' },
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+        const result = payload.result;
+        if (result.status === 'already_current') {
+          $('chainMessage').textContent = '链上记录已经是最新，无需重复支付 Gas。';
+        } else {
+          $('chainMessage').innerHTML = `上链成功：${safe(result.trade_line_record_count)} 条逐线交易记录，区块 ${safe(result.block_number)}。<a href="${safe(result.explorer_url)}" target="_blank" rel="noopener" style="color:var(--green)">在 BaseScan 查看</a>`;
+        }
+        await refresh();
+      } catch (error) {
+        $('chainMessage').textContent = `上链失败：${error.message}`;
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    async function refresh() {
+      const button = $('refreshButton');
+      button.disabled = true;
+      try {
+        const response = await fetch(API_URL, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+        render(data, 'live');
+      } catch (error) {
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (cached) {
+          render(JSON.parse(cached), 'cached');
+          $('errorBox').textContent = `暂时无法连接本机只读接口（${error.message}），当前显示上次成功读取的数据。程序启动后点“立即刷新”即可。`;
+          $('errorBox').style.display = 'block';
+        } else {
+          $('statusBadge').className = 'badge error';
+          $('statusBadge').textContent = '无法读取交易数据';
+          $('errorBox').textContent = `无法连接 ${API_URL}。请先启动项目程序，再点“立即刷新”。错误：${error.message}`;
+          $('errorBox').style.display = 'block';
+        }
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    $('refreshButton').addEventListener('click', refresh);
+    $('publishButton').addEventListener('click', publishOnchain);
+    if (!CAN_PUBLISH) $('publishButton').title = '请通过本机控制台 URL 打开后使用';
+    refresh();
+    setInterval(refresh, 30_000);
+  </script>
+</body>
+</html>

@@ -32,6 +32,9 @@
     "console": "node ./apps/control-console/control-console.mjs",
     "review:junk-post-deploy": "node ./ops/write-junk-post-deploy-summary.mjs",
     "review:export": "node ./ops/export-review-data.mjs",
+    "onchain:status": "node ./apps/trade-notary/trade-notary-cli.mjs status",
+    "onchain:dry-run": "node ./apps/trade-notary/trade-notary-cli.mjs dry-run",
+    "onchain:publish": "node ./apps/trade-notary/trade-notary-cli.mjs publish",
     "test": "node --test \"./tests/*.mjs\" \"./tests/*.cjs\" \"./apps/zero-dte-options/*.test.mjs\""
   },
   "engines": {
@@ -39,6 +42,7 @@
   },
   "dependencies": {
     "dotenv": "^17.4.2",
+    "ethers": "^6.17.0",
     "moomoo-api": "10.9.6908",
     "playwright-core": "^1.54.0",
     "ws": "^8.21.0"

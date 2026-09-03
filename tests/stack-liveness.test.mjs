@@ -11,7 +11,6 @@ const stackScriptPath = path.join(repositoryRoot, 'run-junk-stack.ps1');
 const runtimeContractFiles = [
   'run-junk-stack.ps1',
   'run-junk-gex.ps1',
-  'run-pa-options.ps1',
   path.join('ops', 'recover-opend-websocket-auth.ps1'),
 ];
 const powershellPath = path.join(

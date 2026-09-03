@@ -66,15 +66,19 @@ import {
   update_junk_experiment_variant_management,
 } from '../zero-dte-options/junk-exit-experiment.mjs';
 import {
+  broker_order_blocks_new_entry,
   broker_order_identity,
+  expired_entry_without_broker_evidence,
+  expired_settlement_missing,
   heatmap_summary,
   is_terminal_broker_order,
+  settle_expired_option_row_unpriced,
 } from '../zero-dte-options/zero-dte-line.mjs';
 import {
   buildTop100NightwatchCandidates,
   inferOptionStrikeStep,
   nightwatchWorkingSetTickers,
-  previousCompletedTradingDate,
+  rankTradingDateForPolicy,
   validateNightwatchTickerEvidence,
 } from './junk-multi-universe.mjs';
 import { buildMultiSymbolMarketContext } from './junk-multi-market-context.mjs';
@@ -139,6 +143,18 @@ export function shouldPollFlowSource({
   if (!Number.isFinite(lastPollMs)) return true;
   const intervalMs = Math.max(30_000, finiteNumber(poll_interval_seconds, 30) * 1_000);
   return Number(now_ms) - lastPollMs >= intervalMs;
+}
+
+export function shouldRefreshTop100Universe({
+  entry_open,
+  universe,
+  session_date_et,
+  policy_signature,
+} = {}) {
+  if (entry_open !== true) return false;
+  return !universe
+    || universe.session_date_et !== session_date_et
+    || universe.policy_signature !== policy_signature;
 }
 
 function sanitizedError(error) {
@@ -327,8 +343,17 @@ function positionCost(position) {
   );
 }
 
+function terminalLocalRow(row) {
+  return [
+    'closed',
+    'entry_unfilled_terminal',
+    'expired_no_submission_evidence',
+    'expired_settled_unpriced',
+  ].includes(String(row?.status || ''));
+}
+
 function activeRows(state) {
-  return Object.values(state.orders || {}).filter((row) => !['closed', 'entry_unfilled_terminal'].includes(row?.status));
+  return Object.values(state.orders || {}).filter((row) => !terminalLocalRow(row));
 }
 
 async function activeOtherJunkRows() {
@@ -339,7 +364,7 @@ async function activeOtherJunkRows() {
     const line = resolveBusinessLine(lineId);
     const state = await parseJson(businessLineLogPath(line, 'runtime-state.json'));
     for (const row of Object.values(state?.orders || {})) {
-      if (['closed', 'entry_unfilled_terminal'].includes(row?.status)) continue;
+      if (terminalLocalRow(row)) continue;
       rows.push({ business_line: lineId, ...row });
     }
   }
@@ -379,12 +404,17 @@ function configureForFinalists(baseConfig, finalists) {
 
 async function refreshUniverse({ client, nightwatch, config, sessionDateEt }) {
   const universePolicy = config.policy?.universe || {};
-  const expectedTradingDate = previousCompletedTradingDate(
-    sessionDateEt,
-    config.policy?.market_calendar?.closed_dates_et || [],
-  );
+  const expectedTradingDate = rankTradingDateForPolicy({
+    session_date_et: sessionDateEt,
+    closed_dates_et: config.policy?.market_calendar?.closed_dates_et || [],
+    require_previous_completed_nyse_trading_date:
+      universePolicy.require_previous_completed_nyse_trading_date === true,
+  });
   const [rankResponse, discoverResponse] = await Promise.all([
-    fetchOptionUnderlyingRank(client, { count: finiteNumber(universePolicy.rank_count, 100) }),
+    fetchOptionUnderlyingRank(client, {
+      count: finiteNumber(universePolicy.rank_count, 100),
+      tradingDate: expectedTradingDate,
+    }),
     nightwatch.discover_datasets(),
   ]);
   const intersection = buildTop100NightwatchCandidates({
@@ -738,9 +768,9 @@ function rankTradeDecisions(left, right) {
     || finiteNumber(left?.universe_provenance?.top100_rank, 999) - finiteNumber(right?.universe_provenance?.top100_rank, 999);
 }
 
-function accountExposure(positions, orders) {
+function accountExposure(positions, orders, currentSessionDate = nyContext(new Date()).date_key) {
   const openPositions = positions.filter((row) => finiteNumber(row?.qty, 0) > 0);
-  const pendingOrders = orders.filter((row) => !is_terminal_broker_order(row?.orderStatus));
+  const pendingOrders = orders.filter((row) => broker_order_blocks_new_entry(row, currentSessionDate));
   return {
     clear: openPositions.length === 0 && pendingOrders.length === 0,
     open_position_count: openPositions.length,
@@ -748,13 +778,18 @@ function accountExposure(positions, orders) {
   };
 }
 
-export function scopedEntryExposure(positions, orders, contractCode) {
+export function scopedEntryExposure(
+  positions,
+  orders,
+  contractCode,
+  currentSessionDate = nyContext(new Date()).date_key,
+) {
   const code = String(contractCode || '');
   const sameContractPositions = positions.filter((row) => (
     String(row?.code || '') === code && finiteNumber(row?.qty, 0) > 0
   ));
   const sameContractOrders = orders.filter((row) => (
-    String(row?.code || '') === code && !is_terminal_broker_order(row?.orderStatus)
+    String(row?.code || '') === code && broker_order_blocks_new_entry(row, currentSessionDate)
   ));
   return {
     clear: sameContractPositions.length === 0 && sameContractOrders.length === 0,
@@ -863,6 +898,7 @@ async function reconcileRows({ client, config, quoteFeed, state, now, persist })
   ]);
   const orders = brokerRows(orderResponse, 'orderList');
   const positions = brokerRows(positionResponse, 'positionList');
+  const currentSessionDate = nyContext(now).date_key;
   for (const row of activeRows(state)) {
     const position = positions.find((candidate) => String(candidate?.code || '') === row.code) || null;
     if (position) {
@@ -871,6 +907,14 @@ async function reconcileRows({ client, config, quoteFeed, state, now, persist })
       row.broker_can_sell_qty = finiteNumber(position.canSellQty, 0);
     }
     const entryOrder = findBrokerOrder(orders, row, 'entry');
+    if (!entryOrder
+      && expired_entry_without_broker_evidence(row, position, currentSessionDate)) {
+      row.status = 'expired_no_submission_evidence';
+      row.pending_exit_qty = 0;
+      row.last_error = 'expired_entry_has_no_broker_order_fill_or_position_evidence';
+      row.updated_at = now.toISOString();
+      continue;
+    }
     if (!entryOrder && ['entry_intent', 'entry_submission_unknown', 'entry_submitted'].includes(row.status)) {
       row.status = 'recovery_blocked';
       row.last_error = 'owned_entry_order_not_found_fail_closed';
@@ -910,6 +954,10 @@ async function reconcileRows({ client, config, quoteFeed, state, now, persist })
     if (row.experiment_ledger.pending_exit_batch) {
       const exitOrder = findBrokerOrder(orders, row, 'exit');
       if (!exitOrder) {
+        if (expired_settlement_missing(row, position, currentSessionDate)) {
+          settle_expired_option_row_unpriced(row, { now, broker_position: position });
+          continue;
+        }
         row.status = 'recovery_blocked';
         row.last_error = 'owned_exit_order_not_found_fail_closed';
         continue;
@@ -936,6 +984,11 @@ async function reconcileRows({ client, config, quoteFeed, state, now, persist })
       } else {
         row.status = 'exit_submitted';
       }
+    }
+
+    if (expired_settlement_missing(row, position, currentSessionDate)) {
+      settle_expired_option_row_unpriced(row, { now, broker_position: position });
+      continue;
     }
 
     if (row.status === 'open' && row.experiment_ledger.entry_allocation_finalized && !row.experiment_ledger.pending_exit_batch) {
@@ -1030,7 +1083,7 @@ async function reconcileRows({ client, config, quoteFeed, state, now, persist })
     row.updated_at = now.toISOString();
   }
   await persist();
-  return { orders, positions, exposure: accountExposure(positions, orders) };
+  return { orders, positions, exposure: accountExposure(positions, orders, currentSessionDate) };
 }
 
 async function writeStatus(payload) {
@@ -1205,11 +1258,12 @@ export async function runJunkMultiLine(cliArgs = process.argv.slice(2)) {
               await persist();
             }
           }
-        } else if (
-          !state.universe
-          || state.universe.session_date_et !== schedule.date_key
-          || state.universe.policy_signature !== requiredUniversePolicySignature
-        ) {
+        } else if (shouldRefreshTop100Universe({
+          entry_open: schedule.entry_open,
+          universe: state.universe,
+          session_date_et: schedule.date_key,
+          policy_signature: requiredUniversePolicySignature,
+        })) {
           state.universe = await refreshUniverse({
             client: connection.client,
             nightwatch,
@@ -1307,6 +1361,7 @@ export async function runJunkMultiLine(cliArgs = process.argv.slice(2)) {
               brokerRows(positionsResponse, 'positionList'),
               brokerRows(ordersResponse, 'orderList'),
               plan.order?.code,
+              schedule.date_key,
             );
             if (!exposure.clear) {
               plan = {

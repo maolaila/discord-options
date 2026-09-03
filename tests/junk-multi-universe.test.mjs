@@ -5,6 +5,7 @@ import {
   exactFixedSampleBucket,
   inferOptionStrikeStep,
   previousCompletedTradingDate,
+  rankTradingDateForPolicy,
   validateNightwatchTickerEvidence,
 } from '../apps/junk-multi-options/junk-multi-universe.mjs';
 import {
@@ -12,7 +13,7 @@ import {
 } from '../apps/junk-multi-options/junk-multi-market-context.mjs';
 import { moomooUnderlyingCode } from '../apps/junk-multi-options/junk-multi-line.mjs';
 
-test('Top100 candidates require the previous completed trading date and Nightwatch coverage', () => {
+test('Top100 candidates require the configured trading date and Nightwatch coverage', () => {
   const result = buildTop100NightwatchCandidates({
     expected_trading_date: '2026-08-24',
     rank_response: {
@@ -48,6 +49,15 @@ test('Top100 trading-date mismatch fails closed', () => {
 test('previous trading date skips weekends and configured closures', () => {
   assert.equal(previousCompletedTradingDate('2026-08-24'), '2026-08-21');
   assert.equal(previousCompletedTradingDate('2026-09-08', ['2026-09-07']), '2026-09-04');
+});
+
+test('rank trading date follows the current session unless policy explicitly requests prior data', () => {
+  assert.equal(rankTradingDateForPolicy({ session_date_et: '2026-08-24' }), '2026-08-24');
+  assert.equal(rankTradingDateForPolicy({
+    session_date_et: '2026-09-08',
+    closed_dates_et: ['2026-09-07'],
+    require_previous_completed_nyse_trading_date: true,
+  }), '2026-09-04');
 });
 
 test('strike step is inferred from the actual same-day option chain', () => {

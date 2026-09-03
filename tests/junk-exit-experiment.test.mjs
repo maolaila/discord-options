@@ -11,6 +11,7 @@ import {
   experiment_total_remaining_qty,
   finalize_junk_experiment_entry_allocation,
   load_junk_exit_experiment,
+  settle_junk_experiment_expiration_unpriced,
   summarize_junk_exit_experiment,
 } from '../apps/zero-dte-options/junk-exit-experiment.mjs';
 
@@ -108,6 +109,41 @@ test('latest line independently adds one aggregate unit only when its entry prof
     { filled_qty: 8, fill_avg_price: 5 },
   );
   assert.ok(Object.values(ledger.variants).every((line) => line.allocated_entry_qty === 1));
+});
+
+test('unpriced expiration settlement clears virtual ownership but preserves actual fill accounting', () => {
+  const manifest = load_junk_exit_experiment(policy);
+  const cohort = build_junk_experiment_cohort(basePlan(1), manifest, {
+    line_participation: {
+      latest_regime_lifecycle: {
+        entry_profile: 'latest_regime_lifecycle_v1',
+        participate: true,
+        decision: 'trade',
+        reason_codes: ['latest_line_quality_filter_passed'],
+      },
+    },
+  });
+  let ledger = finalize_junk_experiment_entry_allocation(
+    create_junk_experiment_ledger(cohort.experiment),
+    { filled_qty: 8, fill_avg_price: 3.8 },
+  );
+  ledger = begin_junk_experiment_exit_batch(ledger, {
+    allocations: { sl10_tp20: 1, sl15_tp20: 1 },
+    reason_by_line: { sl10_tp20: 'option_take_profit', sl15_tp20: 'option_take_profit' },
+    attempt_no: 1,
+    remark: 'junk_gex_exit:test:1',
+  });
+  const settled = settle_junk_experiment_expiration_unpriced(ledger, {
+    now: new Date('2026-09-02T13:00:00.000Z'),
+  });
+  assert.equal(experiment_total_remaining_qty(settled), 0);
+  assert.equal(experiment_all_variants_flat(settled), true);
+  assert.equal(settled.pending_exit_batch, null);
+  assert.equal(settled.expiration_settlement.settled_qty, 8);
+  assert.equal(settled.expiration_settlement.prior_pending_exit_batch.requested_qty, 2);
+  assert.ok(Object.values(settled.variants).every((variant) => variant.expired_settled_qty === 1));
+  assert.ok(Object.values(settled.variants).every((variant) => variant.allocated_exit_qty === 0));
+  assert.ok(Object.values(settled.variants).every((variant) => variant.realized_pnl_usd === null));
 });
 
 test('optional latest line yields to visible depth without blocking the seven base lines', () => {

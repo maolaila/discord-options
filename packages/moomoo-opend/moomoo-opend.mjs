@@ -205,19 +205,48 @@ export function loadEnvFile(envFile) {
   };
 }
 
-function readOpenDWebSocketKey(envBaseDir) {
-  const direct = String(process.env.MOOMOO_OPEND_WS_KEY || '').trim();
-  if (direct) return direct;
+function resolveOpenDWebSocketKey(opts, envBaseDir) {
+  const explicit = String(opts.websocketKey || '').trim();
+  if (explicit) return { value: explicit, source: 'explicit' };
 
-  const keyFile = String(process.env.MOOMOO_OPEND_WS_KEY_FILE || '').trim();
-  if (!keyFile) return undefined;
-  const resolved = resolveMaybeRelative(keyFile, envBaseDir);
-  if (!fs.existsSync(resolved)) return undefined;
-  return fs.readFileSync(resolved, 'utf8').trim() || undefined;
+  const keyFile = String(opts.websocketKeyFile || process.env.MOOMOO_OPEND_WS_KEY_FILE || '').trim();
+  if (keyFile) {
+    const resolved = resolveMaybeRelative(keyFile, envBaseDir);
+    if (!fs.existsSync(resolved)) return { value: undefined, source: 'file_missing' };
+    return {
+      value: fs.readFileSync(resolved, 'utf8').trim() || undefined,
+      source: 'shared_key_file',
+    };
+  }
+
+  const direct = String(process.env.MOOMOO_OPEND_WS_KEY || '').trim();
+  return {
+    value: direct || undefined,
+    source: direct ? 'process_environment_fallback' : 'missing',
+  };
+}
+
+export function loadSharedMoomooRuntimeConfig(opts = {}) {
+  const envInfo = loadEnvFile(opts.envFile);
+  const websocketKey = resolveOpenDWebSocketKey(opts, envInfo.envBaseDir);
+  return {
+    envFile: envInfo.envFile,
+    envLoaded: envInfo.loaded,
+    host: String(opts.host || process.env.MOOMOO_OPEND_HOST || '127.0.0.1'),
+    websocketPort: intValue(opts.websocketPort || process.env.MOOMOO_OPEND_WS_PORT || process.env.MOOMOO_OPEND_PORT || 33333, 'MOOMOO_OPEND_WS_PORT'),
+    websocketSsl: boolValue(opts.websocketSsl ?? process.env.MOOMOO_OPEND_WS_SSL, false),
+    websocketKey: websocketKey.value,
+    websocketKeySource: websocketKey.source,
+    accId: String(opts.accId || process.env.MOOMOO_ACC_ID || '').trim() || undefined,
+    trdEnv: mappedInt(opts.trdEnv || process.env.MOOMOO_TRD_ENV || 'simulate', trdEnvMap, 'MOOMOO_TRD_ENV', TRD_ENV_SIMULATE),
+    trdMarket: mappedInt(opts.trdMarket || process.env.MOOMOO_TRD_MARKET || 'US', trdMarketMap, 'MOOMOO_TRD_MARKET', TRD_MARKET_US),
+    jpAccType: intValue(opts.jpAccType || process.env.MOOMOO_JP_ACC_TYPE, 'MOOMOO_JP_ACC_TYPE'),
+    allowRealTrading: boolValue(opts.allowRealTrading ?? process.env.MOOMOO_ALLOW_REAL_TRADING, false),
+  };
 }
 
 export function loadMoomooConfig(opts = {}) {
-  const envInfo = loadEnvFile(opts.envFile);
+  const sharedRuntime = loadSharedMoomooRuntimeConfig(opts);
   const policyPath = resolvePolicyPath(opts.policyFile || opts.policyPath || process.env.MOOMOO_POLICY_FILE || DEFAULT_POLICY_PATH);
   const policy = readPolicy(policyPath);
   const signalFilter = policy.signal_filter || {};
@@ -226,21 +255,12 @@ export function loadMoomooConfig(opts = {}) {
   const exits = policy.exit_rules || {};
   const execution = policy.execution || {};
   return {
-    envFile: envInfo.envFile,
-    envLoaded: envInfo.loaded,
+    ...sharedRuntime,
     businessLine: String(opts.businessLine || policy.business_line?.id || policy.business_line || '').trim() || undefined,
     policyPath,
     policyExecutionEnvironment: String(execution.environment || '').trim() || undefined,
     policyRealTradingAllowed: boolValue(execution.real_trading_allowed, false),
-    host: String(opts.host || process.env.MOOMOO_OPEND_HOST || '127.0.0.1'),
-    websocketPort: intValue(opts.websocketPort || process.env.MOOMOO_OPEND_WS_PORT || process.env.MOOMOO_OPEND_PORT || 33333, 'MOOMOO_OPEND_WS_PORT'),
-    websocketSsl: boolValue(opts.websocketSsl ?? process.env.MOOMOO_OPEND_WS_SSL, false),
-    websocketKey: String(opts.websocketKey || readOpenDWebSocketKey(envInfo.envBaseDir) || '').trim() || undefined,
-    accId: String(opts.accId || process.env.MOOMOO_ACC_ID || '').trim() || undefined,
-    trdEnv: mappedInt(opts.trdEnv || process.env.MOOMOO_TRD_ENV || 'simulate', trdEnvMap, 'MOOMOO_TRD_ENV', TRD_ENV_SIMULATE),
-    trdMarket: mappedInt(opts.trdMarket || process.env.MOOMOO_TRD_MARKET || 'US', trdMarketMap, 'MOOMOO_TRD_MARKET', TRD_MARKET_US),
-    jpAccType: intValue(opts.jpAccType || process.env.MOOMOO_JP_ACC_TYPE, 'MOOMOO_JP_ACC_TYPE'),
-    requiredAdviceFormat: String(opts.requiredAdviceFormat || process.env.MOOMOO_REQUIRED_ADVICE_FORMAT || signalFilter.advice_format || 'pa').trim().toLowerCase(),
+    requiredAdviceFormat: String(opts.requiredAdviceFormat || process.env.MOOMOO_REQUIRED_ADVICE_FORMAT || signalFilter.advice_format || 'gex').trim().toLowerCase(),
     minWinRate: numberValue(opts.minWinRate || process.env.MOOMOO_MIN_WIN_RATE, 'MOOMOO_MIN_WIN_RATE', signalFilter.min_win_rate_pct ?? 80),
     minConfidence: numberValue(opts.minConfidence || process.env.MOOMOO_MIN_CONFIDENCE, 'MOOMOO_MIN_CONFIDENCE', signalFilter.min_confidence ?? 5),
     maxRiskScore: numberValue(opts.maxRiskScore || process.env.MOOMOO_MAX_RISK_SCORE, 'MOOMOO_MAX_RISK_SCORE', signalFilter.max_risk_score ?? 2),
@@ -292,7 +312,6 @@ export function loadMoomooConfig(opts = {}) {
     optionExitStopLossPct: numberValue(opts.optionExitStopLossPct || process.env.MOOMOO_OPTION_EXIT_STOP_LOSS_PCT, 'MOOMOO_OPTION_EXIT_STOP_LOSS_PCT', exits.option_stop_loss_pct ?? 20),
     closeExitStartTimeEt: String(opts.closeExitStartTimeEt || process.env.MOOMOO_CLOSE_EXIT_START_TIME_ET || exits.close_exit_start_time_et || '15:45').trim(),
     forceCloseExitStartTimeEt: String(opts.forceCloseExitStartTimeEt || process.env.MOOMOO_FORCE_CLOSE_EXIT_START_TIME_ET || exits.force_close_exit_start_time_et || '15:55').trim(),
-    allowRealTrading: boolValue(opts.allowRealTrading ?? process.env.MOOMOO_ALLOW_REAL_TRADING, false),
     policy,
   };
 }

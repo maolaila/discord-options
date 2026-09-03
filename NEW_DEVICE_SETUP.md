@@ -42,14 +42,14 @@ Keep at least these values:
 MOOMOO_OPEND_HOST=127.0.0.1
 MOOMOO_OPEND_WS_PORT=33333
 MOOMOO_OPEND_WS_SSL=false
-MOOMOO_OPEND_WS_KEY=
 MOOMOO_OPEND_WS_KEY_FILE=./secrets/moomoo_opend_ws_key.txt
 MOOMOO_TRD_ENV=simulate
 MOOMOO_TRD_MARKET=US
 MOOMOO_ALLOW_REAL_TRADING=false
 ```
 
-If OpenD has a WebSocket key, place it in an ignored local file:
+If OpenD has a WebSocket key, place it in this ignored local file. Every JUNKMAN
+process reads this same file; do not add a separate direct-key environment value:
 
 ```powershell
 New-Item -ItemType Directory -Force .\secrets

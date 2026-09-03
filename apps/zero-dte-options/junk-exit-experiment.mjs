@@ -425,11 +425,21 @@ export function exit_config_for_variant(base_config, variant) {
 }
 
 export function experiment_variant_remaining_qty(variant) {
-  return Math.max(0, nonnegativeInteger(variant?.allocated_entry_qty) - nonnegativeInteger(variant?.allocated_exit_qty));
+  return Math.max(
+    0,
+    nonnegativeInteger(variant?.allocated_entry_qty)
+      - nonnegativeInteger(variant?.allocated_exit_qty)
+      - nonnegativeInteger(variant?.expired_settled_qty),
+  );
 }
 
 export function experiment_unallocated_remaining_qty(ledger) {
-  return Math.max(0, nonnegativeInteger(ledger?.unallocated_entry_qty) - nonnegativeInteger(ledger?.unallocated_exited_qty));
+  return Math.max(
+    0,
+    nonnegativeInteger(ledger?.unallocated_entry_qty)
+      - nonnegativeInteger(ledger?.unallocated_exited_qty)
+      - nonnegativeInteger(ledger?.unallocated_expired_settled_qty),
+  );
 }
 
 export function experiment_total_remaining_qty(ledger) {
@@ -443,6 +453,55 @@ export function experiment_all_variants_flat(ledger) {
   return Boolean(ledger?.entry_allocation_finalized)
     && experiment_total_remaining_qty(ledger) === 0
     && !ledger?.pending_exit_batch;
+}
+
+export function settle_junk_experiment_expiration_unpriced(ledger, {
+  now = new Date(),
+} = {}) {
+  if (!ledger?.entry_allocation_finalized) return ledger;
+  const variants = { ...(ledger.variants || {}) };
+  let settledQty = 0;
+  for (const [lineId, current] of Object.entries(variants)) {
+    const remainingQty = experiment_variant_remaining_qty(current);
+    settledQty += remainingQty;
+    variants[lineId] = {
+      ...current,
+      expired_settled_qty: nonnegativeInteger(current.expired_settled_qty) + remainingQty,
+      pending_exit_qty: 0,
+      status: remainingQty > 0 ? 'expired_settled_unpriced' : current.status,
+      comparison_eligible: remainingQty > 0 ? false : current.comparison_eligible,
+      comparison_exclusion_reason: remainingQty > 0
+        ? 'expired_contract_settlement_price_missing'
+        : current.comparison_exclusion_reason,
+      realized_pnl_usd: remainingQty > 0 ? null : current.realized_pnl_usd,
+    };
+  }
+  const unallocatedRemainingQty = experiment_unallocated_remaining_qty(ledger);
+  settledQty += unallocatedRemainingQty;
+  const priorPendingBatch = ledger.pending_exit_batch
+    ? {
+      attempt_no: ledger.pending_exit_batch.attempt_no ?? null,
+      remark: ledger.pending_exit_batch.remark || null,
+      requested_qty: nonnegativeInteger(ledger.pending_exit_batch.requested_qty),
+      accounted_fill_qty: nonnegativeInteger(ledger.pending_exit_batch.accounted_fill_qty),
+      allocations: { ...(ledger.pending_exit_batch.allocations || {}) },
+    }
+    : null;
+  return {
+    ...ledger,
+    variants,
+    unallocated_expired_settled_qty:
+      nonnegativeInteger(ledger.unallocated_expired_settled_qty) + unallocatedRemainingQty,
+    pending_exit_batch: null,
+    ownership_status: 'expired_settled_unpriced',
+    expiration_settlement: ledger.expiration_settlement || {
+      price_status: 'missing',
+      settled_qty: settledQty,
+      prior_pending_exit_batch: priorPendingBatch,
+      settled_at: now.toISOString(),
+    },
+    updated_at: now.toISOString(),
+  };
 }
 
 function allocationTargets(allocations, cumulativeQty, allocationOrder = []) {

@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import fsp from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import {
@@ -8,6 +10,7 @@ import {
   buildOptionExecutionQuote,
   establishMoomooConnection,
   loadMoomooConfig,
+  loadSharedMoomooRuntimeConfig,
   selectSimulatedUsOptionAccount,
 } from '../packages/moomoo-opend/moomoo-opend.mjs';
 import {
@@ -141,7 +144,7 @@ test('entry quote blocks immediate round-trip loss beyond the option stop', () =
   assert.ok(quote.reasons.includes('immediate_round_trip_loss_pct_above_stop_loss:27.78>25'));
 });
 
-test('JUNKMAN remains the default while retired PA aliases stay fail-closed', () => {
+test('JUNKMAN business lines are the only registered trading lines', () => {
   assert.equal(path.basename(DEFAULT_POLICY_PATH), 'zero-dte-options-policy.json');
   const aliases = [undefined, '0dte', 'zero-dte', 'junk-gex', 'junkman'];
   for (const alias of aliases) {
@@ -161,25 +164,30 @@ test('JUNKMAN remains the default while retired PA aliases stay fail-closed', ()
   assert.equal(path.basename(config.policyPath), 'zero-dte-options-policy.json');
   assert.equal(path.basename(businessLineLogPath(line, 'trades.ndjson')), 'zero-dte-options-trades.ndjson');
 
-  for (const alias of ['pa-options', 'pa', 'pa-option', 'pa-options-sim', 'options', 'options-sim', 'moomoo']) {
-    const paLine = resolveBusinessLine(alias);
-    assert.equal(paLine.key, 'pa-options');
-    assert.equal(paLine.enabled, false);
-    const paConfig = loadMoomooConfig({
-      ...moomooConfigOptionsForBusinessLine(paLine, { env: './__missing_test_env__' }),
-    });
-    assert.equal(paConfig.businessLine, 'pa-options');
-    assert.equal(paConfig.requiredAdviceFormat, 'pa');
-    assert.equal(paConfig.policyRealTradingAllowed, false);
-    assert.equal(paConfig.policyExecutionEnvironment, 'simulate_only');
-    assert.equal(paConfig.policy.business_line.status, 'disabled');
-    assert.equal(paConfig.policy.business_line.disabled_reason, 'manual_discord_signal_latency');
-    assert.equal(path.basename(paConfig.policyPath), 'pa-options-policy.json');
+});
+
+test('the shared OpenD key file wins over a stale direct process key', async () => {
+  const temporaryRoot = await fsp.mkdtemp(path.join(os.tmpdir(), 'shared-opend-config-'));
+  const keyFile = path.join(temporaryRoot, 'opend-key.txt');
+  const envFile = path.join(temporaryRoot, '.env');
+  await fsp.writeFile(keyFile, 'current-file-key\n', 'utf8');
+  await fsp.writeFile(envFile, 'MOOMOO_OPEND_WS_KEY_FILE=./opend-key.txt\n', 'utf8');
+
+  const previousDirect = process.env.MOOMOO_OPEND_WS_KEY;
+  const previousFile = process.env.MOOMOO_OPEND_WS_KEY_FILE;
+  process.env.MOOMOO_OPEND_WS_KEY = 'stale-process-key';
+  delete process.env.MOOMOO_OPEND_WS_KEY_FILE;
+  try {
+    const shared = loadSharedMoomooRuntimeConfig({ envFile });
+    assert.equal(shared.websocketKey, 'current-file-key');
+    assert.equal(shared.websocketKeySource, 'shared_key_file');
+  } finally {
+    if (previousDirect === undefined) delete process.env.MOOMOO_OPEND_WS_KEY;
+    else process.env.MOOMOO_OPEND_WS_KEY = previousDirect;
+    if (previousFile === undefined) delete process.env.MOOMOO_OPEND_WS_KEY_FILE;
+    else process.env.MOOMOO_OPEND_WS_KEY_FILE = previousFile;
+    await fsp.rm(temporaryRoot, { recursive: true, force: true });
   }
-  assert.equal(
-    path.basename(businessLineLogPath(resolveBusinessLine('pa'), 'trades.ndjson')),
-    'pa-options-trades.ndjson',
-  );
 });
 
 test('cancel order request carries the broker order identity', () => {

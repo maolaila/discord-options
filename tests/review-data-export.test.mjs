@@ -79,8 +79,7 @@ test('review export redacts Discord ids embedded in composite keys while retaini
     source_signal_key: `${messageId}|MESSAGE_CREATE|SPX_2026-08-14_7780C|trade|bull`,
     signal_key: `${messageId}|MESSAGE_CREATE|SPX_2026-08-14_7780C|trade|bull`,
     trade_key: `${messageId}:SPXW260814C07780000:253622`,
-    execution_key: `pa-options|${messageId}|MESSAGE_CREATE|SPXW260814C07780000`,
-    _pa_execution_key: `pa-options|${messageId}|MESSAGE_CREATE|SPXW260814C07780000`,
+    execution_key: `zero-dte-options|${messageId}|MESSAGE_CREATE|SPXW260814C07780000`,
     remark: `discord:${messageSuffix}`,
     orderID: brokerOrderId,
   });
@@ -96,11 +95,7 @@ test('review export redacts Discord ids embedded in composite keys while retaini
   assert.equal(sanitized.trade_key, `${alias}:SPXW260814C07780000:253622`);
   assert.equal(
     sanitized.execution_key,
-    `pa-options|${alias}|MESSAGE_CREATE|SPXW260814C07780000`,
-  );
-  assert.equal(
-    sanitized._pa_execution_key,
-    `pa-options|${alias}|MESSAGE_CREATE|SPXW260814C07780000`,
+    `zero-dte-options|${alias}|MESSAGE_CREATE|SPXW260814C07780000`,
   );
   assert.equal(sanitized.remark, `discord:${stableRedaction(messageSuffix)}`);
   assert.equal(sanitized.orderID, brokerOrderId);

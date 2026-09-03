@@ -27,7 +27,7 @@
     "source": "moomoo_opend_get_option_underlying_rank",
     "rank_sort": "options_volume_desc",
     "rank_count": 100,
-    "require_previous_completed_nyse_trading_date": true,
+    "require_previous_completed_nyse_trading_date": false,
     "nightwatch_working_set": "dealer-heatmap",
     "nightwatch_coverage_required": true,
     "zero_dte_chain_required": true,

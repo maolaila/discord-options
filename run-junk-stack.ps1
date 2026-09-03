@@ -64,12 +64,9 @@ $openDAuthRecoverySensitivePaths = @(
 $junkSupervisorPath = Join-Path $rootPath 'run-junk-gex.ps1'
 $junkMultiSupervisorPath = Join-Path $rootPath 'run-junk-multi.ps1'
 $junkFlowHeatmapSupervisorPath = Join-Path $rootPath 'run-junk-flow-heatmap.ps1'
-$paSupervisorPath = Join-Path $rootPath 'run-pa-options.ps1'
 $policyPath = Join-Path $rootPath 'config\zero-dte-options-policy.json'
 $junkMultiPolicyPath = Join-Path $rootPath 'config\junk-multi-options-policy.json'
 $junkFlowHeatmapPolicyPath = Join-Path $rootPath 'config\junk-flow-heatmap-options-policy.json'
-$paPolicyPath = Join-Path $rootPath 'config\pa-options-policy.json'
-$paExitStatusPath = Join-Path $logDirectory 'pa-options-exit-status.json'
 $envPath = Join-Path $rootPath '.env'
 $powershellPath = Join-Path $PSHOME 'powershell.exe'
 
@@ -308,19 +305,6 @@ function Resolve-NodePath {
   throw 'Node.js 24.15 or newer was not found. JUNKMAN requires the built-in node:sqlite release-candidate API.'
 }
 
-function Restore-ProcessMoomooWebSocketKey {
-  param(
-    [Parameter(Mandatory = $true)][bool]$WasPresent,
-    [AllowNull()][string]$OriginalValue
-  )
-
-  if ($WasPresent) {
-    $env:MOOMOO_OPEND_WS_KEY = [string]$OriginalValue
-  } else {
-    Remove-Item Env:MOOMOO_OPEND_WS_KEY -ErrorAction SilentlyContinue
-  }
-}
-
 function Get-MoomooCheckValidation {
   param(
     [Parameter(Mandatory = $true)]$Payload,
@@ -380,27 +364,15 @@ function Invoke-MoomooApiHealthProbe {
     return [pscustomobject]@{ Healthy = $false; Reason = 'probe_deadline_exhausted'; CheckedAt = $null }
   }
 
-  $originalKeyWasPresent = Test-Path Env:MOOMOO_OPEND_WS_KEY
-  $originalDirectKey = if ($originalKeyWasPresent) {
-    [string]$env:MOOMOO_OPEND_WS_KEY
-  } else {
-    $null
-  }
-  $userKey = [Environment]::GetEnvironmentVariable('MOOMOO_OPEND_WS_KEY', 'User')
-  $keyLoadedFromUserEnvironment = -not [string]::IsNullOrWhiteSpace($userKey)
   Set-ComponentState `
     -Name 'moomoo_credentials' `
-    -State $(if ($keyLoadedFromUserEnvironment) { 'available' } else { 'not_in_user_environment' }) `
-    -Detail 'websocket_key_value_is_never_logged' `
-    -Level $(if ($keyLoadedFromUserEnvironment) { 'INFO' } else { 'WARN' })
+    -State 'shared_key_file' `
+    -Detail 'source=.env:MOOMOO_OPEND_WS_KEY_FILE; websocket_key_value_is_never_logged'
 
   $probeStartedAt = [DateTimeOffset]::UtcNow
   $process = $null
   try {
-    if ($keyLoadedFromUserEnvironment) {
-      # Limit direct-key inheritance to this one health-check child.
-      $env:MOOMOO_OPEND_WS_KEY = $userKey
-    }
+    Remove-Item Env:MOOMOO_OPEND_WS_KEY -ErrorAction SilentlyContinue
     $process = Start-Process `
       -FilePath $NodePath `
       -ArgumentList ('"{0}"' -f $moomooCheckScriptPath) `
@@ -438,11 +410,7 @@ function Invoke-MoomooApiHealthProbe {
     return [pscustomobject]@{ Healthy = $false; Reason = 'probe_exception'; CheckedAt = $null }
   } finally {
     if ($null -ne $process) { $process.Dispose() }
-    Restore-ProcessMoomooWebSocketKey `
-      -WasPresent $originalKeyWasPresent `
-      -OriginalValue $originalDirectKey
-    $userKey = $null
-    $originalDirectKey = $null
+    Remove-Item Env:MOOMOO_OPEND_WS_KEY -ErrorAction SilentlyContinue
   }
 }
 
@@ -514,10 +482,10 @@ function Invoke-OpenDAuthRecovery {
       -Name 'opend_auth_recovery' `
       -State 'candidate_authenticated' `
       -Detail 'awaiting_bounded_account_validation=true; credential_value_not_logged=true'
-    $persistedUserKey = [Environment]::GetEnvironmentVariable('MOOMOO_OPEND_WS_KEY', 'User')
-    $persisted = -not [string]::IsNullOrWhiteSpace($persistedUserKey)
-    $persistedUserKey = $null
-    return $persisted
+    # A zero exit code means the recovery child authenticated the candidate and
+    # persisted it to the .env-selected secrets file. The following bounded
+    # account probe is still authoritative before any strategy can start.
+    return $true
   } catch {
     Set-ComponentState `
       -Name 'opend_auth_recovery' `
@@ -566,10 +534,6 @@ function Assert-SimulationOnlyConfiguration {
       -not (Test-Path -LiteralPath $junkFlowHeatmapPolicyPath -PathType Leaf)) {
     throw 'The JUNKMAN-FLOW-HEATMAP simulation supervisor or policy is missing.'
   }
-  if (-not (Test-Path -LiteralPath $paSupervisorPath -PathType Leaf) -or
-      -not (Test-Path -LiteralPath $paPolicyPath -PathType Leaf)) {
-    throw 'The retired PA exit-drain supervisor or policy is missing.'
-  }
   if (-not (Test-Path -LiteralPath $moomooCheckScriptPath -PathType Leaf)) {
     throw 'apps/opend-check/moomoo-check.mjs is missing; JUNKMAN was not started.'
   }
@@ -588,14 +552,6 @@ function Assert-SimulationOnlyConfiguration {
     [bool]$policy.execution.real_trading_allowed
   ) {
     throw 'The active policy is not the JUNKMAN simulation-only policy.'
-  }
-
-  $paPolicy = Get-Content -LiteralPath $paPolicyPath -Raw | ConvertFrom-Json
-  if ($paPolicy.business_line.id -ne 'pa-options' -or
-      $paPolicy.business_line.status -ne 'disabled' -or
-      $paPolicy.execution.environment -ne 'simulate_only' -or
-      [bool]$paPolicy.execution.real_trading_allowed) {
-    throw 'The PA policy must remain disabled and simulation-only.'
   }
 
   $junkMultiPolicy = Get-Content -LiteralPath $junkMultiPolicyPath -Raw | ConvertFrom-Json
@@ -732,7 +688,7 @@ function Start-OpenD {
   $null = Start-Process `
     -FilePath $ExecutablePath `
     -WorkingDirectory (Split-Path -Parent $ExecutablePath) `
-    -WindowStyle Hidden `
+    -WindowStyle Minimized `
     -PassThru
 }
 
@@ -1352,41 +1308,22 @@ function Start-JunkSupervisor {
   $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
   $stdoutPath = Join-Path $logDirectory "junk-supervisor-stack-$stamp.stdout.log"
   $stderrPath = Join-Path $logDirectory "junk-supervisor-stack-$stamp.stderr.log"
-  $originalKeyWasPresent = Test-Path Env:MOOMOO_OPEND_WS_KEY
-  $originalDirectKey = if ($originalKeyWasPresent) {
-    [string]$env:MOOMOO_OPEND_WS_KEY
-  } else {
-    $null
-  }
-  $userKey = [Environment]::GetEnvironmentVariable('MOOMOO_OPEND_WS_KEY', 'User')
   Write-StackLog -Message 'Starting the simulation-only JUNKMAN strategy supervisor.'
-  try {
-    if (-not [string]::IsNullOrWhiteSpace($userKey)) {
-      # The simulation supervisor and its Node watcher need this direct key, but
-      # unrelated console/capture/browser children must never inherit it.
-      $env:MOOMOO_OPEND_WS_KEY = $userKey
-    }
-    $null = Start-Process `
-      -FilePath $powershellPath `
-      -ArgumentList @(
-        '-NoProfile',
-        '-ExecutionPolicy',
-        'Bypass',
-        '-File',
-        ('"{0}"' -f $junkSupervisorPath)
-      ) `
-      -WorkingDirectory $rootPath `
-      -WindowStyle Hidden `
-      -RedirectStandardOutput $stdoutPath `
-      -RedirectStandardError $stderrPath `
-      -PassThru
-  } finally {
-    Restore-ProcessMoomooWebSocketKey `
-      -WasPresent $originalKeyWasPresent `
-      -OriginalValue $originalDirectKey
-    $userKey = $null
-    $originalDirectKey = $null
-  }
+  Remove-Item Env:MOOMOO_OPEND_WS_KEY -ErrorAction SilentlyContinue
+  $null = Start-Process `
+    -FilePath $powershellPath `
+    -ArgumentList @(
+      '-NoProfile',
+      '-ExecutionPolicy',
+      'Bypass',
+      '-File',
+      ('"{0}"' -f $junkSupervisorPath)
+    ) `
+    -WorkingDirectory $rootPath `
+    -WindowStyle Hidden `
+    -RedirectStandardOutput $stdoutPath `
+    -RedirectStandardError $stderrPath `
+    -PassThru
 }
 
 function Ensure-JunkSupervisor {
@@ -1573,56 +1510,6 @@ function Ensure-JunkFlowHeatmapSupervisor {
     return $false
   }
   Set-ComponentState -Name 'junk_flow_heatmap_supervisor' -State 'healthy' -Detail 'mode=simulate_only; launch_confirmed=true'
-  return $true
-}
-
-function Test-PaExitDrainRequired {
-  if (-not (Test-Path -LiteralPath $paExitStatusPath -PathType Leaf)) { return $false }
-  try {
-    $status = Get-Content -LiteralPath $paExitStatusPath -Raw | ConvertFrom-Json
-    return (
-      [string]$status.business_line -eq 'pa-options' -and
-      ([bool]$status.active_pa_position -or
-       [bool]$status.unresolved_exit_submission -or
-       [int]$status.watched -gt 0)
-    )
-  } catch {
-    Set-ComponentState -Name 'pa_exit_drain' -State 'status_unreadable' -Detail $_.Exception.Message -Level 'WARN'
-    return $false
-  }
-}
-
-function Ensure-PaExitDrainSupervisor {
-  Assert-SimulationOnlyConfiguration
-  $supervisors = @(Get-RepositoryProcesses `
-    -CommandLineToken 'run-pa-options.ps1' `
-    -ProcessNames @('powershell.exe', 'pwsh.exe') `
-    -ExactPowerShellFilePath $paSupervisorPath)
-  if (-not (Test-PaExitDrainRequired)) {
-    Set-ComponentState -Name 'pa_exit_drain' -State 'retired' -Detail 'new_entries_disabled=true; legacy_position=false'
-    return $true
-  }
-  if ($supervisors.Count -gt 0) {
-    Set-ComponentState -Name 'pa_exit_drain' -State 'draining' -Detail "process_count=$($supervisors.Count); new_entries_disabled=true"
-    return $true
-  }
-  $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-  $stdoutPath = Join-Path $logDirectory "pa-exit-drain-stack-$stamp.stdout.log"
-  $stderrPath = Join-Path $logDirectory "pa-exit-drain-stack-$stamp.stderr.log"
-  $null = Start-Process -FilePath $powershellPath -ArgumentList @(
-    '-NoProfile','-ExecutionPolicy','Bypass','-File',('"{0}"' -f $paSupervisorPath)
-  ) -WorkingDirectory $rootPath -WindowStyle Hidden `
-    -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath -PassThru
-  Start-Sleep -Seconds 3
-  $supervisors = @(Get-RepositoryProcesses `
-    -CommandLineToken 'run-pa-options.ps1' `
-    -ProcessNames @('powershell.exe', 'pwsh.exe') `
-    -ExactPowerShellFilePath $paSupervisorPath)
-  if ($supervisors.Count -lt 1) {
-    Set-ComponentState -Name 'pa_exit_drain' -State 'unavailable' -Detail 'launch_not_observed' -Level 'ERROR'
-    return $false
-  }
-  Set-ComponentState -Name 'pa_exit_drain' -State 'draining' -Detail 'launch_confirmed=true; new_entries_disabled=true'
   return $true
 }
 
@@ -1849,11 +1736,6 @@ try {
         $null = Ensure-JunkFlowHeatmapSupervisor
       } catch {
         Set-ComponentState -Name 'junk_flow_heatmap_supervisor' -State 'error' -Detail $_.Exception.Message -Level 'ERROR'
-      }
-      try {
-        $null = Ensure-PaExitDrainSupervisor
-      } catch {
-        Set-ComponentState -Name 'pa_exit_drain' -State 'error' -Detail $_.Exception.Message -Level 'ERROR'
       }
     } else {
       Set-JunkApiGateState

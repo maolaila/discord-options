@@ -7,7 +7,10 @@ import { fileURLToPath } from 'node:url';
 import { load_junk_exit_experiment } from '../apps/zero-dte-options/junk-exit-experiment.mjs';
 import { buildZeroDteSimulatedEntryPlan } from '../apps/zero-dte-options/zero-dte-moomoo-executor.mjs';
 import { buildZeroDteSimulatedExplicitExitPlan } from '../apps/zero-dte-options/zero-dte-moomoo-exit.mjs';
-import { scopedEntryExposure } from '../apps/junk-multi-options/junk-multi-line.mjs';
+import {
+  scopedEntryExposure,
+  shouldRefreshTop100Universe,
+} from '../apps/junk-multi-options/junk-multi-line.mjs';
 import { resolveBusinessLine } from '../packages/business-lines/business-lines.mjs';
 import { acquireSimulatedOptionsEntryLock } from '../packages/business-lines/simulated-options-entry-lock.mjs';
 
@@ -108,7 +111,7 @@ test('JUNKMAN-MULTI policy is isolated, simulation-only, and has seven $10k virt
   assert.ok(manifest.lines.every((line) => line.paper_equity_usd === 10_000));
 });
 
-test('an unrelated SPX or retired PA position does not become an invented MULTI entry veto', () => {
+test('positions owned by other business lines do not become an invented MULTI entry veto', () => {
   const unrelated = scopedEntryExposure([
     { code: 'SPXW260825C07000000', qty: 8 },
     { code: 'MRNA261120C185000', qty: 1 },
@@ -120,6 +123,37 @@ test('an unrelated SPX or retired PA position does not become an invented MULTI 
   ], [], 'QQQ260825C00707000');
   assert.equal(sameContract.clear, false);
   assert.equal(sameContract.same_contract_position_count, 1);
+
+  const unknownCurrentOrder = scopedEntryExposure([], [
+    { code: 'QQQ260825C00707000', orderStatus: -1 },
+  ], 'QQQ260825C00707000', '2026-08-25');
+  assert.equal(unknownCurrentOrder.clear, false, 'unknown status remains fail-closed before expiration');
+
+  const expiredUnknownOrder = scopedEntryExposure([], [
+    { code: 'QQQ260825C00707000', orderStatus: -1 },
+  ], 'QQQ260825C00707000', '2026-08-26');
+  assert.equal(expiredUnknownOrder.clear, true, 'an expired contract cannot remain a working entry order');
+});
+
+test('Top100 universe waits for the entry window instead of treating unpublished premarket data as a fault', () => {
+  assert.equal(shouldRefreshTop100Universe({
+    entry_open: false,
+    universe: null,
+    session_date_et: '2026-09-02',
+    policy_signature: 'policy-v1',
+  }), false);
+  assert.equal(shouldRefreshTop100Universe({
+    entry_open: true,
+    universe: null,
+    session_date_et: '2026-09-02',
+    policy_signature: 'policy-v1',
+  }), true);
+  assert.equal(shouldRefreshTop100Universe({
+    entry_open: true,
+    universe: { session_date_et: '2026-09-02', policy_signature: 'policy-v1' },
+    session_date_et: '2026-09-02',
+    policy_signature: 'policy-v1',
+  }), false);
 });
 
 test('multi-symbol entry and exit plans retain isolated ownership and remarks', () => {

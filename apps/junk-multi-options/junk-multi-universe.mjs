@@ -30,6 +30,18 @@ export function previousCompletedTradingDate(sessionDateEt, closedDatesEt = []) 
   throw new Error('Unable to resolve previous completed trading date.');
 }
 
+export function rankTradingDateForPolicy({
+  session_date_et,
+  closed_dates_et = [],
+  require_previous_completed_nyse_trading_date = false,
+} = {}) {
+  const session = validDateKey(session_date_et);
+  if (!session) throw new Error('session_date_et must be YYYY-MM-DD.');
+  return require_previous_completed_nyse_trading_date
+    ? previousCompletedTradingDate(session, closed_dates_et)
+    : session;
+}
+
 export function normalizeOptionUnderlyingRank(response) {
   const source = response?.s2c || response?.data || response || {};
   const tradingDate = validDateKey(source.tradingDate ?? source.trading_date);

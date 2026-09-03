@@ -9,6 +9,7 @@ import {
   advance_junk_experiment_exit_latch,
   arm_junk_experiment_unpriced_force_close,
   block_unresolved_submission,
+  broker_order_blocks_new_entry,
   broker_order_identity,
   broker_order_keys,
   build_exit_attempt_remark,
@@ -44,6 +45,7 @@ import {
   recovery_source_on_load,
   recompute_session_risk,
   seed_recovered_active_exit_accounting,
+  settle_expired_option_row_unpriced,
   untrusted_state_requires_recovery_block,
   unresolved_exit_recovery_required,
 } from './zero-dte-line.mjs';
@@ -458,6 +460,14 @@ test('submit-failed status is terminal for both entry and exit reconciliation', 
   assert.equal(is_terminal_broker_order(4), false, 'unknown submission status must remain recovery-blocked');
 });
 
+test('an unknown broker order blocks only while its option contract can still trade', () => {
+  const order = { code: 'SPXW260901C07670000', orderStatus: -1 };
+  assert.equal(broker_order_blocks_new_entry(order, '2026-09-01'), true);
+  assert.equal(broker_order_blocks_new_entry(order, '2026-09-02'), false);
+  assert.equal(broker_order_blocks_new_entry({ code: order.code, orderStatus: 11 }, '2026-09-01'), false);
+  assert.equal(broker_order_blocks_new_entry({ code: 'US.AAPL', orderStatus: -1 }, '2026-09-02'), true);
+});
+
 test('market schedule fails closed on holidays and after calendar expiry', () => {
   assert.equal(market_schedule(policy, ny('2026-09-07', 10 * 60)).closed, true);
   assert.equal(market_schedule(policy, ny('2027-01-04', 10 * 60)).calendar_valid, false);
@@ -672,6 +682,36 @@ test('expired active rows treat a zero-quantity broker position as settled and n
   assert.equal(expired_settlement_missing(row, { qty: 0, canSellQty: 0 }, '2026-08-11'), true);
   assert.equal(expired_settlement_missing(row, { qty: 1, canSellQty: 1 }, '2026-08-11'), false);
   assert.equal(expired_settlement_missing(row, null, '2026-08-10'), false);
+});
+
+test('expired settlement closes operational risk without inventing an exit fill or PnL', () => {
+  const now = new Date('2026-09-02T13:00:00.000Z');
+  const row = {
+    status: 'exit_intent',
+    expiration: '2026-09-01',
+    filled_qty: 8,
+    exited_qty: 2,
+    pending_exit_qty: 2,
+    exit_order_id: 'pending-id',
+    exit_order_id_ex: 'pending-id-ex',
+    exit_remark: 'junk_gex_exit:test:1',
+    realized_pnl_usd: 25,
+  };
+  settle_expired_option_row_unpriced(row, { now, broker_position: { qty: 0 } });
+  assert.equal(row.status, 'expired_settled_unpriced');
+  assert.equal(row.expiration_settlement.settled_qty, 6);
+  assert.equal(row.expiration_settlement.prior_exit.order_id, 'pending-id');
+  assert.equal(row.exit_order_id, null);
+  assert.equal(row.pending_exit_qty, 0);
+  assert.equal(row.exited_qty, 2, 'only broker-confirmed exits belong in exited_qty');
+  assert.equal(row.realized_pnl_usd, null);
+  assert.equal(row.realized_pnl_status, 'unpriced_expiration_settlement');
+  row.status = 'closed';
+  row.exited_qty = 8;
+  settle_expired_option_row_unpriced(row, { now, broker_position: { qty: 0 } });
+  assert.equal(row.expiration_settlement.settled_qty, 6, 'settlement is idempotent');
+  assert.equal(row.status, 'expired_settled_unpriced');
+  assert.equal(row.exited_qty, 2, 'a later restart cannot relabel settlement as a broker exit');
 });
 
 test('an expired entry intent with no order, fill, or position evidence stops occupying risk', () => {

@@ -2,16 +2,6 @@ import path from 'node:path';
 import { PROJECT_ROOT } from '../moomoo-opend/moomoo-opend.mjs';
 
 export const BUSINESS_LINES = Object.freeze({
-  'pa-options': Object.freeze({
-    key: 'pa-options',
-    kind: 'options',
-    label: 'PA options simulation',
-    policyPath: path.join(PROJECT_ROOT, 'config', 'pa-options-policy.json'),
-    logPrefix: 'pa-options',
-    requiredAdviceFormat: 'pa',
-    enabled: false,
-    legacyLogPrefixes: ['moomoo'],
-  }),
   'zero-dte-options': Object.freeze({
     key: 'zero-dte-options',
     kind: 'options',
@@ -45,12 +35,6 @@ export const BUSINESS_LINES = Object.freeze({
 });
 
 const aliases = Object.freeze({
-  pa: 'pa-options',
-  'pa-option': 'pa-options',
-  'pa-options-sim': 'pa-options',
-  options: 'pa-options',
-  'options-sim': 'pa-options',
-  moomoo: 'pa-options',
   '0dte': 'zero-dte-options',
   'zero-dte': 'zero-dte-options',
   zerodte: 'zero-dte-options',

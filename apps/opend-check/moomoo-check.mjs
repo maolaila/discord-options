@@ -27,6 +27,7 @@ const printableConfig = {
   websocketPort: config.websocketPort,
   websocketSsl: config.websocketSsl,
   websocketKeyLoaded: Boolean(config.websocketKey),
+  websocketKeySource: config.websocketKeySource,
   accId: maskId(config.accId),
   trdEnv: config.trdEnv,
   trdMarket: config.trdMarket,

@@ -21,11 +21,8 @@ try {
   $env:YEHANGSHE_API_KEY = $nightwatchKey
   $nightwatchKey = $null
 
-  $openDKey = [Environment]::GetEnvironmentVariable('MOOMOO_OPEND_WS_KEY', 'User')
-  if (-not [string]::IsNullOrWhiteSpace($openDKey)) {
-    $env:MOOMOO_OPEND_WS_KEY = $openDKey
-  }
-  $openDKey = $null
+  # The shared key file configured by .env is authoritative for every strategy.
+  Remove-Item Env:MOOMOO_OPEND_WS_KEY -ErrorAction SilentlyContinue
 
   $nodeCommand = Get-Command node -ErrorAction Stop
   $nodeVersionText = (& $nodeCommand.Source --version).Trim()

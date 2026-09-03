@@ -24,7 +24,7 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 
 const identityKeyPattern = /^(?:(?:trd_?)?acc(?:ount)?_?id|simulated_account_id|guild_?id|channel_?id|message_?id|source_message_?id|(?:bot_?)?author_?id|user_?id|user_?name)$/i;
 const identityCollectionKeyPattern = /^(?:source_message_ids|decision_source_message_ids|evidence_source_message_ids|author_ids|user_ids)$/i;
-const compositeIdentityKeyPattern = /^(?:source_signal_key|signal_key|trade_key|(?:_pa_)?execution_key)$/i;
+const compositeIdentityKeyPattern = /^(?:source_signal_key|signal_key|trade_key|execution_key)$/i;
 const secretKeyPattern = /(?:authorization|cookie|password|secret|token|websocket.*key|ws_?key)/i;
 
 export function stableRedaction(value, kind = 'id') {
@@ -162,12 +162,6 @@ export const ndjsonSources = [
   ['logs/junk-flow-heatmap-options-entry-plans.ndjson', 'junk-flow-heatmap/junk-flow-heatmap-options-entry-plans.ndjson', false],
   ['logs/junk-flow-heatmap-options-exit-plans.ndjson', 'junk-flow-heatmap/junk-flow-heatmap-options-exit-plans.ndjson', false],
   ['logs/junk-flow-heatmap-options-trades.ndjson', 'junk-flow-heatmap/junk-flow-heatmap-options-trades.ndjson', false],
-  ['logs/pa-options-order-plans.ndjson', 'pa/pa-options-order-plans.ndjson.gz', true],
-  ['logs/pa-options-executions.ndjson', 'pa/pa-options-executions.ndjson', false],
-  ['logs/pa-options-exit-orders.ndjson', 'pa/pa-options-exit-orders.ndjson', false],
-  ['logs/moomoo-order-plans.ndjson', 'legacy/moomoo-order-plans.ndjson.gz', true],
-  ['logs/moomoo-executions.ndjson', 'legacy/moomoo-executions.ndjson', false],
-  ['logs/moomoo-exit-orders.ndjson', 'legacy/moomoo-exit-orders.ndjson', false],
 ];
 
 export const jsonSources = [
@@ -184,12 +178,6 @@ export const jsonSources = [
   ['logs/junk-flow-heatmap-options-status.json', 'junk-flow-heatmap/junk-flow-heatmap-options-status.json'],
   ['logs/junk-flow-heatmap-options-universe.json', 'junk-flow-heatmap/junk-flow-heatmap-options-universe.json'],
   ['logs/junk-flow-heatmap-options-experiment-summary.json', 'junk-flow-heatmap/junk-flow-heatmap-options-experiment-summary.json'],
-  ['logs/pa-options-exit-state.json', 'pa/pa-options-exit-state.json'],
-  ['logs/pa-options-entry-status.json', 'pa/pa-options-entry-status.json'],
-  ['logs/pa-options-exit-status.json', 'pa/pa-options-exit-status.json'],
-  ['logs/pa-options-broker-orders-snapshot.json', 'pa/pa-options-broker-orders-snapshot.json'],
-  ['logs/moomoo-exit-state.json', 'legacy/moomoo-exit-state.json'],
-  ['logs/trade-journal-latest.json', 'legacy/trade-journal-latest.json'],
 ];
 
 async function main() {
@@ -218,7 +206,7 @@ async function main() {
       'raw Discord messages and browser/network events',
       'browser profile and authentication state',
       'real-order and SPCX helper records',
-      'multi-gigabyte general trade journal; latest structured snapshot retained',
+      'general trade journal; strategy-specific structured records retained',
       'SQLite WAL/SHM runtime files; redacted OI JSON snapshots retained',
     ],
     files: [],

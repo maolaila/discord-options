@@ -96,6 +96,7 @@ import {
   finalize_junk_experiment_entry_allocation,
   finalize_junk_experiment_unpriced_entry_allocation,
   load_junk_exit_experiment,
+  settle_junk_experiment_expiration_unpriced,
   summarize_junk_exit_experiment,
   update_junk_experiment_variant_management,
 } from './junk-exit-experiment.mjs';
@@ -289,7 +290,7 @@ export function junk_experiment_manifest_conflicts(state, manifest) {
     if (!is_junk_experiment_row(row)) return false;
     const pending_entry = ['entry_intent', 'entry_submission_unknown', 'entry_submitted',
       'entry_partial_cancel_pending', 'entry_allocation_waiting_terminal'].includes(String(row.status || ''));
-    const physical_ownership_evidence = finite_number(row.filled_qty, 0) > finite_number(row.exited_qty, 0)
+    const physical_ownership_evidence = local_unsettled_position_qty(row) > 0
       || experiment_total_remaining_qty(row.experiment_ledger) > 0
       || Boolean(row.experiment_ledger.pending_exit_batch);
     const locks_manifest = !terminal_order_state(row.status) || pending_entry || physical_ownership_evidence;
@@ -322,10 +323,7 @@ export function junk_experiment_ownership_invariant(row, broker_position = null)
     return { passed: true, applicable: false, reasons: [] };
   }
   const ledger_remaining_qty = experiment_total_remaining_qty(row.experiment_ledger);
-  const physical_remaining_qty = Math.max(
-    0,
-    Math.floor(finite_number(row.filled_qty, 0) - finite_number(row.exited_qty, 0)),
-  );
+  const physical_remaining_qty = local_unsettled_position_qty(row);
   const broker_position_qty = Math.max(0, Math.floor(finite_number(broker_position?.qty, 0)));
   const reasons = [];
   if (ledger_remaining_qty !== physical_remaining_qty) {
@@ -1489,6 +1487,14 @@ async function recover_line_ownership({ runtime, state, now, persist_state }) {
   const experiment_fill_recovery_failures = [];
   const experiment_entry_price_failures = [];
   for (const row of Object.values(state.orders || {})) {
+    const existing_position = positions_by_code.get(String(row.code || '')) || null;
+    const already_settled_unpriced = row?.expiration_settlement?.price_status === 'missing'
+      || row?.realized_pnl_status === 'unpriced_expiration_settlement';
+    if (already_settled_unpriced
+      && (!existing_position || finite_number(existing_position.qty, 0) <= 0)) {
+      settle_expired_option_row_unpriced(row, { now, broker_position: existing_position });
+      continue;
+    }
     const recovery_start_status = String(row.status || '');
     const tracked_exit_at_start = Boolean(row.exit_remark) || row_has_order_identity(row, 'exit');
     const expected_entry_remark = row.entry_remark || `junk_gex:${row.signal_id}`.slice(0, 60);
@@ -1537,6 +1543,16 @@ async function recover_line_ownership({ runtime, state, now, persist_state }) {
       recovered_order_count += 1;
     }
     if (row.orphan_experiment_entry === true) {
+      const orphan_position = positions_by_code.get(String(row.code || '')) || null;
+      const current_session_date = ny_context(now).date_key;
+      if (expired_settlement_missing(row, orphan_position, current_session_date)) {
+        settle_expired_option_row_unpriced(row, { now, broker_position: orphan_position });
+        row.orphan_experiment_entry = false;
+        const failure_index = orphan_experiment_entry_failures
+          .findIndex((failure) => failure.plan_id === row.plan_id);
+        if (failure_index >= 0) orphan_experiment_entry_failures.splice(failure_index, 1);
+        continue;
+      }
       row.status = 'recovery_blocked';
       row.last_error = 'experiment_entry_plan_missing_virtual_ownership_recovery_blocked';
       row.updated_at = now.toISOString();
@@ -1685,11 +1701,7 @@ async function recover_line_ownership({ runtime, state, now, persist_state }) {
       row.pending_exit_qty = 0;
       row.last_error = 'expired_entry_has_no_broker_order_fill_or_position_evidence';
     } else if (expired_settlement_missing(row, position, current_session_date)) {
-      row.status = 'expired_settled_unpriced';
-      row.pending_exit_qty = 0;
-      row.exit_order_id = null;
-      row.exit_order_id_ex = null;
-      row.last_error = 'expired_contract_absent_from_broker_positions_requires_settlement_reconciliation';
+      settle_expired_option_row_unpriced(row, { now, broker_position: position });
     }
     if (row.status === 'closed' && positive_number(row.entry_fill_price) !== null && row.exited_qty > 0) {
       const weighted_exit = finite_number(row.exit_fill_value, 0) / row.exited_qty;
@@ -1770,6 +1782,14 @@ export function is_terminal_unfilled_broker_order(status) {
   return [3, 14, 15, 21, 22, 23, 24].includes(Number(status));
 }
 
+export function broker_order_blocks_new_entry(order, current_session_date) {
+  if (is_terminal_broker_order(order?.orderStatus)) return false;
+  const expiration = expiration_from_option_code(order?.code);
+  const sessionDate = String(current_session_date || '');
+  if (/^\d{4}-\d{2}-\d{2}$/.test(sessionDate) && expiration && expiration < sessionDate) return false;
+  return true;
+}
+
 export function live_entry_remainder_pending(row, broker_order) {
   const filled_qty = finite_number(row?.filled_qty, 0);
   const submitted_qty = finite_number(row?.submitted_qty, 0);
@@ -1790,6 +1810,64 @@ export function expired_entry_without_broker_evidence(row, broker_position, curr
     && /^\d{4}-\d{2}-\d{2}$/.test(String(row?.expiration || ''))
     && row.expiration < String(current_session_date || '')
     && finite_number(row?.filled_qty, 0) <= 0;
+}
+
+function local_unsettled_position_qty(row) {
+  const settledQty = Math.max(
+    0,
+    Math.floor(finite_number(
+      row?.expiration_settlement?.settled_qty,
+      row?.experiment_ledger?.expiration_settlement?.settled_qty ?? 0,
+    )),
+  );
+  return Math.max(
+    0,
+    Math.floor(finite_number(row?.filled_qty, 0) - finite_number(row?.exited_qty, 0) - settledQty),
+  );
+}
+
+export function settle_expired_option_row_unpriced(row, {
+  now = new Date(),
+  broker_position = null,
+} = {}) {
+  const previouslySettledQty = Math.max(
+    0,
+    Math.floor(finite_number(row?.expiration_settlement?.settled_qty, 0)),
+  );
+  if (previouslySettledQty > 0 && row?.expiration_settlement?.price_status === 'missing') {
+    row.exited_qty = Math.max(
+      0,
+      Math.floor(finite_number(row?.filled_qty, 0) - previouslySettledQty),
+    );
+  }
+  const remainingQty = local_unsettled_position_qty(row);
+  const priorExit = row.expiration_settlement?.prior_exit || {
+    order_id: row?.exit_order_id || null,
+    order_id_ex: row?.exit_order_id_ex || null,
+    remark: row?.exit_remark || null,
+    pending_exit_qty: Math.max(0, Math.floor(finite_number(row?.pending_exit_qty, 0))),
+  };
+  if (is_junk_experiment_row(row)) {
+    row.experiment_ledger = settle_junk_experiment_expiration_unpriced(row.experiment_ledger, { now });
+  }
+  row.pending_exit_qty = 0;
+  row.exit_order_id = null;
+  row.exit_order_id_ex = null;
+  row.exit_remark = null;
+  row.exit_cancel_requested_at = null;
+  row.last_error = 'expired_contract_settlement_price_unavailable';
+  row.realized_pnl_usd = null;
+  row.realized_pnl_status = 'unpriced_expiration_settlement';
+  row.expiration_settlement = row.expiration_settlement || {
+    price_status: 'missing',
+    settled_qty: remainingQty,
+    broker_position_qty: Math.max(0, finite_number(broker_position?.qty, 0)),
+    prior_exit: priorExit,
+    settled_at: now.toISOString(),
+  };
+  row.status = 'expired_settled_unpriced';
+  row.updated_at = now.toISOString();
+  return row;
 }
 
 export function untrusted_state_requires_recovery_block(source_state, unowned_position_count) {
@@ -1915,15 +1993,17 @@ async function broker_contract_conflict(runtime, code) {
   );
   const positions = broker_rows(positions_response, 'positionList')
     .filter((row) => String(row?.code || '') === contract_code && finite_number(row?.qty, 0) > 0);
+  const current_session_date = ny_context(new Date()).date_key;
   const pending_orders = broker_rows(orders_response, 'orderList')
-    .filter((row) => String(row?.code || '') === contract_code && !is_terminal_broker_order(row?.orderStatus));
+    .filter((row) => String(row?.code || '') === contract_code
+      && broker_order_blocks_new_entry(row, current_session_date));
   const multi_state = await read_json(junk_multi_state_path, null);
   const multi_active_rows = Object.values(multi_state?.orders || {}).filter((row) => (
-    !['closed', 'entry_unfilled_terminal'].includes(String(row?.status || ''))
+    !terminal_order_state(row?.status)
   ));
   const flow_heatmap_state = await read_json(junk_flow_heatmap_state_path, null);
   const flow_heatmap_active_rows = Object.values(flow_heatmap_state?.orders || {}).filter((row) => (
-    !['closed', 'entry_unfilled_terminal'].includes(String(row?.status || ''))
+    !terminal_order_state(row?.status)
   ));
   const reasons = [];
   if (positions.length > 0) reasons.push('broker_contract_position_already_exists');
@@ -2949,6 +3029,23 @@ async function reconcile_line_orders({
       continue;
     }
     if (row.orphan_experiment_entry === true) {
+      if (expired_settlement_missing(row, entry_position, ny_context(now).date_key)) {
+        row.status = 'expired_settled_unpriced';
+        row.pending_exit_qty = 0;
+        row.exit_order_id = null;
+        row.exit_order_id_ex = null;
+        row.last_error = 'expired_contract_absent_from_broker_positions_requires_settlement_reconciliation';
+        row.orphan_experiment_entry = false;
+        row.updated_at = now.toISOString();
+        await persist_state();
+        await write_trade_event('expired_orphan_experiment_entry_reconciled', {
+          plan_id: row.plan_id,
+          signal_id: row.signal_id,
+          code: row.code,
+          expiration: row.expiration,
+        });
+        continue;
+      }
       row.status = 'recovery_blocked';
       row.last_error = 'experiment_entry_plan_missing_virtual_ownership_recovery_blocked';
       row.updated_at = now.toISOString();
@@ -3041,6 +3138,25 @@ async function reconcile_line_orders({
     }
 
     const position = entry_position;
+    const tracked_exit_order = find_by_row_identity(orders, row, 'exit')
+      || (row.exit_remark
+        ? order_rows.find((order) => broker_remark(order) === row.exit_remark)
+        : null)
+      || null;
+    if (!tracked_exit_order && expired_settlement_missing(row, position, session_date_et)) {
+      settle_expired_option_row_unpriced(row, { now, broker_position: position });
+      if (row.orphan_experiment_entry === true) row.orphan_experiment_entry = false;
+      await persist_state();
+      await write_trade_event('expired_owned_position_reconciled_unpriced', {
+        ...experiment_event_fields(row),
+        plan_id: row.plan_id,
+        signal_id: row.signal_id,
+        code: row.code,
+        expiration: row.expiration,
+        settled_qty: row.expiration_settlement?.settled_qty ?? null,
+      });
+      continue;
+    }
     if (position) {
       row.position_id = position.positionID || position.positionId || row.position_id || null;
       row.broker_position_qty = finite_number(position.qty);

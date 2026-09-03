@@ -323,6 +323,8 @@ try {
   }
   $env:YEHANGSHE_API_KEY = $nightwatchKey
   Remove-Variable nightwatchKey
+  # The shared key file configured by .env is authoritative for every strategy.
+  Remove-Item Env:MOOMOO_OPEND_WS_KEY -ErrorAction SilentlyContinue
 
   $nodeCommand = Get-Command node -ErrorAction Stop
   $nodeVersionText = (& $nodeCommand.Source --version).Trim()

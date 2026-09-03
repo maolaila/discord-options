@@ -1,6 +1,7 @@
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import {
   KL_TYPE_5MIN,
@@ -11,7 +12,6 @@ import {
   createMoomooQuoteFeed,
   ensureDir,
   fetchMoomooAccounts,
-  fetchOptionUnderlyingRank,
   fetchOrderList,
   fetchPositionList,
   getSecuritySnapshots,
@@ -75,13 +75,15 @@ import {
   settle_expired_option_row_unpriced,
 } from '../zero-dte-options/zero-dte-line.mjs';
 import {
-  buildTop100NightwatchCandidates,
   inferOptionStrikeStep,
   nightwatchWorkingSetTickers,
-  rankTradingDateForPolicy,
   validateNightwatchTickerEvidence,
 } from './junk-multi-universe.mjs';
 import { buildMultiSymbolMarketContext } from './junk-multi-market-context.mjs';
+import {
+  JUNKMAN_DAILY_PLAN_STRATEGY,
+  evaluateJunkmanDailyPlan,
+} from './junkman-daily-plan-strategy.mjs';
 import { create_junk_gex_market_context } from '../zero-dte-options/junk-gex-market-context.mjs';
 import {
   applyUnusualFlowHeatmapGate,
@@ -89,10 +91,13 @@ import {
 } from '../junk-flow-heatmap-options/junk-flow-heatmap-source.mjs';
 
 const bootstrapArgs = parseCliArgs(process.argv.slice(2));
+const require = createRequire(import.meta.url);
+const { readJunkmanAnalysisPlanSource } = require('../../packages/option-signals/junkman-analysis-plan.cjs');
 const ACTIVE_BUSINESS_LINE = String(
   process.env.JUNK_ACTIVE_BUSINESS_LINE || bootstrapArgs['business-line'] || JUNK_MULTI_BUSINESS_LINE,
 ).trim().toLowerCase();
 const FLOW_HEATMAP_MODE = ACTIVE_BUSINESS_LINE === JUNK_FLOW_HEATMAP_BUSINESS_LINE;
+const ACTIVE_STRATEGY = FLOW_HEATMAP_MODE ? JUNK_GEX_STRATEGY : JUNKMAN_DAILY_PLAN_STRATEGY;
 if (![JUNK_MULTI_BUSINESS_LINE, JUNK_FLOW_HEATMAP_BUSINESS_LINE].includes(ACTIVE_BUSINESS_LINE)) {
   throw new Error(`Unsupported multi-symbol JUNKMAN runtime: ${ACTIVE_BUSINESS_LINE}`);
 }
@@ -107,6 +112,7 @@ const universePath = businessLineLogPath(businessLine, 'universe.json');
 const experimentSummaryPath = businessLineLogPath(businessLine, 'experiment-summary.json');
 const runtimeLockPath = businessLineLogPath(businessLine, 'runtime.lock.json');
 const sourceFlowEventsPath = path.resolve('logs', 'zero-dte-options-flow-events.ndjson');
+const junkmanAnalysisPlansPath = path.resolve('logs', 'junkman-analysis-plans.ndjson');
 const sharedSpxStatePath = businessLineLogPath(resolveBusinessLine('zero-dte-options'), 'runtime-state.json');
 const POLL_MS = 15_000;
 const FIVE_MINUTE_MS = 300_000;
@@ -145,16 +151,18 @@ export function shouldPollFlowSource({
   return Number(now_ms) - lastPollMs >= intervalMs;
 }
 
-export function shouldRefreshTop100Universe({
+export function shouldRefreshDiscordPlanUniverse({
   entry_open,
   universe,
   session_date_et,
   policy_signature,
+  source_signature,
 } = {}) {
   if (entry_open !== true) return false;
   return !universe
     || universe.session_date_et !== session_date_et
-    || universe.policy_signature !== policy_signature;
+    || universe.policy_signature !== policy_signature
+    || universe.source_signature !== source_signature;
 }
 
 function sanitizedError(error) {
@@ -194,14 +202,11 @@ function parseMinutes(value, fallback) {
 
 function universePolicySignature(policy = {}) {
   const identity = {
-    rank_count: finiteNumber(policy.rank_count, 100),
-    require_previous_completed_nyse_trading_date: policy.require_previous_completed_nyse_trading_date !== false,
-    nightwatch_working_set: String(policy.nightwatch_working_set || 'dealer-heatmap'),
-    nightwatch_coverage_required: policy.nightwatch_coverage_required !== false,
+    source: String(policy.source || ''),
+    channel_id: String(policy.channel_id || ''),
+    author_id: String(policy.author_id || ''),
     zero_dte_chain_required: policy.zero_dte_chain_required !== false,
     reserved_underlyings: [...(policy.reserved_underlyings || [])].map(String).sort(),
-    finalist_limit: finiteNumber(policy.finalist_limit, 100),
-    max_option_chain_probes: finiteNumber(policy.max_option_chain_probes, 100),
     option_chain_probe_interval_ms: finiteNumber(policy.option_chain_probe_interval_ms, 3_100),
   };
   return createHash('sha256').update(JSON.stringify(identity)).digest('hex').slice(0, 16);
@@ -281,7 +286,7 @@ function defaultState() {
   return {
     schema_version: 1,
     business_line: ACTIVE_BUSINESS_LINE,
-    strategy: JUNK_GEX_STRATEGY,
+    strategy: ACTIVE_STRATEGY,
     session_date_et: null,
     universe: null,
     last_flow_source_poll_at: null,
@@ -300,6 +305,7 @@ function normalizeState(value) {
   return {
     ...base,
     ...value,
+    strategy: ACTIVE_STRATEGY,
     gex_history_by_ticker: value.gex_history_by_ticker || {},
     last_scanned_bucket_by_ticker: value.last_scanned_bucket_by_ticker || {},
     executed_signal_ids: Array.isArray(value.executed_signal_ids) ? value.executed_signal_ids : [],
@@ -402,87 +408,79 @@ function configureForFinalists(baseConfig, finalists) {
   };
 }
 
-async function refreshUniverse({ client, nightwatch, config, sessionDateEt }) {
+async function refreshDailyPlanUniverse({ client, config, sessionDateEt, source, previousUniverse = null }) {
   const universePolicy = config.policy?.universe || {};
-  const expectedTradingDate = rankTradingDateForPolicy({
-    session_date_et: sessionDateEt,
-    closed_dates_et: config.policy?.market_calendar?.closed_dates_et || [],
-    require_previous_completed_nyse_trading_date:
-      universePolicy.require_previous_completed_nyse_trading_date === true,
-  });
-  const [rankResponse, discoverResponse] = await Promise.all([
-    fetchOptionUnderlyingRank(client, {
-      count: finiteNumber(universePolicy.rank_count, 100),
-      tradingDate: expectedTradingDate,
-    }),
-    nightwatch.discover_datasets(),
-  ]);
-  const intersection = buildTop100NightwatchCandidates({
-    rank_response: rankResponse,
-    discover_response: discoverResponse,
-    expected_trading_date: expectedTradingDate,
-    rank_count: universePolicy.rank_count,
-    reserved_underlyings: universePolicy.reserved_underlyings,
-    working_set: universePolicy.nightwatch_working_set,
-  });
-  if (!intersection.passed) {
-    throw new Error(`JUNKMAN-MULTI universe validation failed: ${intersection.reasons.join(',')}`);
-  }
+  const cachedFinalists = new Map(
+    (previousUniverse?.session_date_et === sessionDateEt ? previousUniverse?.finalists : [])
+      .filter((row) => row?.zero_dte_chain_verified === true && row?.plan?.event_id)
+      .map((row) => [`${row.ticker}:${row.plan.event_id}`, row]),
+  );
   const finalists = [];
   const probeErrors = [];
-  const probeLimit = Math.min(
-    intersection.candidates.length,
-    Math.max(1, finiteNumber(universePolicy.max_option_chain_probes, 100)),
-  );
-  const finalistLimit = Math.max(1, finiteNumber(universePolicy.finalist_limit, 100));
   const optionChainProbeIntervalMs = Math.max(
     3_000,
     finiteNumber(universePolicy.option_chain_probe_interval_ms, 3_100),
   );
   let previousProbeAt = null;
-  for (const candidate of intersection.candidates.slice(0, probeLimit)) {
+  let optionChainProbeCount = 0;
+  for (const plan of source?.seeds || []) {
+    const cached = cachedFinalists.get(`${plan.ticker}:${plan.event_id}`);
+    if (cached) {
+      finalists.push({ ...cached, plan, option_chain_cache_hit: true });
+      continue;
+    }
     try {
       if (previousProbeAt !== null) {
         await sleep(Math.max(0, optionChainProbeIntervalMs - (Date.now() - previousProbeAt)));
       }
       previousProbeAt = Date.now();
-      const chain = await listOptionContracts(client, { ticker: candidate.ticker, expiration: sessionDateEt });
+      optionChainProbeCount += 1;
+      const chain = await listOptionContracts(client, { ticker: plan.ticker, expiration: sessionDateEt });
       const strikeStep = inferOptionStrikeStep(chain.contracts);
-      const callCount = chain.contracts.filter((row) => row.optionRight === 'C').length;
-      const putCount = chain.contracts.filter((row) => row.optionRight === 'P').length;
+      const calls = chain.contracts.filter((row) => row.optionRight === 'C');
+      const puts = chain.contracts.filter((row) => row.optionRight === 'P');
+      const callCount = calls.length;
+      const putCount = puts.length;
       if (callCount > 0 && putCount > 0 && strikeStep !== null) {
         finalists.push({
-          ...candidate,
+          ticker: plan.ticker,
+          plan,
           expiration: sessionDateEt,
           option_contract_count: chain.contracts.length,
           call_contract_count: callCount,
           put_contract_count: putCount,
           option_strike_step_points: strikeStep,
-          nightwatch_gate: 'dealer-heatmap-working-set',
+          option_strikes_by_right: {
+            C: [...new Set(calls.map((row) => positiveNumber(row.strikePrice)).filter(Boolean))].sort((a, b) => a - b),
+            P: [...new Set(puts.map((row) => positiveNumber(row.strikePrice)).filter(Boolean))].sort((a, b) => a - b),
+          },
+          plan_message_id: plan.message_id,
+          plan_strategy_kind: plan.execution.kind,
+          plan_strategy_title: plan.strategy_title,
+          plan_source: plan.source,
           zero_dte_chain_verified: true,
+          option_chain_cache_hit: false,
         });
       }
-      if (finalists.length >= finalistLimit) break;
     } catch (error) {
-      probeErrors.push({ ticker: candidate.ticker, error: sanitizedError(error) });
+      probeErrors.push({ ticker: plan.ticker, error: sanitizedError(error) });
     }
-  }
-  if (finalists.length === 0) {
-    throw new Error('JUNKMAN-MULTI found no ticker that passed Top100 + Nightwatch + same-day 0DTE gates.');
   }
   return {
     refreshed_at: new Date().toISOString(),
     session_date_et: sessionDateEt,
-    expected_rank_trading_date: expectedTradingDate,
-    rank_trading_date: intersection.rank_trading_date,
-    top100_row_count: intersection.rank_row_count,
-    nightwatch_working_set_count: intersection.nightwatch_working_set_count,
-    intersected_candidate_count: intersection.candidates.length,
-    probed_candidate_count: Math.min(probeLimit, intersection.candidates.length),
+    source: 'discord_junkman_analysis_daily_plan',
+    source_status: source?.source_status || 'unknown',
+    source_signature: source?.source_signature || 'missing',
+    published_plan_count: source?.seeds?.length || 0,
+    rejected_plan_count: source?.rejected?.length || 0,
+    intersected_candidate_count: source?.seeds?.length || 0,
+    probed_candidate_count: optionChainProbeCount,
+    option_chain_cache_hit_count: finalists.filter((row) => row.option_chain_cache_hit).length,
     policy_signature: universePolicySignature(universePolicy),
     option_chain_probe_interval_ms: optionChainProbeIntervalMs,
     finalists,
-    probe_errors: probeErrors.slice(0, 20),
+    probe_errors: probeErrors,
   };
 }
 
@@ -661,6 +659,33 @@ function hardNightwatchGate(decision, evidence) {
 
 async function evaluateTicker({ nightwatch, config, finalist, marketContext, history, nowMs }) {
   const ticker = finalist.ticker;
+  if (!FLOW_HEATMAP_MODE) {
+    const decision = evaluateJunkmanDailyPlan({
+      plan: finalist.plan,
+      market_context: marketContext,
+      strikes_by_right: finalist.option_strikes_by_right,
+      expiration: finalist.expiration,
+      now_ms: nowMs,
+    });
+    return {
+      decision: {
+        ...decision,
+        business_line: ACTIVE_BUSINESS_LINE,
+        generated_at: new Date(nowMs).toISOString(),
+        expiration: finalist.expiration,
+        universe_provenance: {
+          source: 'discord_junkman_analysis_daily_plan',
+          source_plan_message_id: finalist.plan?.message_id || null,
+          source_plan_event_id: finalist.plan?.event_id || null,
+          source_plan_session_date_et: finalist.plan?.session_date_et || null,
+          source_plan_strategy_title: finalist.plan?.strategy_title || null,
+          same_day_zero_dte_chain_verified: true,
+          option_strike_step_points: finalist.option_strike_step_points,
+        },
+      },
+      history: history || [],
+    };
+  }
   const expectedBucketAt = marketContext.expected_bucket_at;
   const gexResponse = await nightwatch.get_dealer_gex_snapshot(ticker);
   let heatmapResponse = null;
@@ -745,9 +770,7 @@ async function evaluateTicker({ nightwatch, config, finalist, marketContext, his
         bars_5m: marketContext.bars_5m.slice(-20),
       },
       universe_provenance: {
-        source: FLOW_HEATMAP_MODE ? 'nightwatch_unusual_flow' : 'moomoo_options_volume_top100',
-        top100_rank: FLOW_HEATMAP_MODE ? null : finalist.rank,
-        top100_rank_trading_date: FLOW_HEATMAP_MODE ? null : (finalist.rank_trading_date || null),
+        source: 'nightwatch_unusual_flow',
         flow_event_id: finalist.flow_event_id || null,
         flow_message_id: finalist.flow_message_id || null,
         flow_direction: finalist.flow_direction || null,
@@ -763,9 +786,13 @@ async function evaluateTicker({ nightwatch, config, finalist, marketContext, his
 }
 
 function rankTradeDecisions(left, right) {
+  if (left?.strategy === JUNKMAN_DAILY_PLAN_STRATEGY || right?.strategy === JUNKMAN_DAILY_PLAN_STRATEGY) {
+    return finiteNumber(right?.source_plan_weight_pct, 0) - finiteNumber(left?.source_plan_weight_pct, 0)
+      || Date.parse(left?.source_daily_plan?.message_timestamp || 0) - Date.parse(right?.source_daily_plan?.message_timestamp || 0)
+      || String(left?.ticker || '').localeCompare(String(right?.ticker || ''));
+  }
   return finiteNumber(left?.tested_node?.rank, 999) - finiteNumber(right?.tested_node?.rank, 999)
-    || Math.abs(finiteNumber(right?.tested_node?.net_gex_usd, 0)) - Math.abs(finiteNumber(left?.tested_node?.net_gex_usd, 0))
-    || finiteNumber(left?.universe_provenance?.top100_rank, 999) - finiteNumber(right?.universe_provenance?.top100_rank, 999);
+    || Math.abs(finiteNumber(right?.tested_node?.net_gex_usd, 0)) - Math.abs(finiteNumber(left?.tested_node?.net_gex_usd, 0));
 }
 
 function accountExposure(positions, orders, currentSessionDate = nyContext(new Date()).date_key) {
@@ -830,7 +857,7 @@ function entryRowFromExecution(plan, execution, now) {
 function variantOwnedPosition(row, variant) {
   return {
     business_line: ACTIVE_BUSINESS_LINE,
-    strategy: JUNK_GEX_STRATEGY,
+    strategy: ACTIVE_STRATEGY,
     plan_id: row.plan_id,
     code: row.code,
     expiration: row.expiration,
@@ -854,7 +881,7 @@ function variantOwnedPosition(row, variant) {
 function aggregateOwnedPosition(row) {
   return {
     business_line: ACTIVE_BUSINESS_LINE,
-    strategy: JUNK_GEX_STRATEGY,
+    strategy: ACTIVE_STRATEGY,
     plan_id: row.plan_id,
     experiment_id: row.experiment_ledger.experiment_id,
     cohort_id: row.experiment_ledger.cohort_id,
@@ -1090,7 +1117,7 @@ async function writeStatus(payload) {
   await writeJson(statusPath, {
     updated_at: new Date().toISOString(),
     business_line: ACTIVE_BUSINESS_LINE,
-    strategy: JUNK_GEX_STRATEGY,
+    strategy: ACTIVE_STRATEGY,
     strategy_label: FLOW_HEATMAP_MODE ? 'JUNKMAN-FLOW-HEATMAP' : 'JUNKMAN-MULTI',
     execution_environment: 'simulate_only',
     real_trading_allowed: false,
@@ -1182,7 +1209,7 @@ export async function runJunkMultiLine(cliArgs = process.argv.slice(2)) {
     }
     config = { ...config, accId: String(account.accID), trdEnv: TRD_ENV_SIMULATE };
     quoteFeed = createMoomooQuoteFeed(connection.client, config);
-    const nightwatch = create_nightwatch_rest_client({
+    const nightwatch = FLOW_HEATMAP_MODE ? create_nightwatch_rest_client({
       base_url: 'https://api.yehangshe.com',
       api_key_env: 'YEHANGSHE_API_KEY',
       max_429_retries: 0,
@@ -1190,7 +1217,7 @@ export async function runJunkMultiLine(cliArgs = process.argv.slice(2)) {
       snapshot_rate_limiter: create_snapshot_rate_limiter({
         min_interval_ms: Math.max(1_000, finiteNumber(config.policy?.provider?.snapshot_min_interval_ms, 1_000)),
       }),
-    });
+    }) : null;
 
     await writeStatus({ phase: 'starting', mode, process_id: process.pid });
     do {
@@ -1258,20 +1285,28 @@ export async function runJunkMultiLine(cliArgs = process.argv.slice(2)) {
               await persist();
             }
           }
-        } else if (shouldRefreshTop100Universe({
-          entry_open: schedule.entry_open,
-          universe: state.universe,
-          session_date_et: schedule.date_key,
-          policy_signature: requiredUniversePolicySignature,
-        })) {
-          state.universe = await refreshUniverse({
-            client: connection.client,
-            nightwatch,
-            config,
-            sessionDateEt: schedule.date_key,
+        } else {
+          const source = readJunkmanAnalysisPlanSource(junkmanAnalysisPlansPath, {
+            session_date_et: schedule.date_key,
+            reserved_underlyings: config.policy?.universe?.reserved_underlyings || ['SPX'],
           });
-          await writeJson(universePath, state.universe);
-          await persist();
+          if (shouldRefreshDiscordPlanUniverse({
+            entry_open: schedule.entry_open,
+            universe: state.universe,
+            session_date_et: schedule.date_key,
+            policy_signature: requiredUniversePolicySignature,
+            source_signature: source.source_signature,
+          })) {
+            state.universe = await refreshDailyPlanUniverse({
+              client: connection.client,
+              config,
+              sessionDateEt: schedule.date_key,
+              source,
+              previousUniverse: state.universe,
+            });
+            await writeJson(universePath, state.universe);
+            await persist();
+          }
         }
         config = configureForFinalists(config, state.universe?.finalists || []);
 
@@ -1314,7 +1349,7 @@ export async function runJunkMultiLine(cliArgs = process.argv.slice(2)) {
               const decision = {
                 generated_at: new Date().toISOString(),
                 business_line: ACTIVE_BUSINESS_LINE,
-                strategy: JUNK_GEX_STRATEGY,
+                strategy: ACTIVE_STRATEGY,
                 ticker: finalist.ticker,
                 decision: 'no_trade',
                 action: 'hold',
@@ -1429,17 +1464,19 @@ export async function runJunkMultiLine(cliArgs = process.argv.slice(2)) {
           session_date_et: schedule.date_key,
           market_schedule: schedule,
           universe: state.universe ? {
-            expected_rank_trading_date: state.universe.expected_rank_trading_date,
-            rank_trading_date: state.universe.rank_trading_date,
+            source: state.universe.source,
+            source_status: state.universe.source_status,
+            source_signature: state.universe.source_signature,
+            published_plan_count: state.universe.published_plan_count,
             intersected_candidate_count: state.universe.intersected_candidate_count,
             finalist_count: state.universe.finalists.length,
             policy_signature: state.universe.policy_signature,
             finalists: state.universe.finalists.map((row) => ({
               ticker: row.ticker,
-              top100_rank: row.rank,
+              source_plan_message_id: row.plan_message_id || null,
+              source_plan_strategy_title: row.plan_strategy_title || null,
               option_contract_count: row.option_contract_count,
               option_strike_step_points: row.option_strike_step_points,
-              nightwatch_supported: true,
               zero_dte_chain_verified: true,
             })),
           } : null,

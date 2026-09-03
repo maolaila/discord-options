@@ -9,7 +9,7 @@ import { buildZeroDteSimulatedEntryPlan } from '../apps/zero-dte-options/zero-dt
 import { buildZeroDteSimulatedExplicitExitPlan } from '../apps/zero-dte-options/zero-dte-moomoo-exit.mjs';
 import {
   scopedEntryExposure,
-  shouldRefreshTop100Universe,
+  shouldRefreshDiscordPlanUniverse,
 } from '../apps/junk-multi-options/junk-multi-line.mjs';
 import { resolveBusinessLine } from '../packages/business-lines/business-lines.mjs';
 import { acquireSimulatedOptionsEntryLock } from '../packages/business-lines/simulated-options-entry-lock.mjs';
@@ -35,14 +35,18 @@ function config() {
 function signal() {
   return {
     business_line: 'junk-multi-options',
-    strategy: 'junk_gex_nodes_v3',
+    strategy: 'junkman_discord_daily_plan_v1',
     decision: 'trade',
     action: 'open_long_option',
     flow_dependency: 'none',
     ticker: 'QQQ',
-    snapshot_at: '2026-08-25T14:35:00.000Z',
     generated_at: '2026-08-25T14:35:59.000Z',
-    snapshot_state: 'fresh',
+    gex_state: 'daily_plan_current_session',
+    source_plan_session_date_et: '2026-08-25',
+    source_plan_message_id: 'message-1',
+    source_plan_event_id: 'junkman_analysis_event-1',
+    source_plan_channel_id: policy.universe.channel_id,
+    source_plan_author_id: policy.universe.author_id,
     direction: 'bullish',
     signal_type: 'gex_node_breakout_retest',
     reason_codes: ['gex_node_breakout_retest', 'gex_node_confirmed'],
@@ -90,21 +94,23 @@ function optionSnapshot() {
 }
 
 test('JUNKMAN-MULTI policy is isolated, simulation-only, and has seven $10k virtual lines', () => {
-  assert.equal(resolveBusinessLine('junk-top100').key, 'junk-multi-options');
+  assert.equal(resolveBusinessLine('junk-multi').key, 'junk-multi-options');
   assert.equal(policy.execution.environment, 'simulate_only');
   assert.equal(policy.execution.real_trading_allowed, false);
-  assert.equal(policy.universe.nightwatch_coverage_required, true);
+  assert.equal(policy.universe.source, 'discord_junkman_analysis_daily_plan');
+  assert.match(policy.universe.channel_id, /^\d+$/);
+  assert.match(policy.universe.author_id, /^\d+$/);
   assert.equal(policy.universe.zero_dte_chain_required, true);
-  assert.equal(policy.universe.finalist_limit, 100);
   assert.equal(policy.universe.option_chain_probe_interval_ms, 3100);
   assert.ok(policy.universe.underlying_history_probe_interval_ms >= 1000);
-  assert.equal(policy.strategy.require_heatmap_snapshot, false);
-  assert.equal(policy.evidence_gates.heatmap.missing_or_degraded_is_neutral, true);
+  assert.equal(policy.strategy.id, 'junkman_discord_daily_plan_v1');
+  assert.equal(policy.strategy.signal_source, 'discord_junkman_analysis_daily_plan');
   assert.equal(policy.execution_quality.require_open_interest_and_volume, false);
   assert.equal(policy.execution_quality.min_open_interest, 0);
   assert.equal(policy.execution_quality.min_option_day_volume, 0);
   assert.equal(policy.execution_quality.max_spread_pct_of_mid, null);
   assert.equal(policy.execution_quality.max_round_trip_loss_pct, null);
+  assert.equal(policy.exit_rules.setup_time_stop_enabled, false);
   const manifest = load_junk_exit_experiment(policy);
   assert.equal(manifest.line_count, 7);
   assert.equal(manifest.total_paper_equity_usd, 70_000);
@@ -135,25 +141,35 @@ test('positions owned by other business lines do not become an invented MULTI en
   assert.equal(expiredUnknownOrder.clear, true, 'an expired contract cannot remain a working entry order');
 });
 
-test('Top100 universe waits for the entry window instead of treating unpublished premarket data as a fault', () => {
-  assert.equal(shouldRefreshTop100Universe({
+test('daily plan universe waits for entry and refreshes whenever the source changes', () => {
+  assert.equal(shouldRefreshDiscordPlanUniverse({
     entry_open: false,
     universe: null,
     session_date_et: '2026-09-02',
     policy_signature: 'policy-v1',
+    source_signature: 'plans-v1',
   }), false);
-  assert.equal(shouldRefreshTop100Universe({
+  assert.equal(shouldRefreshDiscordPlanUniverse({
     entry_open: true,
     universe: null,
     session_date_et: '2026-09-02',
     policy_signature: 'policy-v1',
+    source_signature: 'plans-v1',
   }), true);
-  assert.equal(shouldRefreshTop100Universe({
+  assert.equal(shouldRefreshDiscordPlanUniverse({
     entry_open: true,
-    universe: { session_date_et: '2026-09-02', policy_signature: 'policy-v1' },
+    universe: { session_date_et: '2026-09-02', policy_signature: 'policy-v1', source_signature: 'plans-v1' },
     session_date_et: '2026-09-02',
     policy_signature: 'policy-v1',
+    source_signature: 'plans-v1',
   }), false);
+  assert.equal(shouldRefreshDiscordPlanUniverse({
+    entry_open: true,
+    universe: { session_date_et: '2026-09-02', policy_signature: 'policy-v1', source_signature: 'plans-v1' },
+    session_date_et: '2026-09-02',
+    policy_signature: 'policy-v1',
+    source_signature: 'plans-v2',
+  }), true);
 });
 
 test('multi-symbol entry and exit plans retain isolated ownership and remarks', () => {
@@ -171,7 +187,7 @@ test('multi-symbol entry and exit plans retain isolated ownership and remarks', 
   const exit = buildZeroDteSimulatedExplicitExitPlan({
     owned_position: {
       business_line: 'junk-multi-options',
-      strategy: 'junk_gex_nodes_v3',
+      strategy: 'junkman_discord_daily_plan_v1',
       plan_id: entry.plan_id,
       code: entry.contract.code,
       expiration: '2026-08-25',

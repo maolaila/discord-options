@@ -9,6 +9,10 @@ const {
   NIGHTWATCH_ZERO_DTE_FLOW_CHANNEL_ID,
   parseNightwatchZeroDteFlowAlerts,
 } = require('../../packages/option-signals/nightwatch-0dte-flow-alert.cjs');
+const {
+  JUNKMAN_ANALYSIS_CHANNEL_ID,
+  parseJunkmanAnalysisPlan,
+} = require('../../packages/option-signals/junkman-analysis-plan.cjs');
 const { createGatewayHealthTracker } = require('./gateway-health.cjs');
 const { recoverGatewayCaptureAfterAttach } = require('./startup-recovery.cjs');
 
@@ -27,6 +31,7 @@ const HISTORY_MESSAGE_LOG = path.join(LOG_DIR, 'history-messages.ndjson');
 const RAW_EVENT_LOG = path.join(LOG_DIR, 'raw-events.ndjson');
 const REST_LOG = path.join(LOG_DIR, 'rest-responses.ndjson');
 const ZERO_DTE_FLOW_EVENT_LOG = path.join(LOG_DIR, 'zero-dte-options-flow-events.ndjson');
+const JUNKMAN_ANALYSIS_PLAN_LOG = path.join(LOG_DIR, 'junkman-analysis-plans.ndjson');
 const STATUS_FILE = path.join(LOG_DIR, 'capture-status.json');
 const UTF8_BOM = Buffer.from([0xef, 0xbb, 0xbf]);
 const ZLIB_SUFFIX = Buffer.from([0x00, 0x00, 0xff, 0xff]);
@@ -41,6 +46,8 @@ function parseArgs(argv) {
     historyMessageLog: HISTORY_MESSAGE_LOG,
     zeroDteFlowEventIds: new Set(),
     zeroDteFlowEventLog: ZERO_DTE_FLOW_EVENT_LOG,
+    junkmanAnalysisPlanEventIds: new Set(),
+    junkmanAnalysisPlanLog: JUNKMAN_ANALYSIS_PLAN_LOG,
     printAllMessages: false,
     rest: false,
   };
@@ -115,6 +122,7 @@ function ensureDirs(options) {
   fs.mkdirSync(LOG_DIR, { recursive: true });
   ensureFile(MESSAGE_LOG);
   ensureFile(options.zeroDteFlowEventLog);
+  ensureFile(options.junkmanAnalysisPlanLog);
   ensureFile(options.historyMessageLog);
   ensureFile(RAW_EVENT_LOG);
   if (options.rest) ensureFile(REST_LOG);
@@ -447,6 +455,25 @@ function isNightwatchZeroDteFlowChannel(record) {
   );
 }
 
+function readBoundedJsonLines(file, maxBytes = 64 * 1024 * 1024) {
+  if (!file || !fs.existsSync(file)) return [];
+  const stats = fs.statSync(file);
+  if (stats.size < 1) return [];
+  const size = Math.min(stats.size, maxBytes);
+  const start = stats.size - size;
+  const fd = fs.openSync(file, 'r');
+  let text;
+  try {
+    const buffer = Buffer.alloc(size);
+    fs.readSync(fd, buffer, 0, size, start);
+    text = buffer.toString('utf8');
+  } finally {
+    fs.closeSync(fd);
+  }
+  if (start > 0) text = text.slice(Math.max(0, text.indexOf('\n') + 1));
+  return stripBom(text).split(/\r?\n/).map(safeParseJson).filter(Boolean);
+}
+
 function appendNightwatchZeroDteFlowEvent(event, options) {
   if (!event || !options.zeroDteFlowEventLog) return false;
   if (event.sub_event_id && options.zeroDteFlowEventIds.has(String(event.sub_event_id))) return false;
@@ -487,6 +514,46 @@ function processNightwatchZeroDteFlow(record, observedVia, options) {
   return { handled: true, added_count: addedCount };
 }
 
+function processJunkmanAnalysisPlan(record, observedVia, options) {
+  const plan = parseJunkmanAnalysisPlan(record, observedVia);
+  if (!plan) return { handled: false, added: false };
+  if (options.junkmanAnalysisPlanEventIds.has(plan.event_id)) return { handled: true, added: false };
+  appendJsonLine(options.junkmanAnalysisPlanLog, plan);
+  options.junkmanAnalysisPlanEventIds.add(plan.event_id);
+  writeStatus({
+    status: 'capturing',
+    last_junkman_analysis_plan_at: new Date().toISOString(),
+    last_junkman_analysis_plan_message_id: plan.message_id,
+    last_junkman_analysis_plan_session_date_et: plan.session_date_et,
+    last_junkman_analysis_plan_ticker: plan.ticker,
+    last_junkman_analysis_plan_actionable: plan.actionable,
+  });
+  console.log(
+    `[${new Date().toISOString()}] JUNKMAN_ANALYSIS_PLAN ${plan.ticker} ` +
+    `session=${plan.session_date_et} strategy=${plan.execution?.kind || 'unparseable'} actionable=${plan.actionable}`
+  );
+  return { handled: true, added: true };
+}
+
+function backfillJunkmanAnalysisPlans(options) {
+  const records = new Map();
+  for (const file of [HISTORY_MESSAGE_LOG, MESSAGE_LOG]) {
+    for (const row of readBoundedJsonLines(file)) {
+      if (String(row.channel_id || '') !== JUNKMAN_ANALYSIS_CHANNEL_ID || !row.id) continue;
+      const key = `${row.id}:${row.edited_timestamp || row.timestamp || row.captured_at || ''}`;
+      records.set(key, row);
+    }
+  }
+  let added = 0;
+  for (const row of [...records.values()].sort((left, right) => (
+    Date.parse(left.edited_timestamp || left.timestamp || left.captured_at || 0)
+    - Date.parse(right.edited_timestamp || right.timestamp || right.captured_at || 0)
+  ))) {
+    if (processJunkmanAnalysisPlan(row, 'local_capture_backfill', options).added) added += 1;
+  }
+  return added;
+}
+
 function appendHistoryMessage(record, options) {
   if (!options.historyMessageLog) return false;
   if (options.channelId && record.channel_id !== options.channelId) return false;
@@ -524,6 +591,7 @@ function handleRestMessagesPayload(parsed, meta, options) {
       newCount += 1;
       const flowResult = processNightwatchZeroDteFlow(record, 'rest_archive', options);
       newZeroDteFlowCount += flowResult.added_count;
+      processJunkmanAnalysisPlan(record, 'rest_archive', options);
     }
   }
 
@@ -570,7 +638,8 @@ function handleGatewayPayload(payload, url, options) {
       last_message_event_type: messageRecord.event_type,
     });
     const flowResult = processNightwatchZeroDteFlow(messageRecord, 'live_gateway', options);
-    if (!flowResult.handled && options.printAllMessages) {
+    const planResult = processJunkmanAnalysisPlan(messageRecord, 'live_gateway', options);
+    if (!flowResult.handled && !planResult.handled && options.printAllMessages) {
       printMessage(messageRecord);
     }
   } else if (options.allEvents) {
@@ -710,6 +779,11 @@ async function main() {
   if (options.zeroDteFlowEventLog) {
     options.zeroDteFlowEventIds = readExistingFieldValues(options.zeroDteFlowEventLog, 'sub_event_id');
   }
+  if (options.junkmanAnalysisPlanLog) {
+    options.junkmanAnalysisPlanEventIds = readExistingFieldValues(options.junkmanAnalysisPlanLog, 'event_id');
+    const backfilled = backfillJunkmanAnalysisPlans(options);
+    if (backfilled) console.log(`JUNKMAN analysis plan backfill: ${backfilled} new plan(s).`);
+  }
   if (options.historyMessageLog) {
     options.historyMessageIds = readExistingMessageIds(options.historyMessageLog);
   }
@@ -717,6 +791,7 @@ async function main() {
   console.log(`CDP endpoint: ${options.cdpEndpoint}`);
   console.log(`Message log: ${displayPath(MESSAGE_LOG)}`);
   console.log(`Nightwatch 0DTE Flow event log: ${displayPath(options.zeroDteFlowEventLog)}`);
+  console.log(`JUNKMAN analysis plan log: ${displayPath(options.junkmanAnalysisPlanLog)}`);
   console.log(`History message API log: ${displayPath(options.historyMessageLog)}`);
   console.log('Console output: Nightwatch 0DTE Flow context. Use --print-all-messages for ordinary chat.');
   if (options.channelId) {

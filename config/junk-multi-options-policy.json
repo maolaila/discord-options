@@ -1,10 +1,10 @@
 {
-  "name": "junk_man_top100_multi_0dte_simulation",
+  "name": "junk_man_discord_daily_plan_multi_0dte_simulation",
   "version": 1,
   "business_line": {
     "id": "junk-multi-options",
     "status": "active_simulation",
-    "description": "Independent JUNKMAN multi-symbol 0DTE simulation. Moomoo options-volume Top100 seeds the universe; only current Nightwatch-supported tickers with a real same-day option chain can become finalists."
+    "description": "Independent JUNKMAN multi-symbol 0DTE simulation. The current-session junkman-analysis posts are the sole source of tickers, strategies, levels, targets, invalidations, regimes and scenario weights; OpenD is used only for market confirmation, executable contracts and simulated orders."
   },
   "execution": {
     "broker": "moomoo_opend",
@@ -14,37 +14,21 @@
     "external_model_calls_allowed": false,
     "decision_engine": "local_deterministic_program"
   },
-  "provider": {
-    "name": "nightwatch",
-    "base_url": "https://api.yehangshe.com",
-    "api_key_env": "YEHANGSHE_API_KEY",
-    "fixed_sample_interval_seconds": 300,
-    "snapshot_min_interval_ms": 1000,
-    "max_429_retries": 0,
-    "request_timeout_ms": 10000
-  },
   "universe": {
-    "source": "moomoo_opend_get_option_underlying_rank",
-    "rank_sort": "options_volume_desc",
-    "rank_count": 100,
-    "require_previous_completed_nyse_trading_date": false,
-    "nightwatch_working_set": "dealer-heatmap",
-    "nightwatch_coverage_required": true,
+    "source": "discord_junkman_analysis_daily_plan",
+    "channel_id": "1515786763417813094",
+    "author_id": "414165384648720405",
+    "plan_log": "logs/junkman-analysis-plans.ndjson",
     "zero_dte_chain_required": true,
     "reserved_underlyings": ["SPX"],
-    "finalist_limit": 100,
-    "max_option_chain_probes": 100,
     "option_chain_probe_interval_ms": 3100,
-    "underlying_history_probe_interval_ms": 1100,
-    "refresh_time_et": "08:45"
+    "underlying_history_probe_interval_ms": 1100
   },
   "strategy": {
-    "id": "junk_gex_nodes_v3",
+    "id": "junkman_discord_daily_plan_v1",
+    "signal_source": "discord_junkman_analysis_daily_plan",
     "flow_dependency": "none",
     "manual_discord_flow_allowed": false,
-    "allowed_snapshot_states": ["fresh"],
-    "max_snapshot_age_ms": 600000,
-    "require_exact_fixed_sample_bucket": true,
     "closed_bar_interval_ms": 300000,
     "closed_bar_interval_tolerance_ms": 1000,
     "require_volume_confirmation": true,
@@ -52,33 +36,7 @@
     "option_strike_offset_steps": 1,
     "entry_start_time_et": "09:30",
     "entry_cutoff_time_et": "15:45",
-    "cooldown_seconds": 0,
-    "require_heatmap_snapshot": false,
-    "require_heatmap_confirmation": false
-  },
-  "evidence_gates": {
-    "heatmap": {
-      "enabled": true,
-      "max_age_ms": 600000,
-      "direction_from_price_reaction_only": true,
-      "missing_or_degraded_is_neutral": true,
-      "fresh_snapshot_required_for_entry": false,
-      "exact_node_confirmation_required": false
-    },
-    "contract_confirmation": {
-      "source": "moomoo_execution_quote_with_nightwatch_directional_chain",
-      "enabled": true,
-      "nightwatch_endpoint": "options.chain_snapshot",
-      "allowed_states": ["fresh"],
-      "audit_max_age_ms": 600000,
-      "require_bid_ask": true,
-      "require_open_interest_and_volume": false,
-      "service_unavailable_is_neutral": true
-    },
-    "oi_structure_background": {
-      "enabled": false,
-      "usage": "not_ported_from_spx"
-    }
+    "cooldown_seconds": 0
   },
   "market_calendar": {
     "source": "cboe_us_options_2026",
@@ -95,9 +53,8 @@
   },
   "risk_limits": {
     "allowed_underlyings": [],
-    "allowed_underlyings_source": "validated_top100_nightwatch_0dte_finalists",
+    "allowed_underlyings_source": "current_session_discord_daily_plan_with_verified_0dte_chain",
     "max_signal_age_seconds": 30,
-    "max_gex_snapshot_age_seconds": 600,
     "max_future_clock_skew_seconds": 5,
     "max_option_quote_age_seconds": 3,
     "max_open_positions": 1,
@@ -185,7 +142,7 @@
     "catastrophic_stop_loss_pct": 15,
     "breakeven_activation_pct": 20,
     "breakeven_floor_pct": 0,
-    "setup_time_stop_enabled": true,
+    "setup_time_stop_enabled": false,
     "setup_time_stop_minutes": 5,
     "setup_time_stop_setup_types": ["range_mean_reversion"],
     "structural_target_partial_exit_enabled": true,
@@ -202,7 +159,6 @@
   "logging": {
     "prefix": "junk-multi-options",
     "strategy_label": "JUNKMAN-MULTI",
-    "separate_from_spx_junkman": true,
-    "separate_from_pa_options": true
+    "separate_from_spx_junkman": true
   }
 }

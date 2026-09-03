@@ -397,6 +397,11 @@ function normalizeSignal(signal, now = new Date()) {
         .map((value) => normalizedString(value))
         .filter(Boolean),
     )].slice(0, 100),
+    source_plan_session_date_et: normalizedString(signal?.source_plan_session_date_et).slice(0, 10),
+    source_plan_message_id: normalizedString(signal?.source_plan_message_id),
+    source_plan_channel_id: normalizedString(signal?.source_plan_channel_id),
+    source_plan_author_id: normalizedString(signal?.source_plan_author_id),
+    source_plan_event_id: normalizedString(signal?.source_plan_event_id),
     discord_flow_dependency: boolFrom(
       signal?.discord_flow_dependency,
       signal?.requires_discord_flow,
@@ -427,6 +432,8 @@ function validateSignal(signal, config, riskState, now) {
   const sessionMinutes = sessionMinutesInNewYork(now);
   const entryStartMinutes = parseSessionMinutes(config?.policy?.strategy?.entry_start_time_et, 9 * 60 + 30);
   const entryCutoffMinutes = parseSessionMinutes(config?.policy?.strategy?.entry_cutoff_time_et, 15 * 60 + 45);
+  const dailyPlanSignal = normalizedString(config?.policy?.strategy?.signal_source).toLowerCase()
+    === 'discord_junkman_analysis_daily_plan';
 
   if (!signal.signal_id) reasons.push('missing_signal_id');
   const requiredBusinessLine = expectedBusinessLine(config);
@@ -447,13 +454,29 @@ function validateSignal(signal, config, riskState, now) {
   if (signal.discord_flow_dependency) reasons.push('discord_flow_dependency_forbidden');
   if (sessionMinutes < entryStartMinutes) reasons.push('before_entry_start_time_et');
   if (sessionMinutes >= entryCutoffMinutes) reasons.push('after_entry_cutoff_time_et');
-  if (signal.gex_state !== 'fresh') reasons.push(`gex_state_not_fresh:${signal.gex_state || 'missing'}`);
+  if (dailyPlanSignal) {
+    const expectedChannel = normalizedString(config?.policy?.universe?.channel_id);
+    const expectedAuthor = normalizedString(config?.policy?.universe?.author_id);
+    const currentSession = dateInNewYork(now);
+    if (signal.source_plan_session_date_et !== currentSession) reasons.push('daily_plan_session_mismatch');
+    if (!signal.source_plan_message_id) reasons.push('daily_plan_message_id_missing');
+    if (!signal.source_plan_event_id) reasons.push('daily_plan_event_id_missing');
+    if (!expectedChannel || signal.source_plan_channel_id !== expectedChannel) reasons.push('daily_plan_channel_mismatch');
+    if (!expectedAuthor || signal.source_plan_author_id !== expectedAuthor) reasons.push('daily_plan_author_mismatch');
+    if (signal.gex_state !== 'daily_plan_current_session') {
+      reasons.push(`daily_plan_state_invalid:${signal.gex_state || 'missing'}`);
+    }
+  } else if (signal.gex_state !== 'fresh') {
+    reasons.push(`gex_state_not_fresh:${signal.gex_state || 'missing'}`);
+  }
   if (signalAge === null) reasons.push('invalid_generated_at');
   if (signalAge !== null && signalAge > maxSignalAgeMs) reasons.push(`signal_stale:${signalAge}`);
   if (signalAge !== null && signalAge < -maxFutureSkewMs) reasons.push(`signal_from_future:${signalAge}`);
-  if (gexAge === null) reasons.push('invalid_gex_snapshot_at');
-  if (gexAge !== null && gexAge > maxGexAgeMs) reasons.push(`gex_snapshot_stale:${gexAge}`);
-  if (gexAge !== null && gexAge < -maxFutureSkewMs) reasons.push(`gex_snapshot_from_future:${gexAge}`);
+  if (!dailyPlanSignal) {
+    if (gexAge === null) reasons.push('invalid_gex_snapshot_at');
+    if (gexAge !== null && gexAge > maxGexAgeMs) reasons.push(`gex_snapshot_stale:${gexAge}`);
+    if (gexAge !== null && gexAge < -maxFutureSkewMs) reasons.push(`gex_snapshot_from_future:${gexAge}`);
+  }
 
   const trigger = finitePositive(signal.trigger_price);
   const invalidation = finitePositive(signal.invalidation_price);

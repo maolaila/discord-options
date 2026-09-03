@@ -300,7 +300,6 @@
   },
   "logging": {
     "prefix": "zero-dte-options",
-    "strategy_label": "JUNKMAN",
-    "separate_from_pa_options": true
+    "strategy_label": "JUNKMAN"
   }
 }

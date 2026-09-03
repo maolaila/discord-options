@@ -1,20 +1,22 @@
 # JUNKMAN SPX 0DTE Simulation System
 
-This repository contains one trading strategy only: JUNKMAN. Nightwatch Data API supplies SPX Dealer GEX, Heatmap, and option-structure evidence. Moomoo OpenD supplies price confirmation, option quotes, and simulated-account execution. Discord `0dte-flow-alert` is optional context and can never trigger or veto a trade by itself.
+This repository contains one trading family only: JUNKMAN. The SPX line uses Nightwatch Dealer GEX, Heatmap, and option-structure evidence. The MULTI line takes its daily tickers, strategies, levels, targets, invalidations, regimes, and scenario weights only from the authenticated `junkman-analysis` Discord posts. Moomoo OpenD supplies price confirmation, option quotes, and simulated-account execution. Discord `0dte-flow-alert` remains optional context for the separate Flow plus Heatmap line.
 
 The system is simulation-only. `config/zero-dte-options-policy.json` sets `environment=simulate_only` and `real_trading_allowed=false`, and the JUNKMAN entrypoint also rejects real-account execution in code. The repository provides no real-trading command.
 
 ## Architecture
 
 - `apps/zero-dte-options/`: JUNKMAN v3 decisions, recovery, entry, exit, and the seven-line experiment.
-- `apps/discord-capture/`: attaches to a local browser, archives Discord messages, and identifies automated `0dte-flow-alert` events.
+- `apps/junk-multi-options/`: deterministic execution of the current-session `junkman-analysis` plans.
+- `apps/junk-flow-heatmap-options/`: independent unusual-Flow plus Heatmap experiment.
+- `apps/discord-capture/`: attaches to a local browser, archives Discord messages, identifies automated `0dte-flow-alert` events, and normalizes `junkman-analysis` plans.
 - `apps/opend-check/`: verifies OpenD connectivity and the simulated option account.
 - `apps/control-console/`: local runtime status and controls.
 - `packages/nightwatch-api/`: Nightwatch REST client with a one-request-per-second floor and `Retry-After` backoff.
 - `packages/moomoo-opend/`: shared OpenD quote, account, and simulated-order functions.
-- `packages/option-signals/`: strict automated Nightwatch Flow parser.
-- `packages/business-lines/`: metadata for the only business line, `zero-dte-options`.
-- `config/zero-dte-options-policy.json`: the only strategy and risk policy.
+- `packages/option-signals/`: strict parsers for automated Nightwatch Flow and the daily analysis plans.
+- `packages/business-lines/`: metadata for the three isolated JUNKMAN execution lines.
+- `config/`: separate simulation-only policies for SPX, MULTI, and Flow plus Heatmap.
 
 Nightwatch GEX and Heatmap are structural evidence. Moomoo SPY one-minute pushes are aggregated into completed five-minute bars for price, volume, and node-reaction confirmation. The strategy decides only after a five-minute bar closes. OI, Flow color, and a single Sweep are never standalone directional signals.
 
@@ -60,9 +62,9 @@ npm run moomoo:check
 
 `nightwatch:discover` should return available datasets and `quota.monthly_remaining`. `moomoo:check` should confirm the OpenD connection, quote and trade login, and a `trdEnv=0` simulated account that supports US options.
 
-## Optional Discord Flow capture
+## Discord capture
 
-The main strategy runs from Nightwatch API evidence and moomoo market data without Discord Flow. To add live auxiliary Flow context:
+The MULTI line requires live capture of `junkman-analysis`; the Flow plus Heatmap line uses the automated Flow feed. Start the shared capture stack with:
 
 ```powershell
 .\start-discord-cdp.ps1
@@ -81,7 +83,7 @@ Get-Content .\logs\messages.ndjson -Encoding UTF8 -Wait
 Get-Content .\logs\history-messages.ndjson -Encoding UTF8 -Wait
 ```
 
-Only strictly matching automated Flow is written to `logs/zero-dte-options-flow-events.ndjson`. Ordinary chat, manual Flow, history backfill, and late events cannot trigger a JUNKMAN trade.
+Only strictly matching automated Flow is written to `logs/zero-dte-options-flow-events.ndjson`. Complete detailed plans from the configured analysis channel and author are normalized into `logs/junkman-analysis-plans.ndjson`. MULTI accepts only the current New York trading day's plans; old, partial, unsupported, wrong-channel, and wrong-author messages cannot become candidates.
 
 ## Run JUNKMAN
 
@@ -98,7 +100,7 @@ Use the top-level stack supervisor for continuous simulated monitoring and tradi
 .\run-junk-stack.ps1
 ```
 
-It verifies the real OpenD API login and simulated US-option account before starting JUNKMAN, restores the console and Discord capture, and delegates the strategy process to `run-junk-gex.ps1`. The unattended setup starts the top-level supervisor once at sign-in; the supervisor then performs continuous health checks without a repeating PowerShell task. For foreground debugging only:
+It verifies the real OpenD API login and simulated US-option account before starting JUNKMAN, restores the console and Discord capture, and delegates to the SPX, MULTI, and Flow plus Heatmap supervisors. The unattended setup starts the top-level supervisor once at sign-in; the supervisor then performs continuous health checks without a repeating PowerShell task. For foreground debugging only:
 
 ```powershell
 npm run junk:gex:watch-sim
@@ -137,6 +139,14 @@ The effective rules live in `config/zero-dte-options-policy.json`:
 - The system never holds overnight.
 - Nightwatch timeout or HTTP 429 backoff cannot block moomoo position reconciliation, stop handling, or time exits for an existing position.
 
+The MULTI rules live in `config/junk-multi-options-policy.json`:
+
+- The program does not rank or invent a universe. A complete current-session detailed `junkman-analysis` post is the sole source of each ticker and its recommended setup.
+- Reference price, Gamma regime, Wall/Flip/Pivot/Magnet levels, explicit trigger, target, invalidation, and scenario weights are copied from that post and retained in the decision audit.
+- Closed OpenD five-minute bars only determine whether the published trigger occurred. Missing or ambiguous plan fields remain no-trade; the program does not fill them from another API.
+- OpenD verifies that the posted ticker has a real same-day Call and Put chain. After a published trigger, the nearest actual out-of-the-money strike in the matching direction is used because the post specifies the underlying plan rather than an option contract.
+- When more than one posted setup confirms in the same completed bar, the matching published scenario weight ranks them. The shared simulated-account lock still permits only one aggregate JUNKMAN entry at a time.
+
 ## Seven paired exit variants
 
 One signal, contract, entry time, and fill price create one aggregate position in the moomoo simulated account. The program assigns that position to seven local virtual portfolios. Each line has USD 10,000, for a USD 70,000 total experiment baseline. There is no separate undocumented three-contract cap: the physical order quantity is seven times the per-line quantity after budget and displayed-depth sizing. Only fixed take-profit and catastrophic-stop settings differ:
@@ -155,7 +165,7 @@ Shared confirmation-wick invalidation, next-node target, breakeven behavior, and
 
 ## Status and trade records
 
-All JUNKMAN state uses the `zero-dte-options` prefix:
+The SPX line uses the `zero-dte-options` prefix:
 
 - `logs/zero-dte-options-status.json`: heartbeat, mode, provider, and error state.
 - `logs/zero-dte-options-runtime-state.json`: positions, orders, recovery, and exit state.
@@ -168,6 +178,8 @@ All JUNKMAN state uses the `zero-dte-options` prefix:
 - `logs/zero-dte-options-experiment-summary.json`: per-line realized and comparable gross PnL, win rate, and sample count; broker fees are excluded and marked in the file.
 - `logs/zero-dte-options-oi-structure-background.json`: compact, non-directional OI research context used in decision audits.
 - `data/junk-oi-research/`: ignored local SQLite history and redacted daily source snapshots.
+
+MULTI uses the corresponding `junk-multi-options-*` status, universe, decision, plan, trade, runtime-state, and experiment-summary files. Its source plan log is `logs/junkman-analysis-plans.ndjson`.
 
 Raw runtime data remains local. Before every repository push, generate and include the latest public-safe review snapshot:
 

@@ -1,64 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  buildTop100NightwatchCandidates,
   exactFixedSampleBucket,
   inferOptionStrikeStep,
-  previousCompletedTradingDate,
-  rankTradingDateForPolicy,
   validateNightwatchTickerEvidence,
 } from '../apps/junk-multi-options/junk-multi-universe.mjs';
 import {
   buildMultiSymbolMarketContext,
 } from '../apps/junk-multi-options/junk-multi-market-context.mjs';
 import { moomooUnderlyingCode } from '../apps/junk-multi-options/junk-multi-line.mjs';
-
-test('Top100 candidates require the configured trading date and Nightwatch coverage', () => {
-  const result = buildTop100NightwatchCandidates({
-    expected_trading_date: '2026-08-24',
-    rank_response: {
-      s2c: {
-        tradingDate: '2026-08-24',
-        rankList: [
-          { owner: { market: 11, code: 'NVDA' }, totalVolume: 10_000 },
-          { owner: { market: 11, code: 'SPX' }, totalVolume: 9_000 },
-          { owner: { market: 11, code: 'NOPE' }, totalVolume: 8_000 },
-          { owner: { market: 11, code: 'QQQ' }, totalVolume: 7_000 },
-        ],
-      },
-    },
-    discover_response: {
-      data: { working_sets: { 'dealer-heatmap': { tickers: ['NVDA', 'SPX', 'QQQ'] } } },
-    },
-    reserved_underlyings: ['SPX'],
-  });
-  assert.equal(result.passed, true);
-  assert.deepEqual(result.candidates.map((row) => row.ticker), ['NVDA', 'QQQ']);
-});
-
-test('Top100 trading-date mismatch fails closed', () => {
-  const result = buildTop100NightwatchCandidates({
-    expected_trading_date: '2026-08-24',
-    rank_response: { s2c: { tradingDate: '2026-08-21', rankList: [{ owner: { code: 'QQQ' } }] } },
-    discover_response: { data: { working_sets: { 'dealer-heatmap': { tickers: ['QQQ'] } } } },
-  });
-  assert.equal(result.passed, false);
-  assert.ok(result.reasons.includes('rank_trading_date_mismatch:2026-08-21'));
-});
-
-test('previous trading date skips weekends and configured closures', () => {
-  assert.equal(previousCompletedTradingDate('2026-08-24'), '2026-08-21');
-  assert.equal(previousCompletedTradingDate('2026-09-08', ['2026-09-07']), '2026-09-04');
-});
-
-test('rank trading date follows the current session unless policy explicitly requests prior data', () => {
-  assert.equal(rankTradingDateForPolicy({ session_date_et: '2026-08-24' }), '2026-08-24');
-  assert.equal(rankTradingDateForPolicy({
-    session_date_et: '2026-09-08',
-    closed_dates_et: ['2026-09-07'],
-    require_previous_completed_nyse_trading_date: true,
-  }), '2026-09-04');
-});
 
 test('strike step is inferred from the actual same-day option chain', () => {
   assert.equal(inferOptionStrikeStep([

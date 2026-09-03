@@ -166,7 +166,6 @@
     "prefix": "junk-flow-heatmap-options",
     "strategy_label": "JUNKMAN-FLOW-HEATMAP",
     "separate_from_spx_junkman": true,
-    "separate_from_junk_multi": true,
-    "separate_from_pa_options": true
+    "separate_from_junk_multi": true
   }
 }

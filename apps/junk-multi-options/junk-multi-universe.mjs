@@ -16,104 +16,11 @@ function validDateKey(value) {
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === text ? text : null;
 }
 
-export function previousCompletedTradingDate(sessionDateEt, closedDatesEt = []) {
-  const session = validDateKey(sessionDateEt);
-  if (!session) throw new Error('sessionDateEt must be YYYY-MM-DD.');
-  const closed = new Set((closedDatesEt || []).map(validDateKey).filter(Boolean));
-  let cursor = new Date(`${session}T00:00:00.000Z`);
-  for (let attempt = 0; attempt < 10; attempt += 1) {
-    cursor = new Date(cursor.getTime() - 86_400_000);
-    const dateKey = cursor.toISOString().slice(0, 10);
-    const weekday = cursor.getUTCDay();
-    if (weekday !== 0 && weekday !== 6 && !closed.has(dateKey)) return dateKey;
-  }
-  throw new Error('Unable to resolve previous completed trading date.');
-}
-
-export function rankTradingDateForPolicy({
-  session_date_et,
-  closed_dates_et = [],
-  require_previous_completed_nyse_trading_date = false,
-} = {}) {
-  const session = validDateKey(session_date_et);
-  if (!session) throw new Error('session_date_et must be YYYY-MM-DD.');
-  return require_previous_completed_nyse_trading_date
-    ? previousCompletedTradingDate(session, closed_dates_et)
-    : session;
-}
-
-export function normalizeOptionUnderlyingRank(response) {
-  const source = response?.s2c || response?.data || response || {};
-  const tradingDate = validDateKey(source.tradingDate ?? source.trading_date);
-  const rows = Array.isArray(source.rankList) ? source.rankList : (Array.isArray(source.rows) ? source.rows : []);
-  return {
-    trading_date: tradingDate,
-    trading_timestamp: finiteNumber(source.tradingTimestamp ?? source.trading_timestamp),
-    all_count: finiteNumber(source.allCount ?? source.all_count),
-    rows: rows.map((row, index) => ({
-      rank: index + 1,
-      ticker: normalizedTicker(row?.owner?.code ?? row?.ticker),
-      market: finiteNumber(row?.owner?.market ?? row?.market),
-      name: String(row?.name || '').trim() || null,
-      total_volume: finiteNumber(row?.totalVolume ?? row?.total_volume),
-      total_open_interest: finiteNumber(row?.totalOpenInterest ?? row?.total_open_interest),
-      put_call_volume_ratio_pct: finiteNumber(row?.volumeRatio ?? row?.volume_ratio),
-      put_call_open_interest_ratio_pct: finiteNumber(row?.openInterestRatio ?? row?.open_interest_ratio),
-      iv_pct: finiteNumber(row?.iv),
-      iv_rank_pct: finiteNumber(row?.ivRank ?? row?.iv_rank),
-      iv_percentile_pct: finiteNumber(row?.ivPercentile ?? row?.iv_percentile),
-      underlying_price_usd: finiteNumber(row?.price),
-      change_rate_pct: finiteNumber(row?.changeRate ?? row?.change_rate),
-      market_cap_usd: finiteNumber(row?.marketCap ?? row?.market_cap),
-    })).filter((row) => row.ticker),
-  };
-}
-
 export function nightwatchWorkingSetTickers(discoverResponse, workingSet = 'dealer-heatmap') {
   const source = discoverResponse?.data || discoverResponse || {};
   const rows = source?.working_sets?.[workingSet]?.tickers;
   if (!Array.isArray(rows)) return new Set();
   return new Set(rows.map(normalizedTicker).filter(Boolean));
-}
-
-export function buildTop100NightwatchCandidates({
-  rank_response,
-  discover_response,
-  expected_trading_date,
-  rank_count = 100,
-  reserved_underlyings = ['SPX'],
-  working_set = 'dealer-heatmap',
-} = {}) {
-  const rank = normalizeOptionUnderlyingRank(rank_response);
-  const expectedDate = validDateKey(expected_trading_date);
-  const coverage = nightwatchWorkingSetTickers(discover_response, working_set);
-  const reserved = new Set((reserved_underlyings || []).map(normalizedTicker).filter(Boolean));
-  const reasons = [];
-  if (!expectedDate) reasons.push('expected_rank_trading_date_invalid');
-  if (!rank.trading_date) reasons.push('rank_trading_date_missing');
-  if (expectedDate && rank.trading_date && rank.trading_date !== expectedDate) {
-    reasons.push(`rank_trading_date_mismatch:${rank.trading_date}`);
-  }
-  if (coverage.size === 0) reasons.push('nightwatch_working_set_missing');
-  if (rank.rows.length === 0) reasons.push('top100_rank_rows_missing');
-
-  const limit = Math.min(200, Math.max(1, Number(rank_count) || 100));
-  const candidates = rank.rows.slice(0, limit).map((row) => ({
-    ...row,
-    nightwatch_supported: coverage.has(row.ticker),
-    reserved_for_other_business_line: reserved.has(row.ticker),
-  })).filter((row) => row.nightwatch_supported && !row.reserved_for_other_business_line);
-
-  return {
-    passed: reasons.length === 0,
-    reasons,
-    expected_trading_date: expectedDate,
-    rank_trading_date: rank.trading_date,
-    rank_row_count: rank.rows.length,
-    nightwatch_working_set: working_set,
-    nightwatch_working_set_count: coverage.size,
-    candidates,
-  };
 }
 
 export function inferOptionStrikeStep(contracts) {

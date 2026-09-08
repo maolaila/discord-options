@@ -32,11 +32,11 @@
     "probe_errors": [],
     "policy_signature": "adf30b1e1033e761"
   },
-  "last_flow_source_poll_at": "2026-09-08T12:01:55.707Z",
+  "last_flow_source_poll_at": "2026-09-08T12:17:11.225Z",
   "gex_history_by_ticker": {},
   "last_scanned_bucket_by_ticker": {},
   "executed_signal_ids": [],
   "orders": {},
   "last_error": null,
-  "updated_at": "2026-09-08T12:02:10.707Z"
+  "updated_at": "2026-09-08T12:17:26.162Z"
 }

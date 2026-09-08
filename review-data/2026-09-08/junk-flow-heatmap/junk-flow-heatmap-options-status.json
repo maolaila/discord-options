@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-08T12:02:10.711Z",
+  "updated_at": "2026-09-08T12:17:26.168Z",
   "business_line": "junk-flow-heatmap-options",
   "strategy": "junk_gex_nodes_v3",
   "strategy_label": "JUNKMAN-FLOW-HEATMAP",
@@ -13,7 +13,7 @@
   "session_date_et": "2026-09-08",
   "market_schedule": {
     "date_key": "2026-09-08",
-    "minute_of_day": 482,
+    "minute_of_day": 497,
     "weekday": 2,
     "market_open": true,
     "early_close": false,
@@ -331,7 +331,7 @@
       "session_unallocated_realized_pnl_usd": 0,
       "session_physical_realized_pnl_usd": 0,
       "session_physical_realized_pnl_to_date_usd": 0,
-      "generated_at": "2026-09-08T12:02:10.711Z"
+      "generated_at": "2026-09-08T12:17:26.168Z"
     }
   },
   "last_decision": null,

@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-08T12:01:42.844Z",
+  "updated_at": "2026-09-08T12:16:42.988Z",
   "business_line": "zero-dte-options",
   "strategy": "junk_gex_nodes_v3",
   "strategy_label": "JUNKMAN",
@@ -803,7 +803,7 @@
       "session_unallocated_realized_pnl_usd": 0,
       "session_physical_realized_pnl_usd": 0,
       "session_physical_realized_pnl_to_date_usd": 0,
-      "generated_at": "2026-09-08T12:01:42.843Z"
+      "generated_at": "2026-09-08T12:16:42.988Z"
     },
     "daily": {
       "experiment_id": "junk_exit_grid_v1",
@@ -1404,7 +1404,7 @@
       "session_unallocated_realized_pnl_usd": 0,
       "session_physical_realized_pnl_usd": 0,
       "session_physical_realized_pnl_to_date_usd": 0,
-      "generated_at": "2026-09-08T12:01:42.844Z"
+      "generated_at": "2026-09-08T12:16:42.988Z"
     }
   },
   "oi_structure_background": {

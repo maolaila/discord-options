@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-08T12:01:43.317Z",
+  "generated_at": "2026-09-08T12:16:54.716Z",
   "snapshot_date_jst": "2026-09-08",
   "public_repository_safe_export": true,
   "redaction": {
@@ -36,7 +36,7 @@
       "encoding": "json",
       "source_bytes": 9330,
       "output_bytes": 9330,
-      "sha256": "98813e202749bb01689923ca7b8c026093e04615700901d17abe0aed1bc780cf",
+      "sha256": "4cb6dc9d98184e30b3aaeca09f1d7f8cb09bd72c946bfb1b4279c70483463a6e",
       "record_count": 1,
       "invalid_line_count": 0
     },
@@ -46,7 +46,7 @@
       "encoding": "json",
       "source_bytes": 1385,
       "output_bytes": 1385,
-      "sha256": "6a8d9cd191e042fa6a5f0dd17164a1ab38d4e5c39a5a8ba4157d30cb55df2011",
+      "sha256": "89fdbc29e5be35534d901fc55455c08f5443213fb6b655fbdc053eb4a48b58f4",
       "record_count": 1,
       "invalid_line_count": 0
     },
@@ -56,7 +56,7 @@
       "encoding": "json",
       "source_bytes": 11202,
       "output_bytes": 11202,
-      "sha256": "876f94ba7f64c1c3cdaaf84d7dfb839dc1615245ace0b8c603e0035e9176059d",
+      "sha256": "c9df498de41fbfc94528bb6d4b845aa459528e47f3dbd2b29860ee8e44791037",
       "record_count": 1,
       "invalid_line_count": 0
     },
@@ -106,7 +106,7 @@
       "encoding": "json",
       "source_bytes": 17807,
       "output_bytes": 17807,
-      "sha256": "d5a486654f73a196c81ce499c986549698a382ed6c97893a0d42822c5a20faaa",
+      "sha256": "8a96e497214d34cef5ffbb28063e0ef2bb8b01bebe47831752ead3a080879085",
       "record_count": 1,
       "invalid_line_count": 0
     },
@@ -116,7 +116,7 @@
       "encoding": "json",
       "source_bytes": 228198,
       "output_bytes": 228198,
-      "sha256": "ac2f60564be91bb1834fba25c4a6e235cdf10e75b131d426c634ad9f11a09a07",
+      "sha256": "2b0c04ed8558fccad6ada5037c18bf71f42829b6bc78944621ccf14d7872e91d",
       "record_count": 1,
       "invalid_line_count": 0
     },
@@ -126,7 +126,7 @@
       "encoding": "json",
       "source_bytes": 19807,
       "output_bytes": 19807,
-      "sha256": "d0d0eca7d3c0a572f1ddc12632bf0fe03367e77123499a8de013a4f185811435",
+      "sha256": "f69261870e13fc4800fa4c032be5d8cc2c02cb7e534a7b3da02176c845e383c5",
       "record_count": 1,
       "invalid_line_count": 0
     },
@@ -366,7 +366,7 @@
       "encoding": "json",
       "source_bytes": 19927,
       "output_bytes": 19927,
-      "sha256": "b81de9c2f1ed38b5c6e81b0cc63050622febab3d2f9a0c4c960ec5ff4a9ff471",
+      "sha256": "9b523947a32cbbe1a6fdb41fe52b8b5e21a84801b9c0d1ddc5ff375448800fc9",
       "record_count": 1,
       "invalid_line_count": 0
     },
@@ -416,7 +416,7 @@
       "encoding": "json",
       "source_bytes": 1841362,
       "output_bytes": 1841349,
-      "sha256": "9216bc643ff8590c98c79fa4fca4ae35d71d6dea86627226a51e54ec4d5f9e7d",
+      "sha256": "7838868dc30231ffea3c7e6d5635c61d2413c6689242df658d4035487183c7a4",
       "record_count": 1,
       "invalid_line_count": 0
     },
@@ -426,7 +426,7 @@
       "encoding": "json",
       "source_bytes": 73817,
       "output_bytes": 73804,
-      "sha256": "5cb82703fe082eab72260f90cd1bd00052a360c1751ee3c4469f98f0efe4379e",
+      "sha256": "fc8eab54ae88c3bb7054158e37daa0fd823ae8ea676d2a4dbc823618947ec4f3",
       "record_count": 1,
       "invalid_line_count": 0
     },
@@ -445,9 +445,9 @@
       "output": "review-data/2026-09-08/raw-inputs/discord-capture-status.json",
       "encoding": "json",
       "dataset_class": "redacted_raw_input",
-      "source_bytes": 2481,
-      "output_bytes": 2523,
-      "sha256": "c374a8070fca12efeaa3502f5d49a3469ad641e2afa6e49bd58f332b53267e83",
+      "source_bytes": 2482,
+      "output_bytes": 2524,
+      "sha256": "16da53c2fa0a9d7f22ee9c62dfaef5de2f9f4bb18c892734e98fc71c4fc6fc6b",
       "record_count": 1,
       "invalid_line_count": 0
     },
@@ -456,10 +456,10 @@
       "output": "review-data/2026-09-08/raw-inputs/discord-gateway-events.ndjson.gz",
       "encoding": "gzip_ndjson",
       "dataset_class": "redacted_raw_input",
-      "source_bytes": 344172050,
-      "output_bytes": 20571560,
-      "sha256": "4ebe9f71cde5ee3c37a71affaec20c47e61c18c9aa2478fc0d18604777963c5b",
-      "record_count": 224773,
+      "source_bytes": 344177803,
+      "output_bytes": 20572088,
+      "sha256": "cc347a3a31f250f4e810cc066c501819733eb6c0a1eab7244cdc0c464bdf2fa6",
+      "record_count": 224777,
       "invalid_line_count": 0
     },
     {
@@ -467,10 +467,10 @@
       "output": "review-data/2026-09-08/raw-inputs/discord-history-messages.ndjson.gz",
       "encoding": "gzip_ndjson",
       "dataset_class": "redacted_raw_input",
-      "source_bytes": 5039394,
-      "output_bytes": 439195,
-      "sha256": "eeb241435ccd05b1d5aee83d4f905c76bd8e8007713a96c62a29a402357c416e",
-      "record_count": 3648,
+      "source_bytes": 5066046,
+      "output_bytes": 440822,
+      "sha256": "f1a804c0a1d7e86fc1846cd12546ab8b69a76a4a107f10f78a5226c82908a792",
+      "record_count": 3678,
       "invalid_line_count": 0
     },
     {
@@ -478,10 +478,10 @@
       "output": "review-data/2026-09-08/raw-inputs/discord-live-messages.ndjson.gz",
       "encoding": "gzip_ndjson",
       "dataset_class": "redacted_raw_input",
-      "source_bytes": 182498012,
-      "output_bytes": 13610896,
-      "sha256": "0b544f342b8cf61df6ecbb558b45f5f6f08cbf2cc9944f0bb7813f53737ad3d2",
-      "record_count": 224773,
+      "source_bytes": 182501207,
+      "output_bytes": 13611359,
+      "sha256": "98b1094c42470bde047390136c18054128ff2cd161f8f23f5a29238473999b15",
+      "record_count": 224777,
       "invalid_line_count": 0
     }
   ]

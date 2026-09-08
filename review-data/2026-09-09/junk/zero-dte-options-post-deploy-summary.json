@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-08T21:07:44.620Z",
+  "business_line": "zero-dte-options",
+  "strategy": "junk_gex_nodes_v3",
+  "execution_environment": "simulate_only",
+  "deployment": {
+    "cutoff_at": "2026-08-14T14:12:08.075Z",
+    "old_watcher_pid": 13736,
+    "replacement_watcher_pid": 23404,
+    "supervisor_pid": 20884,
+    "removed_policy_field": "max_closed_bar_age_ms",
+    "replacement_age_cutoff_added": false
+  },
+  "decisions": {
+    "total_records": 26917,
+    "invalid_lines": 0,
+    "records_after_cutoff": 23499,
+    "first_at": "2026-08-14T14:12:37.674Z",
+    "last_at": "2026-09-08T19:59:53.332Z",
+    "max_gap_ms": 322549899,
+    "snapshot_bucket_count": 1215,
+    "trade_decision_count": 249,
+    "reason_counts": {
+      "current_price_lost_tested_node": 1259,
+      "experiment_previous_cohort_not_flat": 563,
+      "five_minute_acceptance_or_rejection_confirmed": 812,
+      "gex_node_breakout_retest": 668,
+      "gex_node_confirmed": 812,
+      "gex_node_rejection": 144,
+      "heatmap_structure_confirmed": 329,
+      "insufficient_closed_confirmation_bars": 367,
+      "insufficient_gex_nodes": 20,
+      "insufficient_stable_gex_node_history": 20,
+      "missing_call_directional_gex_reference": 1404,
+      "missing_last_price": 350,
+      "missing_put_directional_gex_reference": 1324,
+      "missing_put_gex_option_node": 10,
+      "nightwatch_contract_evidence_degraded_neutral": 110,
+      "positive_gamma_pin_requires_defined_risk_structure": 99,
+      "setup_invalidated_before_execution": 725,
+      "snapshot_stale": 47,
+      "structural_reward_not_greater_than_risk": 1092,
+      "target_reached_before_execution": 260,
+      "volume_data_present": 812,
+      "waiting_for_node_confirmation": 16806
+    },
+    "removed_reason_count": 0
+  },
+  "post_deploy_artifacts": {
+    "entry_plans": 326,
+    "exit_plans": 334,
+    "trades": 2263
+  },
+  "final_health": {
+    "status_updated_at": "2026-09-08T21:07:09.232Z",
+    "process_id": 32528,
+    "phase": "idle_market_closed",
+    "mode": "execute_simulate",
+    "real_trading_allowed": false,
+    "market_open": false,
+    "entry_open": false,
+    "gex_readiness": null,
+    "price_action_ready": null,
+    "moomoo_connected": null,
+    "simulated_us_options_account_ready": null,
+    "broker_recovery": "complete",
+    "open_position_count": 0,
+    "active_order_count": 0,
+    "runtime_order_count": 91,
+    "last_decision": "no_trade",
+    "last_reason_codes": [
+      "waiting_for_node_confirmation"
+    ],
+    "last_error": null
+  },
+  "sources": [
+    {
+      "path": "logs/zero-dte-options-decisions.ndjson",
+      "bytes": 410844843,
+      "sha256": "aed3f775c0b4712cb998e8e622994e4c2f02c645c7249b65111a03b42b19b83d"
+    },
+    {
+      "path": "logs/zero-dte-options-entry-plans.ndjson",
+      "bytes": 3193627,
+      "sha256": "c09795d6e16b00b1e4f512f348fd79f3a667ec7e80aa9a531426a2b7422af49c"
+    },
+    {
+      "path": "logs/zero-dte-options-exit-plans.ndjson",
+      "bytes": 887291,
+      "sha256": "83be95b69fc0c92795726363af128e092cce90c004c54ac419dda66ff1dfe296"
+    },
+    {
+      "path": "logs/zero-dte-options-trades.ndjson",
+      "bytes": 1705945,
+      "sha256": "c085f795128f81f1b4d69b6d4c565351bb4b0a9545b99ee5f8bd5be588539c1b"
+    },
+    {
+      "path": "logs/zero-dte-options-status.json",
+      "bytes": 92050,
+      "sha256": "6237f974a8deb8919b1f2a89781eb5cbcee1aefdee9eaaa15afde23824f6a038"
+    },
+    {
+      "path": "logs/zero-dte-options-runtime-state.json",
+      "bytes": 2421724,
+      "sha256": "96fe803257429dafb7a118c68fcf2ed52657a722ee1bc65f3153ba51a54c1806"
+    },
+    {
+      "path": "logs/zero-dte-options-supervisor.log",
+      "bytes": 1968,
+      "sha256": "60951a6a40ea83116845b04d54d9c9c00b9941644ac6b783f93b94927930cad5"
+    }
+  ]
+}

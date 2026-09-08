@@ -38,6 +38,18 @@ function sanitizeString(value) {
     .replace(/D:\\discord-options/gi, '<repo>');
 }
 
+function sanitizeRawInputString(value) {
+  return sanitizeString(value)
+    .replace(
+      /([?&](?:token|auth|authorization|sig|signature|hm|ex)=)[^&\s]+/gi,
+      '$1[redacted_secret]',
+    )
+    .replace(
+      /(?<!\d)\d{17,20}(?!\d)/g,
+      (identifier) => stableRedaction(identifier),
+    );
+}
+
 function sanitizeCompositeIdentity(value) {
   if (value === null || value === undefined || value === '') return value;
   return String(value).replace(
@@ -78,6 +90,34 @@ export function sanitizeValue(value, key = '') {
   return value;
 }
 
+export function sanitizeRawInputValue(value, key = '') {
+  if (secretKeyPattern.test(key)) return '[redacted_secret]';
+  if (identityKeyPattern.test(key)) {
+    if (value === null || value === undefined || value === '') return value;
+    return stableRedaction(value);
+  }
+  if (identityCollectionKeyPattern.test(key)) {
+    if (!Array.isArray(value)) return stableRedaction(value);
+    return value.map((item) => stableRedaction(item));
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeRawInputValue(item));
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([childKey, childValue]) => [
+        childKey,
+        sanitizeRawInputValue(childValue, childKey),
+      ]),
+    );
+  }
+  if (typeof value === 'string') return sanitizeRawInputString(value);
+  if (typeof value === 'number' && Number.isInteger(value) && Math.abs(value) >= 1e16) {
+    return stableRedaction(value);
+  }
+  return value;
+}
+
 function tokyoDate(now = new Date()) {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Tokyo',
@@ -107,7 +147,12 @@ async function sha256File(filePath) {
   return hash.digest('hex');
 }
 
-export async function exportNdjson({ source, destination, gzip = false }) {
+export async function exportNdjson({
+  source,
+  destination,
+  gzip = false,
+  sanitizer = sanitizeValue,
+}) {
   await mkdir(path.dirname(destination), { recursive: true });
   const output = createWriteStream(destination, { encoding: 'utf8' });
   const encoder = gzip ? createGzip({ level: 9 }) : output;
@@ -127,7 +172,7 @@ export async function exportNdjson({ source, destination, gzip = false }) {
         invalidLineCount += 1;
         continue;
       }
-      const rendered = `${JSON.stringify(sanitizeValue(parsed))}\n`;
+      const rendered = `${JSON.stringify(sanitizer(parsed))}\n`;
       if (!encoder.write(rendered)) await once(encoder, 'drain');
       recordCount += 1;
     }
@@ -139,10 +184,10 @@ export async function exportNdjson({ source, destination, gzip = false }) {
   return { record_count: recordCount, invalid_line_count: invalidLineCount };
 }
 
-async function exportJson({ source, destination }) {
+async function exportJson({ source, destination, sanitizer = sanitizeValue }) {
   await mkdir(path.dirname(destination), { recursive: true });
   const parsed = JSON.parse(await readFile(source, 'utf8'));
-  await writeFile(destination, `${JSON.stringify(sanitizeValue(parsed), null, 2)}\n`, 'utf8');
+  await writeFile(destination, `${JSON.stringify(sanitizer(parsed), null, 2)}\n`, 'utf8');
   return { record_count: 1, invalid_line_count: 0 };
 }
 
@@ -164,6 +209,12 @@ export const ndjsonSources = [
   ['logs/junk-flow-heatmap-options-trades.ndjson', 'junk-flow-heatmap/junk-flow-heatmap-options-trades.ndjson', false],
 ];
 
+export const rawInputNdjsonSources = [
+  ['logs/raw-events.ndjson', 'raw-inputs/discord-gateway-events.ndjson.gz', true],
+  ['logs/messages.ndjson', 'raw-inputs/discord-live-messages.ndjson.gz', true],
+  ['logs/history-messages.ndjson', 'raw-inputs/discord-history-messages.ndjson.gz', true],
+];
+
 export const jsonSources = [
   ['logs/zero-dte-options-runtime-state.json', 'junk/zero-dte-options-runtime-state.json'],
   ['logs/zero-dte-options-status.json', 'junk/zero-dte-options-status.json'],
@@ -178,6 +229,10 @@ export const jsonSources = [
   ['logs/junk-flow-heatmap-options-status.json', 'junk-flow-heatmap/junk-flow-heatmap-options-status.json'],
   ['logs/junk-flow-heatmap-options-universe.json', 'junk-flow-heatmap/junk-flow-heatmap-options-universe.json'],
   ['logs/junk-flow-heatmap-options-experiment-summary.json', 'junk-flow-heatmap/junk-flow-heatmap-options-experiment-summary.json'],
+];
+
+export const rawInputJsonSources = [
+  ['logs/capture-status.json', 'raw-inputs/discord-capture-status.json'],
 ];
 
 async function main() {
@@ -202,8 +257,12 @@ async function main() {
       account_discord_and_message_ids: 'stable_sha256_aliases',
       local_user_and_repository_paths: 'normalized',
     },
+    included_redacted_raw_inputs: [
+      'Discord Gateway events captured from the browser session',
+      'parsed live and historical Discord messages',
+      'Discord capture lifecycle status',
+    ],
     excluded: [
-      'raw Discord messages and browser/network events',
       'browser profile and authentication state',
       'real-order and SPCX helper records',
       'general trade journal; strategy-specific structured records retained',
@@ -228,6 +287,28 @@ async function main() {
     });
   }
 
+  for (const [sourceName, outputName, gzip] of rawInputNdjsonSources) {
+    const source = path.join(projectRoot, sourceName);
+    if (!existsSync(source)) continue;
+    const destination = path.join(outputRoot, outputName);
+    const counts = await exportNdjson({
+      source,
+      destination,
+      gzip,
+      sanitizer: sanitizeRawInputValue,
+    });
+    manifest.files.push({
+      source: sourceName,
+      output: path.relative(projectRoot, destination).replaceAll('\\', '/'),
+      encoding: gzip ? 'gzip_ndjson' : 'ndjson',
+      dataset_class: 'redacted_raw_input',
+      source_bytes: statSync(source).size,
+      output_bytes: (await stat(destination)).size,
+      sha256: await sha256File(destination),
+      ...counts,
+    });
+  }
+
   for (const [sourceName, outputName] of jsonSources) {
     const source = path.join(projectRoot, sourceName);
     if (!existsSync(source)) continue;
@@ -237,6 +318,27 @@ async function main() {
       source: sourceName,
       output: path.relative(projectRoot, destination).replaceAll('\\', '/'),
       encoding: 'json',
+      source_bytes: statSync(source).size,
+      output_bytes: (await stat(destination)).size,
+      sha256: await sha256File(destination),
+      ...counts,
+    });
+  }
+
+  for (const [sourceName, outputName] of rawInputJsonSources) {
+    const source = path.join(projectRoot, sourceName);
+    if (!existsSync(source)) continue;
+    const destination = path.join(outputRoot, outputName);
+    const counts = await exportJson({
+      source,
+      destination,
+      sanitizer: sanitizeRawInputValue,
+    });
+    manifest.files.push({
+      source: sourceName,
+      output: path.relative(projectRoot, destination).replaceAll('\\', '/'),
+      encoding: 'json',
+      dataset_class: 'redacted_raw_input',
       source_bytes: statSync(source).size,
       output_bytes: (await stat(destination)).size,
       sha256: await sha256File(destination),
@@ -281,7 +383,7 @@ async function main() {
     + `Generated from local runtime records at ${manifest.generated_at}. This export is designed for a public repository. Credentials, account identifiers, Discord identifiers, and local user paths are redacted.\n\n`
     + `Files: ${manifest.files.length}\n\n`
     + `Exported bytes: ${totalOutputBytes}\n\n`
-    + `The cumulative SPX and MULTI decision streams are gzip-compressed NDJSON. Use \`gzip -dc <file>\` or a gzip-capable analysis tool. See \`manifest.json\` for source mapping, counts, hashes, and exclusions.\n`;
+    + `The cumulative SPX, MULTI, FLOW, and redacted raw Discord input streams are gzip-compressed NDJSON. Use \`gzip -dc <file>\` or a gzip-capable analysis tool. See \`manifest.json\` for source mapping, counts, hashes, and exclusions.\n`;
   await writeFile(path.join(outputRoot, 'README.md'), readme, 'utf8');
 
   console.log(JSON.stringify({

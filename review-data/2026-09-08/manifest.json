@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-08T10:35:10.607Z",
+  "generated_at": "2026-09-08T12:01:43.317Z",
   "snapshot_date_jst": "2026-09-08",
   "public_repository_safe_export": true,
   "redaction": {
@@ -8,8 +8,12 @@
     "account_discord_and_message_ids": "stable_sha256_aliases",
     "local_user_and_repository_paths": "normalized"
   },
+  "included_redacted_raw_inputs": [
+    "Discord Gateway events captured from the browser session",
+    "parsed live and historical Discord messages",
+    "Discord capture lifecycle status"
+  ],
   "excluded": [
-    "raw Discord messages and browser/network events",
     "browser profile and authentication state",
     "real-order and SPCX helper records",
     "general trade journal; strategy-specific structured records retained",
@@ -32,7 +36,7 @@
       "encoding": "json",
       "source_bytes": 9330,
       "output_bytes": 9330,
-      "sha256": "9488264364998981508e6806b696fab00964dedfd6801c4fe0104214600fc3cc",
+      "sha256": "98813e202749bb01689923ca7b8c026093e04615700901d17abe0aed1bc780cf",
       "record_count": 1,
       "invalid_line_count": 0
     },
@@ -42,7 +46,7 @@
       "encoding": "json",
       "source_bytes": 1385,
       "output_bytes": 1385,
-      "sha256": "abb907161091d5f4337233fccb3834b95884b59539794a09b5e416f4d6cc5386",
+      "sha256": "6a8d9cd191e042fa6a5f0dd17164a1ab38d4e5c39a5a8ba4157d30cb55df2011",
       "record_count": 1,
       "invalid_line_count": 0
     },
@@ -50,9 +54,9 @@
       "source": "logs/junk-flow-heatmap-options-status.json",
       "output": "review-data/2026-09-08/junk-flow-heatmap/junk-flow-heatmap-options-status.json",
       "encoding": "json",
-      "source_bytes": 11203,
-      "output_bytes": 11203,
-      "sha256": "88e16c5ee7b93edb680259cee0ede73e9d4bdc674b6d4c66d0f87adbf33997df",
+      "source_bytes": 11202,
+      "output_bytes": 11202,
+      "sha256": "876f94ba7f64c1c3cdaaf84d7dfb839dc1615245ace0b8c603e0035e9176059d",
       "record_count": 1,
       "invalid_line_count": 0
     },
@@ -102,7 +106,7 @@
       "encoding": "json",
       "source_bytes": 17807,
       "output_bytes": 17807,
-      "sha256": "85999eb068725e7c912ef59854089272aa1fe5c573054fbc6679f9059fa6fafe",
+      "sha256": "d5a486654f73a196c81ce499c986549698a382ed6c97893a0d42822c5a20faaa",
       "record_count": 1,
       "invalid_line_count": 0
     },
@@ -112,7 +116,7 @@
       "encoding": "json",
       "source_bytes": 228198,
       "output_bytes": 228198,
-      "sha256": "d720627ab0ab879eb85a52c9d4ebd4012b019a076bed48ada5192f193fa4cb5f",
+      "sha256": "ac2f60564be91bb1834fba25c4a6e235cdf10e75b131d426c634ad9f11a09a07",
       "record_count": 1,
       "invalid_line_count": 0
     },
@@ -122,7 +126,7 @@
       "encoding": "json",
       "source_bytes": 19807,
       "output_bytes": 19807,
-      "sha256": "c6a8b33d4b11a9d2b1a590cc8081108765662826b1f22f12dfbfbc30ca059b52",
+      "sha256": "d0d0eca7d3c0a572f1ddc12632bf0fe03367e77123499a8de013a4f185811435",
       "record_count": 1,
       "invalid_line_count": 0
     },
@@ -362,7 +366,7 @@
       "encoding": "json",
       "source_bytes": 19927,
       "output_bytes": 19927,
-      "sha256": "664763e8b98cd92cbff8af58bca94565ae178ddd2b0f3e0940cc8fbafefb5936",
+      "sha256": "b81de9c2f1ed38b5c6e81b0cc63050622febab3d2f9a0c4c960ec5ff4a9ff471",
       "record_count": 1,
       "invalid_line_count": 0
     },
@@ -412,7 +416,7 @@
       "encoding": "json",
       "source_bytes": 1841362,
       "output_bytes": 1841349,
-      "sha256": "ca82faa3d4f550a315d076df9cfe2be1c5d2a3b633ba1017fcc0d83f7eb89a70",
+      "sha256": "9216bc643ff8590c98c79fa4fca4ae35d71d6dea86627226a51e54ec4d5f9e7d",
       "record_count": 1,
       "invalid_line_count": 0
     },
@@ -422,7 +426,7 @@
       "encoding": "json",
       "source_bytes": 73817,
       "output_bytes": 73804,
-      "sha256": "9d66e390d685bbff59284897722b63e2c73ecaab4369db5fbc08da0c34b1866b",
+      "sha256": "5cb82703fe082eab72260f90cd1bd00052a360c1751ee3c4469f98f0efe4379e",
       "record_count": 1,
       "invalid_line_count": 0
     },
@@ -434,6 +438,50 @@
       "output_bytes": 1605335,
       "sha256": "c158fb4dce04dbc96b4734c98d9c5366eef323d67ce932d1b895826940fa9a4d",
       "record_count": 2145,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/capture-status.json",
+      "output": "review-data/2026-09-08/raw-inputs/discord-capture-status.json",
+      "encoding": "json",
+      "dataset_class": "redacted_raw_input",
+      "source_bytes": 2481,
+      "output_bytes": 2523,
+      "sha256": "c374a8070fca12efeaa3502f5d49a3469ad641e2afa6e49bd58f332b53267e83",
+      "record_count": 1,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/raw-events.ndjson",
+      "output": "review-data/2026-09-08/raw-inputs/discord-gateway-events.ndjson.gz",
+      "encoding": "gzip_ndjson",
+      "dataset_class": "redacted_raw_input",
+      "source_bytes": 344172050,
+      "output_bytes": 20571560,
+      "sha256": "4ebe9f71cde5ee3c37a71affaec20c47e61c18c9aa2478fc0d18604777963c5b",
+      "record_count": 224773,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/history-messages.ndjson",
+      "output": "review-data/2026-09-08/raw-inputs/discord-history-messages.ndjson.gz",
+      "encoding": "gzip_ndjson",
+      "dataset_class": "redacted_raw_input",
+      "source_bytes": 5039394,
+      "output_bytes": 439195,
+      "sha256": "eeb241435ccd05b1d5aee83d4f905c76bd8e8007713a96c62a29a402357c416e",
+      "record_count": 3648,
+      "invalid_line_count": 0
+    },
+    {
+      "source": "logs/messages.ndjson",
+      "output": "review-data/2026-09-08/raw-inputs/discord-live-messages.ndjson.gz",
+      "encoding": "gzip_ndjson",
+      "dataset_class": "redacted_raw_input",
+      "source_bytes": 182498012,
+      "output_bytes": 13610896,
+      "sha256": "0b544f342b8cf61df6ecbb558b45f5f6f08cbf2cc9944f0bb7813f53737ad3d2",
+      "record_count": 224773,
       "invalid_line_count": 0
     }
   ]

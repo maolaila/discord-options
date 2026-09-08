@@ -7,7 +7,10 @@ import test from 'node:test';
 import {
   jsonSources,
   ndjsonSources,
+  rawInputJsonSources,
+  rawInputNdjsonSources,
   exportNdjson,
+  sanitizeRawInputValue,
   sanitizeValue,
   stableRedaction,
 } from '../ops/export-review-data.mjs';
@@ -69,6 +72,27 @@ test('review export includes complete SPX, MULTI, and FLOW-HEATMAP review datase
   }
 });
 
+test('review export includes redacted raw Discord and browser capture inputs', () => {
+  const ndjson = new Map(
+    rawInputNdjsonSources.map(([source, output, gzip]) => [source, { output, gzip }]),
+  );
+  const json = new Map(rawInputJsonSources.map(([source, output]) => [source, output]));
+
+  assert.deepEqual([...ndjson.keys()], [
+    'logs/raw-events.ndjson',
+    'logs/messages.ndjson',
+    'logs/history-messages.ndjson',
+  ]);
+  for (const item of ndjson.values()) {
+    assert.equal(item.gzip, true);
+    assert.match(item.output, /^raw-inputs\//);
+  }
+  assert.equal(
+    json.get('logs/capture-status.json'),
+    'raw-inputs/discord-capture-status.json',
+  );
+});
+
 test('review export redacts Discord ids embedded in composite keys while retaining broker ids', () => {
   const messageId = '123456789012345678';
   const brokerOrderId = '999999999999999999';
@@ -116,4 +140,26 @@ test('review export redacts account and Discord identity key variants', () => {
   for (const value of Object.values(sanitized)) {
     assert.match(value, /^\[redacted_id_[0-9a-f]{12}\]$/);
   }
+});
+
+test('raw input sanitizer preserves strategy text while redacting Discord identities and URL signatures', () => {
+  const snowflake = '123456789012345678';
+  const sanitized = sanitizeRawInputValue({
+    id: snowflake,
+    content: `SPX call from <@${snowflake}>`,
+    author: {
+      id: snowflake,
+      username: 'strategy-author',
+    },
+    attachment_url: `https://cdn.discordapp.com/attachments/${snowflake}/chart.png?ex=abc&hm=def`,
+    authorization: 'never-export-this',
+  });
+
+  assert.match(sanitized.id, /^\[redacted_id_[0-9a-f]{12}\]$/);
+  assert.match(sanitized.content, /^SPX call from <@\[redacted_id_[0-9a-f]{12}\]>$/);
+  assert.match(sanitized.author.id, /^\[redacted_id_[0-9a-f]{12}\]$/);
+  assert.match(sanitized.author.username, /^\[redacted_id_[0-9a-f]{12}\]$/);
+  assert.match(sanitized.attachment_url, /\[redacted_secret\]/);
+  assert.equal(sanitized.authorization, '[redacted_secret]');
+  assert.doesNotMatch(JSON.stringify(sanitized), new RegExp(snowflake));
 });

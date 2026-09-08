@@ -1,0 +1,666 @@
+{
+  "updated_at": "2026-09-04T13:30:42.706Z",
+  "business_line": "zero-dte-options",
+  "strategy": "junk_gex_nodes_v3",
+  "execution_environment": "simulate_only",
+  "kind": "junk_oi_structure_background",
+  "version": 1,
+  "ticker": "SPX",
+  "context_only": true,
+  "can_trigger_trade": false,
+  "can_veto_candidate": false,
+  "intraday_directional_signal": false,
+  "settlement_lagged": true,
+  "usable": true,
+  "state": "usable_context",
+  "activity_trade_date": "2026-09-03",
+  "oi_effective_date": "2026-09-04",
+  "source_as_of": "2026-09-04T04:00:00.000Z",
+  "captured_at": "2026-09-04T13:30:42.020Z",
+  "options_volume_source_as_of": "2026-09-04T04:00:00.000Z",
+  "options_volume": {
+    "ticker": "SPX",
+    "date": "2026-09-04",
+    "session_partial_or_semantically_independent": true,
+    "can_trigger_trade": false,
+    "can_veto_candidate": false,
+    "intraday_directional_signal": false,
+    "excluded_from_score": true,
+    "call_volume": 0,
+    "put_volume": 0,
+    "call_volume_ask_side": null,
+    "call_volume_bid_side": null,
+    "put_volume_ask_side": null,
+    "put_volume_bid_side": null,
+    "call_premium_usd": 0,
+    "put_premium_usd": 0,
+    "signed_net_premium_usd": null,
+    "net_call_premium_usd": null,
+    "net_put_premium_usd": null,
+    "bullish_premium_usd": 0,
+    "bearish_premium_usd": 0,
+    "call_open_interest": 7599546,
+    "put_open_interest": 10682506,
+    "average_call_volume_3d": 180490.3333,
+    "average_put_volume_3d": 271280.6667,
+    "average_call_volume_7d": 164601.8571,
+    "average_put_volume_7d": 236708.1429,
+    "average_call_volume_30d": 212701.4,
+    "average_put_volume_30d": 285330.1,
+    "average_volume_3d": null,
+    "average_volume_7d": null,
+    "average_volume_30d": null
+  },
+  "score": {
+    "value": 100,
+    "available_weight": 100,
+    "unavailable_factors": [],
+    "factors": [
+      {
+        "name": "oi_diff_absolute_activity",
+        "weight": 35,
+        "raw_value": 137287,
+        "normalized": 1
+      },
+      {
+        "name": "premium_activity",
+        "weight": 30,
+        "raw_value": 4411145865,
+        "normalized": 1
+      },
+      {
+        "name": "volume_activity",
+        "weight": 20,
+        "raw_value": 221481,
+        "normalized": 1
+      },
+      {
+        "name": "strike_right_breadth",
+        "weight": 15,
+        "raw_value": 34,
+        "normalized": 1
+      }
+    ],
+    "meaning": "settlement_confirmed_structure_activity_intensity_only",
+    "directional_interpretation_allowed": false
+  },
+  "reason_codes": [
+    "settlement_lagged_oi_structure_context_ready",
+    "not_intraday_trade_evidence"
+  ],
+  "optional_context_reason_codes": [],
+  "optional_context_errors": [],
+  "evidence": {
+    "contract_count": 50,
+    "call_contract_count": 17,
+    "put_contract_count": 33,
+    "strike_right_group_count": 34,
+    "official_premium_contract_count": 50,
+    "estimated_premium_contract_count": 0,
+    "unknown_premium_contract_count": 0,
+    "rolling_windows": [
+      3,
+      5,
+      10
+    ],
+    "history_snapshot_count": 17,
+    "coverage_limit": "options.oi_change may be a highlighted subset, not a complete option chain"
+  },
+  "top_contracts": [
+    {
+      "contract": "SPX261218C08000000",
+      "root": "SPX",
+      "expiration": "2026-12-18",
+      "right": "call",
+      "strike_usd": 8000,
+      "oi": 178406,
+      "prev_oi": 165748,
+      "oi_diff": 12658,
+      "volume": 15154,
+      "trades": 167,
+      "premium_usd": 209164603,
+      "premium_source": "official",
+      "history": {
+        "observation_count": 7,
+        "oi_up_streak": 1,
+        "premium_up_streak": 0,
+        "volume_up_streak": 0,
+        "triple_up_streak": 0,
+        "windows": {
+          "3": {
+            "sufficient_history": false,
+            "observation_count": 1,
+            "oi_diff_cumulative": null,
+            "volume_cumulative": null,
+            "premium_usd_cumulative": null,
+            "incomplete_metrics": [
+              "history"
+            ]
+          },
+          "5": {
+            "sufficient_history": false,
+            "observation_count": 3,
+            "oi_diff_cumulative": null,
+            "volume_cumulative": null,
+            "premium_usd_cumulative": null,
+            "incomplete_metrics": [
+              "history"
+            ]
+          },
+          "10": {
+            "sufficient_history": false,
+            "observation_count": 6,
+            "oi_diff_cumulative": null,
+            "volume_cumulative": null,
+            "premium_usd_cumulative": null,
+            "incomplete_metrics": [
+              "history"
+            ]
+          }
+        },
+        "insufficient_history": [
+          3,
+          5,
+          10
+        ]
+      }
+    },
+    {
+      "contract": "SPX261218P08000000",
+      "root": "SPX",
+      "expiration": "2026-12-18",
+      "right": "put",
+      "strike_usd": 8000,
+      "oi": 159646,
+      "prev_oi": 147252,
+      "oi_diff": 12394,
+      "volume": 13453,
+      "trades": 39,
+      "premium_usd": 424219502,
+      "premium_source": "official",
+      "history": {
+        "observation_count": 9,
+        "oi_up_streak": 2,
+        "premium_up_streak": 1,
+        "volume_up_streak": 1,
+        "triple_up_streak": 1,
+        "windows": {
+          "3": {
+            "sufficient_history": false,
+            "observation_count": 2,
+            "oi_diff_cumulative": null,
+            "volume_cumulative": null,
+            "premium_usd_cumulative": null,
+            "incomplete_metrics": [
+              "history"
+            ]
+          },
+          "5": {
+            "sufficient_history": false,
+            "observation_count": 4,
+            "oi_diff_cumulative": null,
+            "volume_cumulative": null,
+            "premium_usd_cumulative": null,
+            "incomplete_metrics": [
+              "history"
+            ]
+          },
+          "10": {
+            "sufficient_history": false,
+            "observation_count": 8,
+            "oi_diff_cumulative": null,
+            "volume_cumulative": null,
+            "premium_usd_cumulative": null,
+            "incomplete_metrics": [
+              "history"
+            ]
+          }
+        },
+        "insufficient_history": [
+          3,
+          5,
+          10
+        ]
+      }
+    },
+    {
+      "contract": "SPX270617P00600000",
+      "root": "SPX",
+      "expiration": "2027-06-17",
+      "right": "put",
+      "strike_usd": 600,
+      "oi": 10886,
+      "prev_oi": 1726,
+      "oi_diff": 9160,
+      "volume": 9160,
+      "trades": 6,
+      "premium_usd": 155720,
+      "premium_source": "official",
+      "history": {
+        "observation_count": 1,
+        "oi_up_streak": 1,
+        "premium_up_streak": 0,
+        "volume_up_streak": 0,
+        "triple_up_streak": 0,
+        "windows": {
+          "3": {
+            "sufficient_history": false,
+            "observation_count": 1,
+            "oi_diff_cumulative": null,
+            "volume_cumulative": null,
+            "premium_usd_cumulative": null,
+            "incomplete_metrics": [
+              "history"
+            ]
+          },
+          "5": {
+            "sufficient_history": false,
+            "observation_count": 1,
+            "oi_diff_cumulative": null,
+            "volume_cumulative": null,
+            "premium_usd_cumulative": null,
+            "incomplete_metrics": [
+              "history"
+            ]
+          },
+          "10": {
+            "sufficient_history": false,
+            "observation_count": 1,
+            "oi_diff_cumulative": null,
+            "volume_cumulative": null,
+            "premium_usd_cumulative": null,
+            "incomplete_metrics": [
+              "history"
+            ]
+          }
+        },
+        "insufficient_history": [
+          3,
+          5,
+          10
+        ]
+      }
+    },
+    {
+      "contract": "SPX261218C07000000",
+      "root": "SPX",
+      "expiration": "2026-12-18",
+      "right": "call",
+      "strike_usd": 7000,
+      "oi": 200749,
+      "prev_oi": 192857,
+      "oi_diff": 7892,
+      "volume": 13459,
+      "trades": 39,
+      "premium_usd": 1177646263,
+      "premium_source": "official",
+      "history": {
+        "observation_count": 10,
+        "oi_up_streak": 2,
+        "premium_up_streak": 1,
+        "volume_up_streak": 1,
+        "triple_up_streak": 1,
+        "windows": {
+          "3": {
+            "sufficient_history": false,
+            "observation_count": 2,
+            "oi_diff_cumulative": null,
+            "volume_cumulative": null,
+            "premium_usd_cumulative": null,
+            "incomplete_metrics": [
+              "history"
+            ]
+          },
+          "5": {
+            "sufficient_history": false,
+            "observation_count": 4,
+            "oi_diff_cumulative": null,
+            "volume_cumulative": null,
+            "premium_usd_cumulative": null,
+            "incomplete_metrics": [
+              "history"
+            ]
+          },
+          "10": {
+            "sufficient_history": false,
+            "observation_count": 8,
+            "oi_diff_cumulative": null,
+            "volume_cumulative": null,
+            "premium_usd_cumulative": null,
+            "incomplete_metrics": [
+              "history"
+            ]
+          }
+        },
+        "insufficient_history": [
+          3,
+          5,
+          10
+        ]
+      }
+    },
+    {
+      "contract": "SPX261218P07000000",
+      "root": "SPX",
+      "expiration": "2026-12-18",
+      "right": "put",
+      "strike_usd": 7000,
+      "oi": 209428,
+      "prev_oi": 201647,
+      "oi_diff": 7781,
+      "volume": 14242,
+      "trades": 62,
+      "premium_usd": 91352639,
+      "premium_source": "official",
+      "history": {
+        "observation_count": 10,
+        "oi_up_streak": 2,
+        "premium_up_streak": 1,
+        "volume_up_streak": 1,
+        "triple_up_streak": 1,
+        "windows": {
+          "3": {
+            "sufficient_history": false,
+            "observation_count": 2,
+            "oi_diff_cumulative": null,
+            "volume_cumulative": null,
+            "premium_usd_cumulative": null,
+            "incomplete_metrics": [
+              "history"
+            ]
+          },
+          "5": {
+            "sufficient_history": false,
+            "observation_count": 4,
+            "oi_diff_cumulative": null,
+            "volume_cumulative": null,
+            "premium_usd_cumulative": null,
+            "incomplete_metrics": [
+              "history"
+            ]
+          },
+          "10": {
+            "sufficient_history": false,
+            "observation_count": 7,
+            "oi_diff_cumulative": null,
+            "volume_cumulative": null,
+            "premium_usd_cumulative": null,
+            "incomplete_metrics": [
+              "history"
+            ]
+          }
+        },
+        "insufficient_history": [
+          3,
+          5,
+          10
+        ]
+      }
+    }
+  ],
+  "top_strikes": [
+    {
+      "strike_usd": 7000,
+      "right": "put",
+      "expirations": [
+        "2026-09-18",
+        "2026-10-16",
+        "2026-12-18",
+        "2027-03-19",
+        "2031-12-19"
+      ],
+      "contract_count": 5,
+      "oi": 793405,
+      "prev_oi": 775899,
+      "oi_diff": 17506,
+      "volume": 37228,
+      "trades": 316,
+      "premium_usd": 188153989,
+      "incomplete_fields": [],
+      "history": {
+        "observation_count": 17,
+        "oi_up_streak": 17,
+        "premium_up_streak": 0,
+        "volume_up_streak": 2,
+        "triple_up_streak": 0,
+        "windows": {
+          "3": {
+            "sufficient_history": true,
+            "observation_count": 3,
+            "oi_diff_cumulative": 33326,
+            "volume_cumulative": 70196,
+            "premium_usd_cumulative": 421231310,
+            "incomplete_metrics": []
+          },
+          "5": {
+            "sufficient_history": true,
+            "observation_count": 5,
+            "oi_diff_cumulative": 55778,
+            "volume_cumulative": 106224,
+            "premium_usd_cumulative": 539473274,
+            "incomplete_metrics": []
+          },
+          "10": {
+            "sufficient_history": true,
+            "observation_count": 10,
+            "oi_diff_cumulative": 128263,
+            "volume_cumulative": 223161,
+            "premium_usd_cumulative": 1130597148,
+            "incomplete_metrics": []
+          }
+        },
+        "insufficient_history": []
+      }
+    },
+    {
+      "strike_usd": 8000,
+      "right": "call",
+      "expirations": [
+        "2026-12-18",
+        "2031-12-19"
+      ],
+      "contract_count": 2,
+      "oi": 185493,
+      "prev_oi": 171835,
+      "oi_diff": 13658,
+      "volume": 16155,
+      "trades": 169,
+      "premium_usd": 415981120,
+      "incomplete_fields": [],
+      "history": {
+        "observation_count": 16,
+        "oi_up_streak": 14,
+        "premium_up_streak": 1,
+        "volume_up_streak": 0,
+        "triple_up_streak": 0,
+        "windows": {
+          "3": {
+            "sufficient_history": true,
+            "observation_count": 3,
+            "oi_diff_cumulative": 30461,
+            "volume_cumulative": 43448,
+            "premium_usd_cumulative": 873572482,
+            "incomplete_metrics": []
+          },
+          "5": {
+            "sufficient_history": true,
+            "observation_count": 5,
+            "oi_diff_cumulative": 53042,
+            "volume_cumulative": 83174,
+            "premium_usd_cumulative": 1413292427,
+            "incomplete_metrics": []
+          },
+          "10": {
+            "sufficient_history": true,
+            "observation_count": 10,
+            "oi_diff_cumulative": 119666,
+            "volume_cumulative": 181961,
+            "premium_usd_cumulative": 2292633438,
+            "incomplete_metrics": []
+          }
+        },
+        "insufficient_history": []
+      }
+    },
+    {
+      "strike_usd": 8000,
+      "right": "put",
+      "expirations": [
+        "2026-12-18",
+        "2031-12-19"
+      ],
+      "contract_count": 2,
+      "oi": 166804,
+      "prev_oi": 153409,
+      "oi_diff": 13395,
+      "volume": 14474,
+      "trades": 42,
+      "premium_usd": 505020925,
+      "incomplete_fields": [],
+      "history": {
+        "observation_count": 17,
+        "oi_up_streak": 17,
+        "premium_up_streak": 0,
+        "volume_up_streak": 0,
+        "triple_up_streak": 0,
+        "windows": {
+          "3": {
+            "sufficient_history": true,
+            "observation_count": 3,
+            "oi_diff_cumulative": 28452,
+            "volume_cumulative": 34138,
+            "premium_usd_cumulative": 1243099814,
+            "incomplete_metrics": []
+          },
+          "5": {
+            "sufficient_history": true,
+            "observation_count": 5,
+            "oi_diff_cumulative": 48209,
+            "volume_cumulative": 61846,
+            "premium_usd_cumulative": 2194276681,
+            "incomplete_metrics": []
+          },
+          "10": {
+            "sufficient_history": true,
+            "observation_count": 10,
+            "oi_diff_cumulative": 115004,
+            "volume_cumulative": 145393,
+            "premium_usd_cumulative": 5170319457,
+            "incomplete_metrics": []
+          }
+        },
+        "insufficient_history": []
+      }
+    },
+    {
+      "strike_usd": 7000,
+      "right": "call",
+      "expirations": [
+        "2026-09-18",
+        "2026-12-18",
+        "2031-12-19"
+      ],
+      "contract_count": 3,
+      "oi": 546279,
+      "prev_oi": 532986,
+      "oi_diff": 13293,
+      "volume": 25414,
+      "trades": 58,
+      "premium_usd": 2266541800,
+      "incomplete_fields": [],
+      "history": {
+        "observation_count": 16,
+        "oi_up_streak": 14,
+        "premium_up_streak": 2,
+        "volume_up_streak": 2,
+        "triple_up_streak": 2,
+        "windows": {
+          "3": {
+            "sufficient_history": true,
+            "observation_count": 3,
+            "oi_diff_cumulative": 26510,
+            "volume_cumulative": 47082,
+            "premium_usd_cumulative": 4136761538,
+            "incomplete_metrics": []
+          },
+          "5": {
+            "sufficient_history": true,
+            "observation_count": 5,
+            "oi_diff_cumulative": 46592,
+            "volume_cumulative": 74932,
+            "premium_usd_cumulative": 6254129472,
+            "incomplete_metrics": []
+          },
+          "10": {
+            "sufficient_history": true,
+            "observation_count": 10,
+            "oi_diff_cumulative": 110851,
+            "volume_cumulative": 167476,
+            "premium_usd_cumulative": 13559303823,
+            "incomplete_metrics": []
+          }
+        },
+        "insufficient_history": []
+      }
+    },
+    {
+      "strike_usd": 600,
+      "right": "put",
+      "expirations": [
+        "2027-06-17"
+      ],
+      "contract_count": 1,
+      "oi": 10886,
+      "prev_oi": 1726,
+      "oi_diff": 9160,
+      "volume": 9160,
+      "trades": 6,
+      "premium_usd": 155720,
+      "incomplete_fields": [],
+      "history": {
+        "observation_count": 1,
+        "oi_up_streak": 1,
+        "premium_up_streak": 0,
+        "volume_up_streak": 0,
+        "triple_up_streak": 0,
+        "windows": {
+          "3": {
+            "sufficient_history": false,
+            "observation_count": 1,
+            "oi_diff_cumulative": null,
+            "volume_cumulative": null,
+            "premium_usd_cumulative": null,
+            "incomplete_metrics": [
+              "history"
+            ]
+          },
+          "5": {
+            "sufficient_history": false,
+            "observation_count": 1,
+            "oi_diff_cumulative": null,
+            "volume_cumulative": null,
+            "premium_usd_cumulative": null,
+            "incomplete_metrics": [
+              "history"
+            ]
+          },
+          "10": {
+            "sufficient_history": false,
+            "observation_count": 1,
+            "oi_diff_cumulative": null,
+            "volume_cumulative": null,
+            "premium_usd_cumulative": null,
+            "incomplete_metrics": [
+              "history"
+            ]
+          }
+        },
+        "insufficient_history": [
+          3,
+          5,
+          10
+        ]
+      }
+    }
+  ]
+}

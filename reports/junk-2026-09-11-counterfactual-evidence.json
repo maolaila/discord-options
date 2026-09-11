@@ -1,0 +1,418 @@
+{
+  "description": "Counterfactual scenarios, NOT actual fills or tick-level replay. Uses 2026-09-11 actual entry and frozen exit profiles. No new entries modeled.",
+  "source": {
+    "method": "OpenD RequestHistoryKL",
+    "market": 11,
+    "code": "SPXW260911P7655000",
+    "klType": 1,
+    "rehabType": 0,
+    "timezone": "America/New_York"
+  },
+  "option_bars": [
+    {
+      "time": "2026-09-11 10:44:00",
+      "open": 11.2,
+      "high": 13.4,
+      "low": 10.6,
+      "close": 13.37,
+      "volume": {
+        "low": 665,
+        "high": 0,
+        "unsigned": false
+      }
+    },
+    {
+      "time": "2026-09-11 10:45:00",
+      "open": 13.3,
+      "high": 13.65,
+      "low": 12.3,
+      "close": 12.53,
+      "volume": {
+        "low": 346,
+        "high": 0,
+        "unsigned": false
+      }
+    },
+    {
+      "time": "2026-09-11 10:46:00",
+      "open": 12.5,
+      "high": 13.4,
+      "low": 11.7,
+      "close": 11.8,
+      "volume": {
+        "low": 421,
+        "high": 0,
+        "unsigned": false
+      }
+    },
+    {
+      "time": "2026-09-11 10:47:00",
+      "open": 11.8,
+      "high": 13.9,
+      "low": 11.5,
+      "close": 13.4,
+      "volume": {
+        "low": 498,
+        "high": 0,
+        "unsigned": false
+      }
+    },
+    {
+      "time": "2026-09-11 10:48:00",
+      "open": 13.4,
+      "high": 15,
+      "low": 12.45,
+      "close": 14.2,
+      "volume": {
+        "low": 607,
+        "high": 0,
+        "unsigned": false
+      }
+    },
+    {
+      "time": "2026-09-11 10:49:00",
+      "open": 14.2,
+      "high": 14.4,
+      "low": 9.24,
+      "close": 11.5,
+      "volume": {
+        "low": 525,
+        "high": 0,
+        "unsigned": false
+      }
+    },
+    {
+      "time": "2026-09-11 10:50:00",
+      "open": 11.5,
+      "high": 12,
+      "low": 9.3,
+      "close": 9.4,
+      "volume": {
+        "low": 464,
+        "high": 0,
+        "unsigned": false
+      }
+    },
+    {
+      "time": "2026-09-11 10:51:00",
+      "open": 9.3,
+      "high": 10.92,
+      "low": 9.3,
+      "close": 10.4,
+      "volume": {
+        "low": 344,
+        "high": 0,
+        "unsigned": false
+      }
+    },
+    {
+      "time": "2026-09-11 10:52:00",
+      "open": 10.4,
+      "high": 11.1,
+      "low": 9.65,
+      "close": 10.1,
+      "volume": {
+        "low": 260,
+        "high": 0,
+        "unsigned": false
+      }
+    },
+    {
+      "time": "2026-09-11 10:53:00",
+      "open": 10.2,
+      "high": 10.7,
+      "low": 9.7,
+      "close": 10.7,
+      "volume": {
+        "low": 269,
+        "high": 0,
+        "unsigned": false
+      }
+    },
+    {
+      "time": "2026-09-11 10:54:00",
+      "open": 10.77,
+      "high": 11.71,
+      "low": 10.6,
+      "close": 11.3,
+      "volume": {
+        "low": 462,
+        "high": 0,
+        "unsigned": false
+      }
+    },
+    {
+      "time": "2026-09-11 10:55:00",
+      "open": 11.3,
+      "high": 12,
+      "low": 11.15,
+      "close": 11.7,
+      "volume": {
+        "low": 319,
+        "high": 0,
+        "unsigned": false
+      }
+    },
+    {
+      "time": "2026-09-11 10:56:00",
+      "open": 11.6,
+      "high": 13.9,
+      "low": 11.6,
+      "close": 13.3,
+      "volume": {
+        "low": 528,
+        "high": 0,
+        "unsigned": false
+      }
+    },
+    {
+      "time": "2026-09-11 10:57:00",
+      "open": 13.1,
+      "high": 13.7,
+      "low": 12.4,
+      "close": 13.1,
+      "volume": {
+        "low": 266,
+        "high": 0,
+        "unsigned": false
+      }
+    },
+    {
+      "time": "2026-09-11 10:58:00",
+      "open": 13.3,
+      "high": 13.3,
+      "low": 11.4,
+      "close": 11.59,
+      "volume": {
+        "low": 158,
+        "high": 0,
+        "unsigned": false
+      }
+    },
+    {
+      "time": "2026-09-11 10:59:00",
+      "open": 11.6,
+      "high": 12.6,
+      "low": 10.9,
+      "close": 12.45,
+      "volume": {
+        "low": 301,
+        "high": 0,
+        "unsigned": false
+      }
+    },
+    {
+      "time": "2026-09-11 11:00:00",
+      "open": 12.4,
+      "high": 13.4,
+      "low": 11.8,
+      "close": 12,
+      "volume": {
+        "low": 197,
+        "high": 0,
+        "unsigned": false
+      }
+    },
+    {
+      "time": "2026-09-11 11:01:00",
+      "open": 12.24,
+      "high": 13.15,
+      "low": 10.4,
+      "close": 10.6,
+      "volume": {
+        "low": 297,
+        "high": 0,
+        "unsigned": false
+      }
+    },
+    {
+      "time": "2026-09-11 11:02:00",
+      "open": 10.7,
+      "high": 11.6,
+      "low": 10.2,
+      "close": 10.4,
+      "volume": {
+        "low": 439,
+        "high": 0,
+        "unsigned": false
+      }
+    },
+    {
+      "time": "2026-09-11 11:03:00",
+      "open": 10.3,
+      "high": 11.4,
+      "low": 10.08,
+      "close": 10.3,
+      "volume": {
+        "low": 374,
+        "high": 0,
+        "unsigned": false
+      }
+    },
+    {
+      "time": "2026-09-11 11:04:00",
+      "open": 10.1,
+      "high": 10.73,
+      "low": 8.8,
+      "close": 8.8,
+      "volume": {
+        "low": 401,
+        "high": 0,
+        "unsigned": false
+      }
+    },
+    {
+      "time": "2026-09-11 11:05:00",
+      "open": 8.7,
+      "high": 10.2,
+      "low": 8.5,
+      "close": 8.5,
+      "volume": {
+        "low": 324,
+        "high": 0,
+        "unsigned": false
+      }
+    },
+    {
+      "time": "2026-09-11 11:06:00",
+      "open": 8.6,
+      "high": 8.8,
+      "low": 7.4,
+      "close": 7.5,
+      "volume": {
+        "low": 358,
+        "high": 0,
+        "unsigned": false
+      }
+    },
+    {
+      "time": "2026-09-11 11:07:00",
+      "open": 7.55,
+      "high": 7.55,
+      "low": 6.3,
+      "close": 6.8,
+      "volume": {
+        "low": 344,
+        "high": 0,
+        "unsigned": false
+      }
+    }
+  ],
+  "scenario": {
+    "entry_price": 12.3,
+    "quantity_per_line": 1,
+    "multiplier": 100,
+    "observed_exit_bid": 14.9,
+    "observed_exit_ask": 15,
+    "observed_tp_limit": 14.8,
+    "observed_tp_fill_qty": 0,
+    "proxy_bar_time": "2026-09-11 10:49:00",
+    "proxy_close_used_as_bid": 11.5,
+    "assumed_ask": 11.6,
+    "assumed_tick": 0.1,
+    "proxy_limit": 11.4,
+    "assumption": "Apply frozen exit rules after breakeven is armed, use minute close as hypothetical bid and assume generated limit fills. Historical order book, intra-minute ordering and fill liquidity are NOT reconstructed."
+  },
+  "rules_replay": [
+    {
+      "line": "control_sl15_tp_off",
+      "armed": true,
+      "proxyTrigger": "option_breakeven_protect",
+      "proxyGate": {
+        "passed": true,
+        "ownership_passed": true,
+        "reasons": []
+      },
+      "proxySell": 11.4,
+      "proxyPnl": -90
+    },
+    {
+      "line": "sl10_tp_off",
+      "armed": true,
+      "proxyTrigger": "option_breakeven_protect",
+      "proxyGate": {
+        "passed": true,
+        "ownership_passed": true,
+        "reasons": []
+      },
+      "proxySell": 11.4,
+      "proxyPnl": -90
+    },
+    {
+      "line": "sl10_tp20",
+      "initialTrigger": "option_20pct_take_profit",
+      "initialSell": 14.8,
+      "armed": true,
+      "proxyTrigger": "option_breakeven_protect",
+      "proxyGate": {
+        "passed": true,
+        "ownership_passed": true,
+        "reasons": []
+      },
+      "proxySell": 11.4,
+      "proxyPnl": -90
+    },
+    {
+      "line": "sl10_tp30",
+      "armed": true,
+      "proxyTrigger": "option_breakeven_protect",
+      "proxyGate": {
+        "passed": true,
+        "ownership_passed": true,
+        "reasons": []
+      },
+      "proxySell": 11.4,
+      "proxyPnl": -90
+    },
+    {
+      "line": "sl15_tp20",
+      "initialTrigger": "option_20pct_take_profit",
+      "initialSell": 14.8,
+      "armed": true,
+      "proxyTrigger": "option_breakeven_protect",
+      "proxyGate": {
+        "passed": true,
+        "ownership_passed": true,
+        "reasons": []
+      },
+      "proxySell": 11.4,
+      "proxyPnl": -90
+    },
+    {
+      "line": "sl15_tp30",
+      "armed": true,
+      "proxyTrigger": "option_breakeven_protect",
+      "proxyGate": {
+        "passed": true,
+        "ownership_passed": true,
+        "reasons": []
+      },
+      "proxySell": 11.4,
+      "proxyPnl": -90
+    },
+    {
+      "line": "sl12p5_tp25",
+      "armed": true,
+      "proxyTrigger": "option_breakeven_protect",
+      "proxyGate": {
+        "passed": true,
+        "ownership_passed": true,
+        "reasons": []
+      },
+      "proxySell": 11.4,
+      "proxyPnl": -90
+    },
+    {
+      "line": "latest_regime_lifecycle",
+      "armed": true,
+      "proxyTrigger": "option_breakeven_protect",
+      "proxyGate": {
+        "passed": true,
+        "ownership_passed": true,
+        "reasons": []
+      },
+      "proxySell": 11.4,
+      "proxyPnl": -90
+    }
+  ]
+}

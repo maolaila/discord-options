@@ -79,8 +79,9 @@
     .badge.live::before { background: var(--green); box-shadow: 0 0 9px var(--green); }
     .badge.cached::before { background: var(--gold); }
     .badge.error::before { background: var(--red); }
-    .observer { border-left: 3px solid var(--blue); }
-    .observer .section-title { background: rgba(45, 84, 126, .13); }
+    .strategy-heading { padding: 8px 2px 0; }
+    .strategy-heading h2 { font-size: 21px; }
+    .strategy-heading p { margin: 4px 0 0; color: var(--muted); }
     .definition { padding: 16px 18px; color: var(--muted); }
     .definition strong { color: var(--text); }
     .definition-grid { display: grid; grid-template-columns: repeat(2, minmax(260px, 1fr)); gap: 8px 24px; margin-top: 9px; }
@@ -117,34 +118,27 @@
 
   <main>
     <div id="errorBox" class="error-box"></div>
+    <div id="validityNotice" class="definition">统计口径：剔除作废交易日的策略收益，不等于经纪商完整账户收益。</div>
 
     <section class="cards">
-      <div class="card"><div class="card-label">最新有交易记录的美东交易日</div><div class="card-value" id="latestDate">—</div></div>
-      <div class="card"><div class="card-label">累计统计区间</div><div class="card-value" id="period">—</div></div>
+      <div class="card"><div class="card-label">JUNK 主线 · 最新交易日</div><div class="card-value" id="latestDate">—</div></div>
+      <div class="card"><div class="card-label">JUNK 主线 · 累计区间</div><div class="card-value" id="period">—</div></div>
       <div class="card"><div class="card-label">每条线模拟账户本金</div><div class="card-value">$10,000</div></div>
       <div class="card"><div class="card-label">费用口径</div><div class="card-value">毛收益，未扣手续费</div></div>
       <div class="card"><div class="card-label">Base 链上证明</div><div class="card-value" id="chainStatus">—</div></div>
     </section>
     <div id="chainMessage" class="definition" style="display:none"></div>
 
+    <div class="strategy-heading"><h2>JUNK 主线</h2><p>Nightwatch / GEX 主线，逐条止盈止损线独立统计。</p></div>
+
     <section class="panel">
-      <div class="section-title"><h2>最新交易日 · 七条止盈止损线</h2><div class="section-note">逐线独立，不计算七线合计</div></div>
+      <div class="section-title"><h2>JUNK 主线 · 最新交易日 · 三条止盈止损线</h2><div class="section-note">逐线独立，不合计收益；停用线历史记录保留</div></div>
       <div class="table-wrap"><table><thead id="dailyHead"></thead><tbody id="dailyBody"></tbody></table></div>
     </section>
 
-    <section class="panel observer">
-      <div class="section-title"><h2>最新交易日 · Regime/lifecycle 观察线</h2><div class="section-note">观察线不混入七条止盈止损线</div></div>
-      <div class="table-wrap"><table><thead id="dailyObserverHead"></thead><tbody id="dailyObserverBody"></tbody></table></div>
-    </section>
-
     <section class="panel">
-      <div class="section-title"><h2>累计至今 · 七条止盈止损线</h2><div class="section-note" id="cumulativeHours">—</div></div>
+      <div class="section-title"><h2>JUNK 主线 · 累计至今 · 三条止盈止损线</h2><div class="section-note" id="cumulativeHours">—</div></div>
       <div class="table-wrap"><table><thead id="cumulativeHead"></thead><tbody id="cumulativeBody"></tbody></table></div>
-    </section>
-
-    <section class="panel observer">
-      <div class="section-title"><h2>累计至今 · Regime/lifecycle 观察线</h2><div class="section-note">只作旁证，不参与主线优选</div></div>
-      <div class="table-wrap"><table><thead id="cumulativeObserverHead"></thead><tbody id="cumulativeObserverBody"></tbody></table></div>
     </section>
 
     <section class="definition">
@@ -165,7 +159,7 @@
     const API_URL = location.protocol === 'http:' || location.protocol === 'https:'
       ? '/api/junk-performance'
       : 'http://127.0.0.1:18766/api/junk-performance';
-    const CACHE_KEY = 'junkman-performance-report-v1';
+    const CACHE_KEY = 'junkman-performance-report-main-v5-three-lines';
     const CAN_PUBLISH = location.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(location.hostname);
     const $ = (id) => document.getElementById(id);
     const safe = (value) => String(value ?? '—')
@@ -194,7 +188,7 @@
       <th>周转收益率</th><th>平均每笔投入</th><th>平均仓位率</th>
       <th>资金时间利用率</th><th>Profit Factor</th><th>剩余持仓</th>
     </tr>`;
-    for (const id of ['dailyHead', 'dailyObserverHead', 'cumulativeHead', 'cumulativeObserverHead']) $(id).innerHTML = header;
+    for (const id of ['dailyHead', 'cumulativeHead']) $(id).innerHTML = header;
 
     function lineRows(lines) {
       if (!lines.length) return '<tr><td class="empty" colspan="15">暂无记录</td></tr>';
@@ -218,20 +212,25 @@
     }
 
     function render(data, source) {
-      const daily = data.latest_day?.lines || [];
-      const cumulative = data.cumulative?.lines || [];
-      $('latestDate').textContent = displayDate(data.latest_date_et);
-      $('period').textContent = data.first_date_et && data.latest_date_et
-        ? `${data.first_date_et} 至 ${data.latest_date_et}` : '暂无交易';
-      $('cumulativeHours').textContent = `统计交易时段 ${Number(data.cumulative?.session_hours || 0).toFixed(1)} 小时`;
+      if (Number(data.schema_version) < 2) throw new Error('控制台尚未加载作废日口径，请重启控制台后刷新；旧口径收益不再显示。');
+      const reportLineIds = data.active_line_ids || (data.cumulative?.lines || []).map(line => line.line_id);
+      if (reportLineIds.join(',') !== 'control_sl15_tp_off,sl10_tp_off,sl15_tp30') throw new Error('控制台尚未加载三线报表配置，请重启控制台后刷新。');
+      const main = data;
+      const daily = main.latest_day?.lines || [];
+      const cumulative = main.cumulative?.lines || [];
+      $('latestDate').textContent = displayDate(main.latest_date_et);
+      $('period').textContent = main.first_date_et && main.latest_date_et
+        ? `${main.first_date_et} 至 ${main.latest_date_et}` : '暂无交易';
+      $('cumulativeHours').textContent = `统计交易时段 ${Number(main.cumulative?.session_hours || 0).toFixed(1)} 小时`;
       $('dailyBody').innerHTML = lineRows(daily.filter((line) => !line.observation_only));
-      $('dailyObserverBody').innerHTML = lineRows(daily.filter((line) => line.observation_only));
       $('cumulativeBody').innerHTML = lineRows(cumulative.filter((line) => !line.observation_only));
-      $('cumulativeObserverBody').innerHTML = lineRows(cumulative.filter((line) => line.observation_only));
-      $('generatedAt').textContent = data.generated_at
-        ? `数据生成：${new Date(data.generated_at).toLocaleString()}` : '';
-      const incomplete = Number(data.exclusions?.entry_without_priced_close_count || 0);
-      $('exclusions').innerHTML = `<strong>排除说明：</strong>${incomplete} 条逐线入场记录没有完整定价闭仓记录（可能包含旧版本、到期未定价或仍持仓），不计入收益、胜率和资金利用率。`;
+      $('generatedAt').textContent = main.generated_at
+        ? `数据生成：${new Date(main.generated_at).toLocaleString()}` : '';
+      const incomplete = Number(main.exclusions?.entry_without_priced_close_count || 0);
+      $('validityNotice').innerHTML = '<strong>调整后策略收益（非完整账户收益）：</strong>'
+        + (main.voided_trading_days || []).map(day => safe(day.date_et) + ' 已作废：' + safe(day.reason)).join('；')
+        + ' 原始成交及真实亏损保留供审计；作废日不计收益、成本、胜率、Profit Factor 和资金利用率。';
+      $('exclusions').innerHTML = `<strong>JUNK 主线排除：</strong>${incomplete} 条逐线入场记录没有完整定价闭仓记录（可能包含旧版本、到期未定价或仍持仓），不计入收益、胜率和资金利用率。`;
       const chain = data.onchain || {};
       const latest = chain.latest_batch;
       $('chainStatus').innerHTML = latest

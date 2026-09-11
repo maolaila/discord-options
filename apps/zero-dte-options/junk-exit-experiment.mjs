@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { trade_day_exclusion, excluded_trade_days } from '../../packages/business-lines/trade-day-validity.mjs';
 
 const DEFAULT_EXPERIMENT_ID = 'junk_exit_grid_v1';
 
@@ -832,10 +833,23 @@ export function summarize_junk_exit_experiment(state) {
   const session = aggregate(sessionDateEt
     ? rows.filter((row) => normalizedString(row?.expiration) === sessionDateEt)
     : []);
+  const businessLine = state?.business_line || 'zero-dte-options';
+  const validRows = rows.filter(row => !trade_day_exclusion(row, businessLine));
+  const performance = aggregate(validRows);
+  const performanceSession = aggregate(validRows.filter(row => normalizedString(row?.expiration) === sessionDateEt));
   return {
     experiment_id: rows.at(-1)?.experiment_ledger?.experiment_id || null,
     enabled: all.lines.length > 0,
     ...all,
+    // Top-level physical/risk accounting remains the unaltered broker history.
+    // Only this explicit reporting view excludes user-voided trading days.
+    performance: {
+      ...performance,
+      basis: 'valid_trading_days_only_not_full_broker_history',
+      voided_trading_days: excluded_trade_days(businessLine),
+      voided_cohort_count: rows.length - validRows.length,
+      session_lines: performanceSession.lines,
+    },
     session_date_et: sessionDateEt || null,
     session_cohort_count: session.cohort_count,
     session_lines: session.lines,

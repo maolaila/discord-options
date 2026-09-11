@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { TRADE_DAY_EXCLUSIONS, partition_performance_events } from '../../packages/business-lines/trade-day-validity.mjs';
 
 const ET_TIME_ZONE = 'America/New_York';
 const OPTION_MULTIPLIER = 100;
@@ -127,12 +128,12 @@ function regularSessionHours(dateString) {
   return 6.5;
 }
 
-function sessionSecondsBetween(firstDate, lastDate) {
+function sessionSecondsBetween(firstDate, lastDate, excludedDates = new Set()) {
   if (!firstDate || !lastDate || firstDate > lastDate) return 0;
   let cursor = firstDate;
   let hours = 0;
   while (cursor <= lastDate) {
-    hours += regularSessionHours(cursor);
+    if (!excludedDates.has(cursor)) hours += regularSessionHours(cursor);
     cursor = addDays(cursor, 1);
   }
   return hours * 3600;
@@ -151,6 +152,65 @@ export function read_ndjson(filePath) {
         return [];
       }
     });
+}
+
+export function experiment_events_from_runtime_state(runtimeState = {}) {
+  const events = [];
+  for (const order of Object.values(runtimeState?.orders || {})) {
+    const ledger = order?.experiment_ledger;
+    if (!ledger?.variants || !order?.plan_id) continue;
+    const entryAt = ledger.created_at || order.entry_submitted_at || order.updated_at;
+    const exitAt = ledger.updated_at || order.updated_at || entryAt;
+    for (const variant of Object.values(ledger.variants)) {
+      const lineId = variant?.line_id;
+      const entryQty = Math.max(0, Math.floor(number(variant?.allocated_entry_qty)));
+      const exitQty = Math.max(0, Math.floor(number(variant?.allocated_exit_qty)));
+      if (!lineId || entryQty < 1 || !entryAt) continue;
+      events.push({
+        event_at: entryAt,
+        event: 'experiment_line_entry_allocated',
+        plan_id: order.plan_id,
+        cohort_id: ledger.cohort_id,
+        line_id: lineId,
+        code: order.code,
+        qty: entryQty,
+        entry_value: number(variant.allocated_entry_value),
+      });
+      if (exitQty > 0 && exitAt) {
+        events.push({
+          event_at: exitAt,
+          event: 'experiment_line_exit_fill_progress',
+          plan_id: order.plan_id,
+          cohort_id: ledger.cohort_id,
+          line_id: lineId,
+          code: order.code,
+          qty: exitQty,
+          value: number(variant.allocated_exit_value),
+        });
+      }
+      if (variant.status === 'closed'
+        && exitQty >= entryQty
+        && Number.isFinite(Number(variant.allocated_entry_value))
+        && Number.isFinite(Number(variant.allocated_exit_value))
+        && Number.isFinite(Number(variant.realized_pnl_usd))
+        && exitAt) {
+        events.push({
+          event_at: exitAt,
+          event: 'experiment_line_position_closed',
+          plan_id: order.plan_id,
+          cohort_id: ledger.cohort_id,
+          line_id: lineId,
+          code: order.code,
+          entry_qty: entryQty,
+          entry_value: number(variant.allocated_entry_value),
+          exit_qty: exitQty,
+          exit_value: number(variant.allocated_exit_value),
+          realized_pnl_usd: number(variant.realized_pnl_usd),
+        });
+      }
+    }
+  }
+  return events.sort((left, right) => new Date(left.event_at) - new Date(right.event_at));
 }
 
 function lineDefinitions(policy) {
@@ -301,8 +361,8 @@ function openQtyByLine(events, experimentSummary) {
   return byLine;
 }
 
-function summarizePeriod(definitions, trades, intervals, firstDate, lastDate, openByLine) {
-  const denominatorSeconds = sessionSecondsBetween(firstDate, lastDate);
+function summarizePeriod(definitions, trades, intervals, firstDate, lastDate, openByLine, excludedDates) {
+  const denominatorSeconds = sessionSecondsBetween(firstDate, lastDate, excludedDates);
   return definitions.map((definition) => {
     const result = blankMetrics(definition);
     const rows = trades.filter((trade) => trade.line_id === definition.line_id)
@@ -351,7 +411,15 @@ export function build_junk_performance_report({
   policy = {},
   experimentSummary = null,
   generatedAt = new Date(),
+  title = 'JUNKMAN 收益报表',
+  source = 'logs/zero-dte-options-trades.ndjson',
+  businessLine = 'zero-dte-options',
+  tradeDayExclusions = TRADE_DAY_EXCLUSIONS,
 } = {}) {
+  const rawEvents = events;
+  const validity = partition_performance_events(events, businessLine, tradeDayExclusions);
+  events = validity.included;
+  const excludedDates = new Set(validity.days.map(day => day.date_et));
   const definitions = lineDefinitions(policy);
   const trades = closedTrades(events);
   const pricedCloseKeys = new Set(trades.map((row) => `${row.plan_id}|${row.line_id}`));
@@ -359,7 +427,8 @@ export function build_junk_performance_report({
     .filter((row) => row?.event === 'experiment_line_entry_allocated' && row.plan_id && row.line_id)
     .map((row) => `${row.plan_id}|${row.line_id}`));
   const intervals = exposureIntervals(events, pricedCloseKeys);
-  const openByLine = openQtyByLine(events, experimentSummary);
+  // Report exclusions must never hide a still-open broker position.
+  const openByLine = openQtyByLine(rawEvents, experimentSummary);
   const activityDates = [...new Set([
     ...trades.map((row) => row.trading_date_et),
     ...events
@@ -368,12 +437,26 @@ export function build_junk_performance_report({
   ].filter(Boolean))].sort();
   const latestDate = activityDates.at(-1) || null;
   const firstDate = activityDates[0] || null;
-  const empty = definitions.map(blankMetrics);
+  const empty = definitions.map(definition => ({
+    ...blankMetrics(definition), open_contract_qty: openByLine.get(definition.line_id) || 0,
+  }));
   return {
-    schema_version: 1,
+    schema_version: 2,
     generated_at: generatedAt instanceof Date ? generatedAt.toISOString() : new Date(generatedAt).toISOString(),
-    title: 'JUNKMAN 收益报表',
-    source: 'logs/zero-dte-options-trades.ndjson',
+    title,
+    source,
+    business_line: businessLine,
+    active_experiment_version: policy.exit_experiment?.version ?? null,
+    active_line_ids: definitions.map(line => line.line_id),
+    performance_basis: 'valid_trading_days_only_not_full_broker_history',
+    voided_trading_days: validity.days,
+    voided_trade_records: closedTrades(validity.excluded).map(trade => ({
+      trading_date_et: trade.trading_date_et, plan_id: trade.plan_id, line_id: trade.line_id,
+      code: trade.code, performance_status: 'void',
+      actual_purchase_cost_usd: trade.purchase_cost_usd,
+      actual_sale_proceeds_usd: trade.sale_proceeds_usd,
+      actual_gross_pnl_usd: trade.gross_pnl_usd,
+    })),
     pnl_basis: 'gross_option_price_change',
     fees_included: false,
     option_multiplier: OPTION_MULTIPLIER,
@@ -392,18 +475,21 @@ export function build_junk_performance_report({
       last_date_et: latestDate,
       session_hours: latestDate ? regularSessionHours(latestDate) : 0,
       lines: latestDate
-        ? summarizePeriod(definitions, trades, intervals, latestDate, latestDate, openByLine)
+        ? summarizePeriod(definitions, trades, intervals, latestDate, latestDate, openByLine, excludedDates)
         : empty,
     },
     cumulative: {
       first_date_et: firstDate,
       last_date_et: latestDate,
-      session_hours: firstDate && latestDate ? round(sessionSecondsBetween(firstDate, latestDate) / 3600, 1) : 0,
+      session_hours: firstDate && latestDate ? round(sessionSecondsBetween(firstDate, latestDate, excludedDates) / 3600, 1) : 0,
       lines: firstDate && latestDate
-        ? summarizePeriod(definitions, trades, intervals, firstDate, latestDate, openByLine)
+        ? summarizePeriod(definitions, trades, intervals, firstDate, latestDate, openByLine, excludedDates)
         : empty,
     },
     exclusions: {
+      voided_event_count: validity.excluded.length,
+      voided_closed_trade_count: closedTrades(validity.excluded).length,
+      voided_raw_records_preserved: true,
       unpriced_or_incomplete_close_count: events.filter((row) => row?.event === 'experiment_line_position_closed')
         .filter((row) => !Number.isFinite(Number(row.entry_value))
           || !Number.isFinite(Number(row.exit_value))

@@ -1,0 +1,89 @@
+{
+  "enabled": true,
+  "experiment_id": "junk_exit_grid_v1",
+  "version": 3,
+  "paired_entry": true,
+  "broker_execution_mode": "aggregate_single_position",
+  "paper_equity_usd_per_line": 10000,
+  "description": "Eight independent virtual portfolios share one aggregate moomoo simulated position. All eight use the sourced base-v3 JUNKMAN entry; the eighth retains regime/lifecycle diagnostics as observation-only context and uses the control exit rules.",
+  "latest_entry_profile": {
+    "entry_profile": "latest_regime_lifecycle_v1",
+    "participation": "base_v3_entry_always",
+    "regime_lifecycle_usage": "observation_only"
+  },
+  "lines": [
+    {
+      "line_id": "control_sl15_tp_off",
+      "label": "Control SL15 TP off",
+      "control": true,
+      "paper_equity_usd": 10000,
+      "catastrophic_stop_loss_pct": 15,
+      "option_take_profit_enabled": false,
+      "option_take_profit_pct": 25
+    },
+    {
+      "line_id": "sl10_tp_off",
+      "label": "SL10 TP off",
+      "control": false,
+      "paper_equity_usd": 10000,
+      "catastrophic_stop_loss_pct": 10,
+      "option_take_profit_enabled": false,
+      "option_take_profit_pct": 25
+    },
+    {
+      "line_id": "sl10_tp20",
+      "label": "SL10 TP20",
+      "control": false,
+      "paper_equity_usd": 10000,
+      "catastrophic_stop_loss_pct": 10,
+      "option_take_profit_enabled": true,
+      "option_take_profit_pct": 20
+    },
+    {
+      "line_id": "sl10_tp30",
+      "label": "SL10 TP30",
+      "control": false,
+      "paper_equity_usd": 10000,
+      "catastrophic_stop_loss_pct": 10,
+      "option_take_profit_enabled": true,
+      "option_take_profit_pct": 30
+    },
+    {
+      "line_id": "sl15_tp20",
+      "label": "SL15 TP20",
+      "control": false,
+      "paper_equity_usd": 10000,
+      "catastrophic_stop_loss_pct": 15,
+      "option_take_profit_enabled": true,
+      "option_take_profit_pct": 20
+    },
+    {
+      "line_id": "sl15_tp30",
+      "label": "SL15 TP30",
+      "control": false,
+      "paper_equity_usd": 10000,
+      "catastrophic_stop_loss_pct": 15,
+      "option_take_profit_enabled": true,
+      "option_take_profit_pct": 30
+    },
+    {
+      "line_id": "sl12p5_tp25",
+      "label": "SL12.5 TP25",
+      "control": false,
+      "paper_equity_usd": 10000,
+      "catastrophic_stop_loss_pct": 12.5,
+      "option_take_profit_enabled": true,
+      "option_take_profit_pct": 25
+    },
+    {
+      "line_id": "latest_regime_lifecycle",
+      "label": "Regime/lifecycle observation SL15 TP off",
+      "control": false,
+      "paper_equity_usd": 10000,
+      "entry_profile": "latest_regime_lifecycle_v1",
+      "catastrophic_stop_loss_pct": 15,
+      "option_take_profit_enabled": false,
+      "option_take_profit_pct": 25
+    }
+  ]
+}

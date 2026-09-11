@@ -19,7 +19,7 @@ export const BUSINESS_LINES = Object.freeze({
     policyPath: path.join(PROJECT_ROOT, 'config', 'junk-multi-options-policy.json'),
     logPrefix: 'junk-multi-options',
     requiredAdviceFormat: 'gex',
-    enabled: true,
+    enabled: false,
     legacyLogPrefixes: [],
   }),
   'junk-flow-heatmap-options': Object.freeze({
@@ -29,7 +29,7 @@ export const BUSINESS_LINES = Object.freeze({
     policyPath: path.join(PROJECT_ROOT, 'config', 'junk-flow-heatmap-options-policy.json'),
     logPrefix: 'junk-flow-heatmap-options',
     requiredAdviceFormat: 'gex',
-    enabled: true,
+    enabled: false,
     legacyLogPrefixes: [],
   }),
 });

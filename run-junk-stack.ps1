@@ -14,6 +14,9 @@ param(
   [ValidateRange(2, 10)]
   [int]$ConsoleStallRestartChecks = 3,
 
+  [ValidateRange(1, 10)]
+  [int]$CaptureStallRestartChecks = 2,
+
   [ValidateRange(15, 300)]
   [int]$MoomooHealthProbeIntervalSeconds = 60,
 
@@ -56,17 +59,14 @@ $openDAuthRecoveryStdoutPath = Join-Path $logDirectory 'opend-auth-recovery.stdo
 $openDAuthRecoveryStderrPath = Join-Path $logDirectory 'opend-auth-recovery.stderr.log'
 $openDAuthRecoverySensitivePaths = @(
   (Join-Path $logDirectory '.opend-auth-recovery.png'),
+  (Join-Path $rootPath 'secrets\.opend-auth-recovery.png'),
   (Join-Path $logDirectory '.opend-auth-recovery.stdout.log'),
   (Join-Path $logDirectory '.opend-auth-recovery.stderr.log'),
   $openDAuthRecoveryStdoutPath,
   $openDAuthRecoveryStderrPath
 )
 $junkSupervisorPath = Join-Path $rootPath 'run-junk-gex.ps1'
-$junkMultiSupervisorPath = Join-Path $rootPath 'run-junk-multi.ps1'
-$junkFlowHeatmapSupervisorPath = Join-Path $rootPath 'run-junk-flow-heatmap.ps1'
 $policyPath = Join-Path $rootPath 'config\zero-dte-options-policy.json'
-$junkMultiPolicyPath = Join-Path $rootPath 'config\junk-multi-options-policy.json'
-$junkFlowHeatmapPolicyPath = Join-Path $rootPath 'config\junk-flow-heatmap-options-policy.json'
 $envPath = Join-Path $rootPath '.env'
 $powershellPath = Join-Path $PSHOME 'powershell.exe'
 
@@ -87,6 +87,7 @@ if (-not $createdNew) {
 $script:componentStates = @{}
 $script:openDDownChecks = 0
 $script:consoleUnhealthyChecks = 0
+$script:captureUnhealthyChecks = 0
 $script:lastCdpHealthy = $null
 $script:lastMoomooProbeAt = [DateTimeOffset]::MinValue
 $script:lastMoomooApiHealthy = $false
@@ -526,14 +527,6 @@ function Assert-SimulationOnlyConfiguration {
   if (-not (Test-Path -LiteralPath $junkSupervisorPath -PathType Leaf)) {
     throw 'run-junk-gex.ps1 is missing; JUNKMAN was not started.'
   }
-  if (-not (Test-Path -LiteralPath $junkMultiSupervisorPath -PathType Leaf) -or
-      -not (Test-Path -LiteralPath $junkMultiPolicyPath -PathType Leaf)) {
-    throw 'The JUNKMAN-MULTI simulation supervisor or policy is missing.'
-  }
-  if (-not (Test-Path -LiteralPath $junkFlowHeatmapSupervisorPath -PathType Leaf) -or
-      -not (Test-Path -LiteralPath $junkFlowHeatmapPolicyPath -PathType Leaf)) {
-    throw 'The JUNKMAN-FLOW-HEATMAP simulation supervisor or policy is missing.'
-  }
   if (-not (Test-Path -LiteralPath $moomooCheckScriptPath -PathType Leaf)) {
     throw 'apps/opend-check/moomoo-check.mjs is missing; JUNKMAN was not started.'
   }
@@ -554,41 +547,11 @@ function Assert-SimulationOnlyConfiguration {
     throw 'The active policy is not the JUNKMAN simulation-only policy.'
   }
 
-  $junkMultiPolicy = Get-Content -LiteralPath $junkMultiPolicyPath -Raw | ConvertFrom-Json
-  if ($junkMultiPolicy.business_line.id -ne 'junk-multi-options' -or
-      $junkMultiPolicy.execution.environment -ne 'simulate_only' -or
-      [bool]$junkMultiPolicy.execution.real_trading_allowed -or
-      @($junkMultiPolicy.exit_experiment.lines).Count -ne 7 -or
-      @($junkMultiPolicy.exit_experiment.lines | Where-Object {
-        [double]$_.paper_equity_usd -ne 10000
-      }).Count -ne 0) {
-    throw 'The JUNKMAN-MULTI policy is not simulation-only with seven $10,000 lines.'
-  }
-
-  $junkFlowHeatmapPolicy = Get-Content -LiteralPath $junkFlowHeatmapPolicyPath -Raw | ConvertFrom-Json
-  if ($junkFlowHeatmapPolicy.business_line.id -ne 'junk-flow-heatmap-options' -or
-      $junkFlowHeatmapPolicy.execution.environment -ne 'simulate_only' -or
-      [bool]$junkFlowHeatmapPolicy.execution.real_trading_allowed -or
-      [bool]$junkFlowHeatmapPolicy.execution.ai_decisioning_allowed -or
-      @($junkFlowHeatmapPolicy.exit_experiment.lines).Count -ne 7 -or
-      @($junkFlowHeatmapPolicy.exit_experiment.lines | Where-Object {
-        [double]$_.paper_equity_usd -ne 10000
-      }).Count -ne 0) {
-    throw 'The JUNKMAN-FLOW-HEATMAP policy is not deterministic simulation-only with seven $10,000 lines.'
-  }
-
   $supervisorText = Get-Content -LiteralPath $junkSupervisorPath -Raw
   if ($supervisorText -notmatch '--execute-simulate' -or $supervisorText -match '--execute-real') {
     throw 'run-junk-gex.ps1 is not locked to --execute-simulate.'
   }
-  $multiSupervisorText = Get-Content -LiteralPath $junkMultiSupervisorPath -Raw
-  if ($multiSupervisorText -notmatch '--execute-simulate' -or $multiSupervisorText -match '--execute-real') {
-    throw 'run-junk-multi.ps1 is not locked to --execute-simulate.'
-  }
-  $flowHeatmapSupervisorText = Get-Content -LiteralPath $junkFlowHeatmapSupervisorPath -Raw
-  if ($flowHeatmapSupervisorText -notmatch '--execute-simulate' -or $flowHeatmapSupervisorText -match '--execute-real') {
-    throw 'run-junk-flow-heatmap.ps1 is not locked to --execute-simulate.'
-  }
+
 }
 
 function Resolve-OpenDExecutable {
@@ -891,6 +854,39 @@ function Test-ConsoleCaptureRunning {
   return [bool]$captureProperty.Value.running
 }
 
+function Get-ConsoleCaptureHealthAssessment {
+  param([Parameter(Mandatory = $true)]$ConsoleStatus)
+
+  $running = Test-ConsoleCaptureRunning -ConsoleStatus $ConsoleStatus
+  $healthProperty = $ConsoleStatus.PSObject.Properties['capture_health']
+  if ($null -eq $healthProperty -or $null -eq $healthProperty.Value) {
+    return [pscustomobject]@{
+      Running = $running
+      Healthy = $false
+      State = 'missing_health_evidence'
+      Evidence = 'none'
+    }
+  }
+
+  $health = $healthProperty.Value
+  $state = if ([string]::IsNullOrWhiteSpace([string]$health.state)) {
+    'unknown'
+  } else {
+    [string]$health.state
+  }
+  $evidence = if ([string]::IsNullOrWhiteSpace([string]$health.evidence)) {
+    'none'
+  } else {
+    [string]$health.evidence
+  }
+  return [pscustomobject]@{
+    Running = $running
+    Healthy = $running -and [bool]$health.healthy
+    State = $state
+    Evidence = $evidence
+  }
+}
+
 function Ensure-CaptureEnvironment {
   param([Parameter(Mandatory = $true)]$ConsoleStatus)
 
@@ -915,7 +911,8 @@ function Ensure-CaptureEnvironment {
 
   $status = Get-ConsoleStatus
   if ($null -eq $status) { $status = $ConsoleStatus }
-  $captureRunning = Test-ConsoleCaptureRunning -ConsoleStatus $status
+  $captureAssessment = Get-ConsoleCaptureHealthAssessment -ConsoleStatus $status
+  $captureRunning = [bool]$captureAssessment.Running
   $browserRecovered = $cdpWasDownThisCycle -or $script:lastCdpHealthy -eq $false
 
   if ($captureRunning -and $browserRecovered) {
@@ -923,6 +920,29 @@ function Ensure-CaptureEnvironment {
     $null = Invoke-ConsoleAction -Action 'stop-capture'
     Wait-ConsoleCaptureStopped
     $captureRunning = $false
+    $script:captureUnhealthyChecks = 0
+  } elseif ($captureRunning -and -not $captureAssessment.Healthy) {
+    $script:captureUnhealthyChecks += 1
+    $restartImmediately = @('disconnected', 'stopped') -contains [string]$captureAssessment.State
+    if ($restartImmediately -or $script:captureUnhealthyChecks -ge $CaptureStallRestartChecks) {
+      Write-StackLog `
+        -Level 'WARN' `
+        -Message "Discord Gateway capture is unhealthy; restarting the console-owned capture. state=$($captureAssessment.State); evidence=$($captureAssessment.Evidence); check=$($script:captureUnhealthyChecks)/$CaptureStallRestartChecks"
+      $null = Invoke-ConsoleAction -Action 'stop-capture'
+      Wait-ConsoleCaptureStopped
+      $captureRunning = $false
+      $script:captureUnhealthyChecks = 0
+    } else {
+      $script:lastCdpHealthy = $true
+      Set-ComponentState `
+        -Name 'discord_capture' `
+        -State 'gateway_unhealthy_grace' `
+        -Detail "process_running=true; state=$($captureAssessment.State); evidence=$($captureAssessment.Evidence); check=$($script:captureUnhealthyChecks)/$CaptureStallRestartChecks" `
+        -Level 'WARN'
+      return $false
+    }
+  } else {
+    $script:captureUnhealthyChecks = 0
   }
 
   if (-not $captureRunning) {
@@ -942,19 +962,27 @@ function Ensure-CaptureEnvironment {
     $null = Invoke-ConsoleAction -Action 'start-capture'
     Start-Sleep -Seconds 3
     $status = Get-ConsoleStatus
-    $captureRunning = $null -ne $status -and (Test-ConsoleCaptureRunning -ConsoleStatus $status)
+    if ($null -ne $status) {
+      $captureAssessment = Get-ConsoleCaptureHealthAssessment -ConsoleStatus $status
+      $captureRunning = [bool]$captureAssessment.Running
+    } else {
+      $captureRunning = $false
+    }
   }
 
   $script:lastCdpHealthy = $true
-  if ($captureRunning) {
-    Set-ComponentState -Name 'discord_capture' -State 'healthy' -Detail 'console_owned_process=running'
+  if ($captureRunning -and $captureAssessment.Healthy) {
+    Set-ComponentState `
+      -Name 'discord_capture' `
+      -State 'healthy' `
+      -Detail "console_owned_process=running; gateway_state=$($captureAssessment.State); evidence=$($captureAssessment.Evidence)"
     return $true
   }
 
   Set-ComponentState `
     -Name 'discord_capture' `
     -State 'unavailable' `
-    -Detail 'the control console could not keep the capture process running' `
+    -Detail "process_running=$captureRunning; gateway_state=$($captureAssessment.State); evidence=$($captureAssessment.Evidence)" `
     -Level 'ERROR'
   return $false
 }
@@ -1389,130 +1417,6 @@ function Ensure-JunkSupervisor {
   return $false
 }
 
-function Start-JunkMultiSupervisor {
-  $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-  $stdoutPath = Join-Path $logDirectory "junk-multi-supervisor-stack-$stamp.stdout.log"
-  $stderrPath = Join-Path $logDirectory "junk-multi-supervisor-stack-$stamp.stderr.log"
-  Write-StackLog -Message 'Starting the simulation-only JUNKMAN-MULTI strategy supervisor.'
-  $null = Start-Process `
-    -FilePath $powershellPath `
-    -ArgumentList @(
-      '-NoProfile',
-      '-ExecutionPolicy',
-      'Bypass',
-      '-File',
-      ('"{0}"' -f $junkMultiSupervisorPath)
-    ) `
-    -WorkingDirectory $rootPath `
-    -WindowStyle Hidden `
-    -RedirectStandardOutput $stdoutPath `
-    -RedirectStandardError $stderrPath `
-    -PassThru
-}
-
-function Ensure-JunkMultiSupervisor {
-  Assert-SimulationOnlyConfiguration
-  $supervisors = @(
-    Get-RepositoryProcesses `
-      -CommandLineToken 'run-junk-multi.ps1' `
-      -ProcessNames @('powershell.exe', 'pwsh.exe') `
-      -ExactPowerShellFilePath $junkMultiSupervisorPath
-  )
-  if ($supervisors.Count -gt 0) {
-    Set-ComponentState -Name 'junk_multi_supervisor' -State 'healthy' -Detail "process_count=$($supervisors.Count); mode=simulate_only"
-    return $true
-  }
-  $watchers = @(
-    Get-RepositoryProcesses `
-      -CommandLineToken 'apps\junk-multi-options\junk-multi-line.mjs' `
-      -ProcessNames @('node.exe')
-  )
-  if ($watchers.Count -gt 0) {
-    Set-ComponentState `
-      -Name 'junk_multi_supervisor' `
-      -State 'orphan_watcher' `
-      -Detail 'a watcher is running; deferring supervisor launch to avoid a duplicate runtime' `
-      -Level 'WARN'
-    return $true
-  }
-  Start-JunkMultiSupervisor
-  Start-Sleep -Seconds 3
-  $supervisors = @(
-    Get-RepositoryProcesses `
-      -CommandLineToken 'run-junk-multi.ps1' `
-      -ProcessNames @('powershell.exe', 'pwsh.exe') `
-      -ExactPowerShellFilePath $junkMultiSupervisorPath
-  )
-  if ($supervisors.Count -lt 1) {
-    Set-ComponentState -Name 'junk_multi_supervisor' -State 'unavailable' -Detail 'launch_not_observed' -Level 'ERROR'
-    return $false
-  }
-  Set-ComponentState -Name 'junk_multi_supervisor' -State 'healthy' -Detail 'mode=simulate_only; launch_confirmed=true'
-  return $true
-}
-
-function Start-JunkFlowHeatmapSupervisor {
-  $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-  $stdoutPath = Join-Path $logDirectory "junk-flow-heatmap-supervisor-stack-$stamp.stdout.log"
-  $stderrPath = Join-Path $logDirectory "junk-flow-heatmap-supervisor-stack-$stamp.stderr.log"
-  Write-StackLog -Message 'Starting the simulation-only JUNKMAN-FLOW-HEATMAP strategy supervisor.'
-  $null = Start-Process `
-    -FilePath $powershellPath `
-    -ArgumentList @(
-      '-NoProfile',
-      '-ExecutionPolicy',
-      'Bypass',
-      '-File',
-      ('"{0}"' -f $junkFlowHeatmapSupervisorPath)
-    ) `
-    -WorkingDirectory $rootPath `
-    -WindowStyle Hidden `
-    -RedirectStandardOutput $stdoutPath `
-    -RedirectStandardError $stderrPath `
-    -PassThru
-}
-
-function Ensure-JunkFlowHeatmapSupervisor {
-  Assert-SimulationOnlyConfiguration
-  $supervisors = @(
-    Get-RepositoryProcesses `
-      -CommandLineToken 'run-junk-flow-heatmap.ps1' `
-      -ProcessNames @('powershell.exe', 'pwsh.exe') `
-      -ExactPowerShellFilePath $junkFlowHeatmapSupervisorPath
-  )
-  if ($supervisors.Count -gt 0) {
-    Set-ComponentState -Name 'junk_flow_heatmap_supervisor' -State 'healthy' -Detail "process_count=$($supervisors.Count); mode=simulate_only"
-    return $true
-  }
-  $watchers = @(
-    Get-RepositoryProcesses `
-      -CommandLineToken 'apps\junk-flow-heatmap-options\junk-flow-heatmap-line.mjs' `
-      -ProcessNames @('node.exe')
-  )
-  if ($watchers.Count -gt 0) {
-    Set-ComponentState `
-      -Name 'junk_flow_heatmap_supervisor' `
-      -State 'orphan_watcher' `
-      -Detail 'a watcher is running; deferring supervisor launch to avoid a duplicate runtime' `
-      -Level 'WARN'
-    return $true
-  }
-  Start-JunkFlowHeatmapSupervisor
-  Start-Sleep -Seconds 3
-  $supervisors = @(
-    Get-RepositoryProcesses `
-      -CommandLineToken 'run-junk-flow-heatmap.ps1' `
-      -ProcessNames @('powershell.exe', 'pwsh.exe') `
-      -ExactPowerShellFilePath $junkFlowHeatmapSupervisorPath
-  )
-  if ($supervisors.Count -lt 1) {
-    Set-ComponentState -Name 'junk_flow_heatmap_supervisor' -State 'unavailable' -Detail 'launch_not_observed' -Level 'ERROR'
-    return $false
-  }
-  Set-ComponentState -Name 'junk_flow_heatmap_supervisor' -State 'healthy' -Detail 'mode=simulate_only; launch_confirmed=true'
-  return $true
-}
-
 function Set-JunkApiGateState {
   $supervisors = @(
     Get-RepositoryProcesses `
@@ -1531,36 +1435,6 @@ function Set-JunkApiGateState {
       Stop-Process -Id $supervisor.ProcessId -Force -ErrorAction SilentlyContinue
     }
     $supervisors = @()
-  }
-
-  $multiSupervisors = @(
-    Get-RepositoryProcesses `
-      -CommandLineToken 'run-junk-multi.ps1' `
-      -ProcessNames @('powershell.exe', 'pwsh.exe') `
-      -ExactPowerShellFilePath $junkMultiSupervisorPath
-  )
-  if ($multiSupervisors.Count -gt 0) {
-    Write-StackLog `
-      -Level 'WARN' `
-      -Message "Moomoo API health is unavailable; stopping $($multiSupervisors.Count) JUNKMAN-MULTI restart supervisor process(es) while leaving any existing watcher running."
-    foreach ($supervisor in $multiSupervisors) {
-      Stop-Process -Id $supervisor.ProcessId -Force -ErrorAction SilentlyContinue
-    }
-  }
-
-  $flowHeatmapSupervisors = @(
-    Get-RepositoryProcesses `
-      -CommandLineToken 'run-junk-flow-heatmap.ps1' `
-      -ProcessNames @('powershell.exe', 'pwsh.exe') `
-      -ExactPowerShellFilePath $junkFlowHeatmapSupervisorPath
-  )
-  if ($flowHeatmapSupervisors.Count -gt 0) {
-    Write-StackLog `
-      -Level 'WARN' `
-      -Message "Moomoo API health is unavailable; stopping $($flowHeatmapSupervisors.Count) JUNKMAN-FLOW-HEATMAP restart supervisor process(es) while leaving any existing watcher running."
-    foreach ($supervisor in $flowHeatmapSupervisors) {
-      Stop-Process -Id $supervisor.ProcessId -Force -ErrorAction SilentlyContinue
-    }
   }
 
   # Remove restart authority before a stale child can be recycled. Otherwise the
@@ -1726,16 +1600,6 @@ try {
         $null = Ensure-JunkSupervisor
       } catch {
         Set-ComponentState -Name 'junk_supervisor' -State 'error' -Detail $_.Exception.Message -Level 'ERROR'
-      }
-      try {
-        $null = Ensure-JunkMultiSupervisor
-      } catch {
-        Set-ComponentState -Name 'junk_multi_supervisor' -State 'error' -Detail $_.Exception.Message -Level 'ERROR'
-      }
-      try {
-        $null = Ensure-JunkFlowHeatmapSupervisor
-      } catch {
-        Set-ComponentState -Name 'junk_flow_heatmap_supervisor' -State 'error' -Detail $_.Exception.Message -Level 'ERROR'
       }
     } else {
       Set-JunkApiGateState

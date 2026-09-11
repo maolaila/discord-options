@@ -19,6 +19,8 @@ $logDirectory = Join-Path $RepoRoot 'logs'
 $stdoutPath = Join-Path $logDirectory '.opend-auth-recovery.stdout.log'
 $stderrPath = Join-Path $logDirectory '.opend-auth-recovery.stderr.log'
 $envPath = Join-Path $RepoRoot '.env'
+$temporaryImagePath = Join-Path $RepoRoot 'secrets\.opend-auth-recovery.png'
+$imageValidatorPath = Join-Path $RepoRoot 'ops\validate-opend-key-image.ps1'
 
 function Resolve-WebSocketKeyFilePath {
   $configuredPath = $null
@@ -94,27 +96,42 @@ function Await-WindowsRuntimeOperation {
 function Add-AmbiguousTextVariants {
   param([Parameter(Mandatory = $true)][string]$Text)
 
-  $variants = [System.Collections.Generic.HashSet[string]]::new(
+  $seen = [System.Collections.Generic.HashSet[string]]::new(
     [System.StringComparer]::Ordinal
   )
-  $variants.Add($Text) | Out-Null
+  $variants = [System.Collections.Generic.List[string]]::new()
+  $seen.Add($Text) | Out-Null
+  $variants.Add($Text)
   $groups = @(
-    @('0', 'O', 'o'),
-    @('1', 'I', 'i', 'l'),
-    @('V', 'U', 'W')
+    @('0', 'O', 'o', 'Q', 'q'),
+    @('1', 'I', 'i', 'l', 'L', 'J', 'j'),
+    @('2', 'Z', 'z'),
+    @('5', 'S', 's'),
+    @('8', 'B'),
+    @('V', 'U', 'W', 'v', 'u', 'w'),
+    @('C', 'G', 'c', 'g'),
+    @('X', 'K', 'x', 'k'),
+    @('F', 'P', 'f', 'p'),
+    @('R', 'P'),
+    @('N', 'M', 'n', 'm')
   )
 
+  # Try every one-character OCR ambiguity before combining substitutions.
+  # This avoids locking out a correct late-position variant behind an
+  # exponential set of earlier combinations.
   for ($index = 0; $index -lt $Text.Length; $index += 1) {
     $current = [string]$Text[$index]
     $group = $groups | Where-Object { $_ -contains $current } | Select-Object -First 1
     if (-not $group) { continue }
-    foreach ($existing in @($variants)) {
-      foreach ($replacement in $group) {
-        $chars = $existing.ToCharArray()
-        $chars[$index] = [char]$replacement
-        $variants.Add((-join $chars)) | Out-Null
-        if ($variants.Count -ge 128) { return @($variants) }
+    foreach ($replacement in $group) {
+      if ($replacement -ceq $current) { continue }
+      $chars = $Text.ToCharArray()
+      $chars[$index] = [char]$replacement
+      $variant = -join $chars
+      if ($seen.Add($variant)) {
+        $variants.Add($variant)
       }
+      if ($variants.Count -ge 128) { return @($variants) }
     }
   }
   return @($variants)
@@ -182,13 +199,13 @@ $showWindow = 0x0040
 $topMost = [IntPtr](-1)
 $notTopMost = [IntPtr](-2)
 $originalDirectKey = $env:MOOMOO_OPEND_WS_KEY
+$originalKeyFile = $env:MOOMOO_OPEND_WS_KEY_FILE
 $authenticated = $false
 $attemptCount = 0
 $ocrTextLength = 0
 $joinedAsciiLength = 0
 $ocrShape = ''
 $recoveryDeadline = [DateTimeOffset]::UtcNow.AddSeconds($MaxRuntimeSeconds)
-$imageStream = $null
 $randomAccessStream = $null
 $softwareBitmap = $null
 
@@ -199,8 +216,15 @@ try {
   # and could silently crop an unrelated blank strip after an OpenD restart.
   $captureRelativeTop = [int][Math]::Round($window.original_height * 0.68)
   $captureHeight = [int][Math]::Max(90, [Math]::Round($window.original_height * 0.11))
-  $targetLeft = $window.original_left
-  $targetTop = $window.original_top
+  # A remembered OpenD position can be partly outside the current desktop
+  # after sleep, monitor changes, or a scheduled-task launch. Move it into
+  # the primary working area before calculating the credential crop, then
+  # restore its original coordinates in finally.
+  $workArea = [Windows.Forms.Screen]::PrimaryScreen.WorkingArea
+  $maximumLeft = [Math]::Max($workArea.Left, $workArea.Right - $window.original_width)
+  $maximumTop = [Math]::Max($workArea.Top, $workArea.Bottom - $window.original_height)
+  $targetLeft = [Math]::Min([Math]::Max($window.original_left, $workArea.Left), $maximumLeft)
+  $targetTop = [Math]::Min([Math]::Max($window.original_top, $workArea.Top), $maximumTop)
   [OpenDRecoveryWindow]::SetWindowPos(
     $window.handle,
     $topMost,
@@ -232,14 +256,16 @@ try {
     $captureHeight * $scaleFactor
   )
   $scaledGraphics = [Drawing.Graphics]::FromImage($bitmap)
-  $imageStream = [IO.MemoryStream]::new()
   try {
     $scaledGraphics.InterpolationMode = [Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
     $scaledGraphics.DrawImage($sourceBitmap, 0, 0, $bitmap.Width, $bitmap.Height)
-    # Keep the credential-bearing crop in memory only. A previous implementation
-    # used a temporary PNG path, which could survive an abnormal process exit.
-    $bitmap.Save($imageStream, [Drawing.Imaging.ImageFormat]::Png)
-    $imageStream.Position = 0
+    # Windows OCR is materially more accurate for this small anti-aliased text
+    # when decoding a PNG file than a .NET MemoryStream. Keep the narrow crop
+    # only inside the ignored secrets directory. This script removes it in
+    # finally, and the parent watchdog also removes it after a forced timeout.
+    [IO.Directory]::CreateDirectory((Split-Path -Parent $temporaryImagePath)) | Out-Null
+    Remove-Item -LiteralPath $temporaryImagePath -Force -ErrorAction SilentlyContinue
+    $bitmap.Save($temporaryImagePath, [Drawing.Imaging.ImageFormat]::Png)
   } finally {
     $scaledGraphics.Dispose()
     $bitmap.Dispose()
@@ -249,19 +275,64 @@ try {
   $null = [Windows.Storage.StorageFile, Windows.Storage, ContentType = WindowsRuntime]
   $null = [Windows.Graphics.Imaging.BitmapDecoder, Windows.Graphics.Imaging, ContentType = WindowsRuntime]
   $null = [Windows.Media.Ocr.OcrEngine, Windows.Media.Ocr, ContentType = WindowsRuntime]
-  $randomAccessStream = [IO.WindowsRuntimeStreamExtensions]::AsRandomAccessStream($imageStream)
+  $null = [Windows.Globalization.Language, Windows.Globalization, ContentType = WindowsRuntime]
+  $storageFile = Await-WindowsRuntimeOperation `
+    -Operation ([Windows.Storage.StorageFile]::GetFileFromPathAsync($temporaryImagePath)) `
+    -ResultType ([Windows.Storage.StorageFile])
+  $randomAccessStream = Await-WindowsRuntimeOperation `
+    -Operation ($storageFile.OpenReadAsync()) `
+    -ResultType ([Windows.Storage.Streams.IRandomAccessStreamWithContentType])
   $decoder = Await-WindowsRuntimeOperation `
     -Operation ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($randomAccessStream)) `
     -ResultType ([Windows.Graphics.Imaging.BitmapDecoder])
   $softwareBitmap = Await-WindowsRuntimeOperation `
     -Operation ($decoder.GetSoftwareBitmapAsync()) `
     -ResultType ([Windows.Graphics.Imaging.SoftwareBitmap])
-  $ocrEngine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages()
-  $ocrResult = Await-WindowsRuntimeOperation `
-    -Operation ($ocrEngine.RecognizeAsync($softwareBitmap)) `
+  $ocrEngines = [System.Collections.Generic.List[object]]::new()
+  $ocrEngines.Add([Windows.Media.Ocr.OcrEngine]::TryCreateFromLanguage(
+    [Windows.Globalization.Language]::new('en-US')
+  ))
+  $ocrEngines.Add([Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages())
+  $ocrTexts = [System.Collections.Generic.List[string]]::new()
+  foreach ($ocrEngine in $ocrEngines) {
+    if ($null -eq $ocrEngine) { continue }
+    $ocrResult = Await-WindowsRuntimeOperation `
+      -Operation ($ocrEngine.RecognizeAsync($softwareBitmap)) `
+      -ResultType ([Windows.Media.Ocr.OcrResult])
+    $ocrTexts.Add([string]$ocrResult.Text)
+  }
+  # Reopen the encoded crop for one independent OCR pass. Windows OCR can
+  # occasionally return a different token when the first decoder instance was
+  # created immediately after the PNG write; the reopened pass is the same path
+  # used by the successful standalone validation.
+  $softwareBitmap.Dispose()
+  $softwareBitmap = $null
+  $randomAccessStream.Dispose()
+  $randomAccessStream = $null
+  Start-Sleep -Milliseconds 250
+  $storageFile = Await-WindowsRuntimeOperation `
+    -Operation ([Windows.Storage.StorageFile]::GetFileFromPathAsync($temporaryImagePath)) `
+    -ResultType ([Windows.Storage.StorageFile])
+  $randomAccessStream = Await-WindowsRuntimeOperation `
+    -Operation ($storageFile.OpenReadAsync()) `
+    -ResultType ([Windows.Storage.Streams.IRandomAccessStreamWithContentType])
+  $decoder = Await-WindowsRuntimeOperation `
+    -Operation ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($randomAccessStream)) `
+    -ResultType ([Windows.Graphics.Imaging.BitmapDecoder])
+  $softwareBitmap = Await-WindowsRuntimeOperation `
+    -Operation ($decoder.GetSoftwareBitmapAsync()) `
+    -ResultType ([Windows.Graphics.Imaging.SoftwareBitmap])
+  $repeatOcrEngine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages()
+  $repeatOcrResult = Await-WindowsRuntimeOperation `
+    -Operation ($repeatOcrEngine.RecognizeAsync($softwareBitmap)) `
     -ResultType ([Windows.Media.Ocr.OcrResult])
-  $ocrTextLength = ([string]$ocrResult.Text).Length
-  $ocrShape = -join @(([string]$ocrResult.Text).ToCharArray() | ForEach-Object {
+  # This reopened user-profile pass most closely matches the UI glyphs and is
+  # therefore tried before the English and first-decoder fallbacks. A wrong
+  # first login can cause OpenD to reject immediately following candidates.
+  $ocrTexts.Insert(0, [string]$repeatOcrResult.Text)
+  if ($ocrTexts.Count -eq 0) { throw 'No Windows OCR engine was available.' }
+  $ocrTextLength = $ocrTexts[0].Length
+  $ocrShape = -join @($ocrTexts[0].ToCharArray() | ForEach-Object {
     if ($_ -cmatch '[A-Z]') { 'U' }
     elseif ($_ -cmatch '[a-z]') { 'L' }
     elseif ($_ -match '[0-9]') { 'D' }
@@ -272,33 +343,49 @@ try {
   $rawCandidates = [System.Collections.Generic.HashSet[string]]::new(
     [System.StringComparer]::Ordinal
   )
-  @(
-    [regex]::Matches(
-      [string]$ocrResult.Text,
-      '(?<![A-Za-z0-9])[A-Za-z0-9]{16}(?![A-Za-z0-9])'
-    ) | ForEach-Object { $_.Value }
-  ) | ForEach-Object { $rawCandidates.Add($_) | Out-Null }
-  $compactOcrText = [regex]::Replace([string]$ocrResult.Text, '\s', '')
-  if ($compactOcrText.Length -eq 16 -and $compactOcrText -match '[^A-Za-z0-9]') {
-    # OCR commonly renders a narrow key character as punctuation. Preserve its
-    # position and try a small bounded replacement set instead of deleting it.
-    foreach ($replacement in @('0', 'O', 'o', '1', 'I', 'i', 'l', 'j', 'J')) {
-      $rawCandidates.Add(
-        ([regex]::Replace($compactOcrText, '[^A-Za-z0-9]', $replacement))
-      ) | Out-Null
+  $joinedAsciiCandidates = [System.Collections.Generic.List[string]]::new()
+  foreach ($ocrText in $ocrTexts) {
+    @(
+      [regex]::Matches(
+        $ocrText,
+        '(?<![A-Za-z0-9])[A-Za-z0-9]{16}(?![A-Za-z0-9])'
+      ) | ForEach-Object { $_.Value }
+    ) | ForEach-Object { $rawCandidates.Add($_) | Out-Null }
+    $compactOcrText = [regex]::Replace($ocrText, '\s', '')
+    if ($compactOcrText.Length -eq 16 -and $compactOcrText -match '[^A-Za-z0-9]') {
+      # OCR commonly renders a narrow key character as punctuation. Preserve its
+      # position and try a small bounded replacement set instead of deleting it.
+      foreach ($replacement in @('0', 'O', 'o', '1', 'I', 'i', 'l', 'j', 'J')) {
+        $rawCandidates.Add(
+          ([regex]::Replace($compactOcrText, '[^A-Za-z0-9]', $replacement))
+        ) | Out-Null
+      }
+    }
+    $joinedCandidate = [regex]::Replace($ocrText, '[^A-Za-z0-9]', '')
+    $joinedAsciiCandidates.Add($joinedCandidate)
+    if ($joinedCandidate.Length -ge 16) {
+      for ($start = 0; $start -le $joinedCandidate.Length - 16; $start += 1) {
+        $rawCandidates.Add($joinedCandidate.Substring($start, 16)) | Out-Null
+      }
     }
   }
-  $joinedAscii = ([regex]::Replace([string]$ocrResult.Text, '[^A-Za-z0-9]', ''))
+  $joinedAscii = $joinedAsciiCandidates[0]
   $joinedAsciiLength = $joinedAscii.Length
-  if ($joinedAscii.Length -ge 16) {
-    for ($start = 0; $start -le $joinedAscii.Length - 16; $start += 1) {
-      $rawCandidates.Add($joinedAscii.Substring($start, 16)) | Out-Null
-    }
-  }
   $candidateSet = [System.Collections.Generic.HashSet[string]]::new(
     [System.StringComparer]::Ordinal
   )
   $orderedCandidates = [System.Collections.Generic.List[string]]::new()
+  foreach ($joinedCandidate in $joinedAsciiCandidates) {
+    if ($joinedCandidate.Length -eq 16 -and $candidateSet.Add($joinedCandidate)) {
+      # Bypass collection-enumeration ambiguity and test complete OCR tokens
+      # first. The variants below are only fallbacks for failed exact probes.
+      $orderedCandidates.Add($joinedCandidate)
+      # OpenD can reject a login attempted immediately after its window is
+      # restored or after another health connection closes. Retry the exact
+      # OCR token once after a short cooldown before trying altered variants.
+      $orderedCandidates.Add($joinedCandidate)
+    }
+  }
   if ($joinedAscii.Length -eq 15) {
     # A narrow character such as j/I/l/1 can disappear entirely during OCR.
     # OCR can also collapse adjacent duplicate characters. Try duplication first,
@@ -357,6 +444,11 @@ try {
     }
   }
   foreach ($rawCandidate in @($rawCandidates)) {
+    # The OCR text is usually exact. Test it before generating ambiguity
+    # variants so a correct credential is not delayed behind failed logins.
+    if ($candidateSet.Add($rawCandidate)) {
+      $orderedCandidates.Add($rawCandidate)
+    }
     foreach ($candidate in @(Add-AmbiguousTextVariants -Text $rawCandidate)) {
       if ($candidateSet.Add($candidate)) {
         $orderedCandidates.Add($candidate)
@@ -366,10 +458,57 @@ try {
     if ($candidateSet.Count -ge 128) { break }
   }
 
-  foreach ($candidate in @($orderedCandidates)) {
+  # The credential crop is complete. Restore the OpenD window before opening
+  # probe connections; some builds transiently reject WebSocket logins while
+  # their profile window is held topmost by another process.
+  [OpenDRecoveryWindow]::SetWindowPos(
+    $window.handle,
+    $notTopMost,
+    $window.original_left,
+    $window.original_top,
+    $window.original_width,
+    $window.original_height,
+    $showWindow
+  ) | Out-Null
+  Start-Sleep -Seconds 1
+
+  # Run the exact OCR validation in a fresh process. This avoids a Windows OCR
+  # state issue observed when capture and recognition share the same long-lived
+  # PowerShell process. No credential is passed through arguments or output.
+  $validator = Start-Process `
+    -FilePath (Join-Path $PSHOME 'powershell.exe') `
+    -ArgumentList @(
+      '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+      '-File', ('"{0}"' -f $imageValidatorPath),
+      '-RepoRoot', ('"{0}"' -f $RepoRoot),
+      '-ImagePath', ('"{0}"' -f $temporaryImagePath)
+    ) `
+    -WorkingDirectory $RepoRoot `
+    -WindowStyle Hidden `
+    -RedirectStandardOutput $stdoutPath `
+    -RedirectStandardError $stderrPath `
+    -PassThru `
+    -Wait
+  if ($validator.ExitCode -eq 0) {
+    $authenticated = $true
+  }
+
+  if (-not $authenticated) {
+    $previousCandidate = $null
+    foreach ($candidate in @($orderedCandidates)) {
     $remainingSeconds = ($recoveryDeadline - [DateTimeOffset]::UtcNow).TotalSeconds
     if ($remainingSeconds -le 1) { break }
+    if ($null -ne $previousCandidate -and $candidate -ceq $previousCandidate) {
+      Start-Sleep -Seconds 2
+    }
+    $previousCandidate = $candidate
     $attemptCount += 1
+    # Normal runtimes intentionally prefer the .env-selected shared key file.
+    # During this bounded recovery probe only, mask that file setting inside the
+    # child environment so the candidate being tested is the actual credential.
+    # A single space keeps dotenv override=false from restoring the file path;
+    # the runtime trims it and then uses the direct, process-scoped candidate.
+    $env:MOOMOO_OPEND_WS_KEY_FILE = ' '
     $env:MOOMOO_OPEND_WS_KEY = $candidate
     Remove-Item -LiteralPath $stdoutPath, $stderrPath -Force -ErrorAction SilentlyContinue
     $probe = Start-Process `
@@ -404,6 +543,7 @@ try {
       $authenticated = $true
       break
     }
+    }
   }
 } finally {
   [OpenDRecoveryWindow]::SetWindowPos(
@@ -420,9 +560,14 @@ try {
   } else {
     $env:MOOMOO_OPEND_WS_KEY = $originalDirectKey
   }
+  if ($null -eq $originalKeyFile) {
+    Remove-Item Env:MOOMOO_OPEND_WS_KEY_FILE -ErrorAction SilentlyContinue
+  } else {
+    $env:MOOMOO_OPEND_WS_KEY_FILE = $originalKeyFile
+  }
   if ($null -ne $softwareBitmap) { $softwareBitmap.Dispose() }
   if ($null -ne $randomAccessStream) { $randomAccessStream.Dispose() }
-  if ($null -ne $imageStream) { $imageStream.Dispose() }
+  Remove-Item -LiteralPath $temporaryImagePath -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $stdoutPath, $stderrPath -Force -ErrorAction SilentlyContinue
 }
 

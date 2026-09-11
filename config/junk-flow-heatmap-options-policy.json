@@ -3,7 +3,7 @@
   "version": 1,
   "business_line": {
     "id": "junk-flow-heatmap-options",
-    "status": "active_simulation",
+    "status": "retired",
     "description": "Independent JUNKMAN 0DTE simulation. Fresh authenticated Nightwatch unusual-flow alerts select candidates; the standard JUNKMAN GEX/closed-5m setup and an exact fresh Heatmap node confirmation are both required."
   },
   "execution": {

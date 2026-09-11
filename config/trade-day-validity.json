@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "excluded_days": [
+    {
+      "date_et": "2026-09-11",
+      "business_lines": ["zero-dte-options", "junk-multi-options", "junk-flow-heatmap-options"],
+      "status": "void_for_strategy_performance",
+      "reason_code": "pending_exit_order_blocked_exit_management",
+      "reason": "退出程序缺陷：未成交止盈单阻塞后续止损及保本检查；用户指定该交易日作废。",
+      "authorized_by": "user",
+      "recorded_on": "2026-09-12",
+      "raw_broker_records_preserved": true,
+      "incident_report": "reports/incident-2026-09-11-junk-main.md"
+    }
+  ]
+}

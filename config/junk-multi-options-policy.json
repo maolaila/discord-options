@@ -3,7 +3,7 @@
   "version": 1,
   "business_line": {
     "id": "junk-multi-options",
-    "status": "active_simulation",
+    "status": "retired",
     "description": "Independent JUNKMAN multi-symbol 0DTE simulation. The current-session junkman-analysis posts are the sole source of tickers, strategies, levels, targets, invalidations, regimes and scenario weights; OpenD is used only for market confirmation, executable contracts and simulated orders."
   },
   "execution": {

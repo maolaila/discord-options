@@ -1,12 +1,12 @@
 # JUNKMAN SPX 0DTE Simulation System
 
-This repository contains one trading family only: JUNKMAN. The SPX line uses Nightwatch Dealer GEX, Heatmap, and option-structure evidence. The MULTI line takes its daily tickers, strategies, levels, targets, invalidations, regimes, and scenario weights only from the authenticated `junkman-analysis` Discord posts. Moomoo OpenD supplies price confirmation, option quotes, and simulated-account execution. Discord `0dte-flow-alert` remains optional context for the separate Flow plus Heatmap line.
+Only the JUNK main (SPX 0DTE) trading line is enabled. It uses Nightwatch Dealer GEX, Heatmap and option-structure evidence with Moomoo OpenD simulated execution. MULTI and Flow plus Heatmap are retired: their startup commands are disabled, and the live console/performance report shows only JUNK main. Historical implementations, logs and review exports are retained for audit, not deleted.
 
 The system is simulation-only. `config/zero-dte-options-policy.json` sets `environment=simulate_only` and `real_trading_allowed=false`, and the JUNKMAN entrypoint also rejects real-account execution in code. The repository provides no real-trading command.
 
 ## Architecture
 
-- `apps/zero-dte-options/`: JUNKMAN v3 decisions, recovery, entry, exit, and the seven-line experiment.
+- `apps/zero-dte-options/`: JUNKMAN v3 decisions, recovery, entry, exit, and the three-line experiment.
 - `apps/junk-multi-options/`: deterministic execution of the current-session `junkman-analysis` plans.
 - `apps/junk-flow-heatmap-options/`: independent unusual-Flow plus Heatmap experiment.
 - `apps/discord-capture/`: attaches to a local browser, archives Discord messages, identifies automated `0dte-flow-alert` events, and normalizes `junkman-analysis` plans.
@@ -15,8 +15,8 @@ The system is simulation-only. `config/zero-dte-options-policy.json` sets `envir
 - `packages/nightwatch-api/`: Nightwatch REST client with a one-request-per-second floor and `Retry-After` backoff.
 - `packages/moomoo-opend/`: shared OpenD quote, account, and simulated-order functions.
 - `packages/option-signals/`: strict parsers for automated Nightwatch Flow and the daily analysis plans.
-- `packages/business-lines/`: metadata for the three isolated JUNKMAN execution lines.
-- `config/`: separate simulation-only policies for SPX, MULTI, and Flow plus Heatmap.
+- `packages/business-lines/`: metadata for the active main line and two retired historical lines.
+- `config/`: the active SPX simulation policy and archived MULTI/Flow policies.
 
 Nightwatch GEX and Heatmap are structural evidence. Moomoo SPY one-minute pushes are aggregated into completed five-minute bars for price, volume, and node-reaction confirmation. The strategy decides only after a five-minute bar closes. OI, Flow color, and a single Sweep are never standalone directional signals.
 
@@ -64,7 +64,7 @@ npm run moomoo:check
 
 ## Discord capture
 
-The MULTI line requires live capture of `junkman-analysis`; the Flow plus Heatmap line uses the automated Flow feed. Start the shared capture stack with:
+For historical context, the retired MULTI line required live capture of `junkman-analysis`; the Flow plus Heatmap line uses the automated Flow feed. Start the shared capture stack with:
 
 ```powershell
 .\start-discord-cdp.ps1
@@ -100,7 +100,7 @@ Use the top-level stack supervisor for continuous simulated monitoring and tradi
 .\run-junk-stack.ps1
 ```
 
-It verifies the real OpenD API login and simulated US-option account before starting JUNKMAN, restores the console and Discord capture, and delegates to the SPX, MULTI, and Flow plus Heatmap supervisors. The unattended setup starts the top-level supervisor once at sign-in; the supervisor then performs continuous health checks without a repeating PowerShell task. For foreground debugging only:
+It verifies the real OpenD API login and simulated US-option account before starting JUNKMAN, restores the console and Discord capture, and delegates only to the SPX main supervisor. The unattended setup starts the top-level supervisor once at sign-in; the supervisor then performs continuous health checks without a repeating PowerShell task. For foreground debugging only:
 
 ```powershell
 npm run junk:gex:watch-sim
@@ -139,7 +139,7 @@ The effective rules live in `config/zero-dte-options-policy.json`:
 - The system never holds overnight.
 - Nightwatch timeout or HTTP 429 backoff cannot block moomoo position reconciliation, stop handling, or time exits for an existing position.
 
-The MULTI rules live in `config/junk-multi-options-policy.json`:
+The retired MULTI rules (historical reference only) live in `config/junk-multi-options-policy.json`:
 
 - The program does not rank or invent a universe. A complete current-session detailed `junkman-analysis` post is the sole source of each ticker and its recommended setup.
 - Reference price, Gamma regime, Wall/Flip/Pivot/Magnet levels, explicit trigger, target, invalidation, and scenario weights are copied from that post and retained in the decision audit.
@@ -147,19 +147,21 @@ The MULTI rules live in `config/junk-multi-options-policy.json`:
 - OpenD verifies that the posted ticker has a real same-day Call and Put chain. After a published trigger, the nearest actual out-of-the-money strike in the matching direction is used because the post specifies the underlying plan rather than an option contract.
 - When more than one posted setup confirms in the same completed bar, the matching published scenario weight ranks them. The shared simulated-account lock still permits only one aggregate JUNKMAN entry at a time.
 
-## Seven paired exit variants
+## Three paired exit variants
 
-One signal, contract, entry time, and fill price create one aggregate position in the moomoo simulated account. The program assigns that position to seven local virtual portfolios. Each line has USD 10,000, for a USD 70,000 total experiment baseline. There is no separate undocumented three-contract cap: the physical order quantity is seven times the per-line quantity after budget and displayed-depth sizing. Only fixed take-profit and catastrophic-stop settings differ:
+Pending exit orders do not suspend other variants' stop/breakeven checks. The executor reconciles cumulative fills first, then re-evaluates every remaining variant. A changed exit allocation/priority or lower current sell limit requests cancellation of the existing limit order; its broker-confirmed terminal status and fills are required before a replacement is submitted. Cancellation acknowledgement or timeout alone never frees the quantity for another sell. Strategy thresholds remain unchanged.
+
+Performance reports apply `config/trade-day-validity.json`. The user-voided 2026-09-11 session is excluded from strategy PnL, invested cost/proceeds, win/loss counts, Profit Factor and utilization time; both gains and losses from a voided day are excluded. Raw broker fills, ledger risk accounting and on-chain historical proofs are not rewritten. Reports explicitly label the adjusted scope, and the review export includes this validity registry. `experiment-summary.json.performance` is the adjusted reporting view; its top-level physical/risk fields remain actual unadjusted accounting. Open-position visibility is never suppressed by a reporting exclusion.
+
+One signal, contract, entry time, and fill price create one aggregate position in the moomoo simulated account. Experiment version 4 assigns that position to three local virtual portfolios. Each line has USD 10,000; returns are reported separately, never summed as one strategy's performance. The physical order quantity is three times the per-line quantity after budget and displayed-depth sizing, not a fixed three-contract cap. Only fixed take-profit and catastrophic-stop settings differ:
 
 | line_id | Stop | Fixed take-profit |
 | --- | ---: | ---: |
 | `control_sl15_tp_off` | -15% | Off |
 | `sl10_tp_off` | -10% | Off |
-| `sl10_tp20` | -10% | +20% |
-| `sl10_tp30` | -10% | +30% |
-| `sl15_tp20` | -15% | +20% |
 | `sl15_tp30` | -15% | +30% |
-| `sl12p5_tp25` | -12.5% | +25% |
+
+All other exit-grid variants and the regime/lifecycle observation line are retired from new entries. Historical cohort definitions and trade records are preserved; old open cohorts must finish under their frozen definitions before a new manifest can enter. The performance page shows the retained three lines, including their valid historical results. The original eight-line configuration remains a test fixture so the September 11 failure is still covered after retirement.
 
 Shared confirmation-wick invalidation, next-node target, breakeven behavior, and close discipline are frozen when a cohort is created. The boundary-only five-minute rule is frozen only when an explicitly supported `range_mean_reversion` cohort exists. An aggregate entry is allocated only after complete equal-unit fills. Any remainder is closed immediately. A broker-to-ledger quantity mismatch stops new actions. A cohort affected by partial exit fills is recorded but excluded from the comparable leaderboard.
 

@@ -5,7 +5,11 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { deriveCaptureHealth } from './capture-health.mjs';
-import { build_junk_performance_report, read_ndjson } from './junk-performance-report.mjs';
+import { trade_day_exclusion } from '../../packages/business-lines/trade-day-validity.mjs';
+import {
+  build_junk_performance_report,
+  read_ndjson,
+} from './junk-performance-report.mjs';
 import { publish_new_trade_records, trade_notary_status } from '../trade-notary/trade-notary.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -378,10 +382,6 @@ function statusPayload() {
   const captureStatus = readJson(path.join(logsDir, 'capture-status.json'));
   const junkStatus = readJson(path.join(logsDir, 'zero-dte-options-status.json'));
   const experimentSummary = readJson(path.join(logsDir, 'zero-dte-options-experiment-summary.json'));
-  const junkMultiStatus = readJson(path.join(logsDir, 'junk-multi-options-status.json'));
-  const junkMultiExperimentSummary = readJson(path.join(logsDir, 'junk-multi-options-experiment-summary.json'));
-  const junkFlowHeatmapStatus = readJson(path.join(logsDir, 'junk-flow-heatmap-options-status.json'));
-  const junkFlowHeatmapExperimentSummary = readJson(path.join(logsDir, 'junk-flow-heatmap-options-experiment-summary.json'));
   const runtimeLock = readJson(path.join(logsDir, 'zero-dte-options-runtime.lock.json'));
   const moomooCheck = redactMoomooCheck(readJson(path.join(logsDir, 'moomoo-check.json')));
   const captureHealth = deriveCaptureHealth(captureStatus, {
@@ -404,10 +404,6 @@ function statusPayload() {
     capture_health: captureHealth,
     junk_status: junkStatus,
     experiment_summary: experimentSummary,
-    junk_multi_status: junkMultiStatus,
-    junk_multi_experiment_summary: junkMultiExperimentSummary,
-    junk_flow_heatmap_status: junkFlowHeatmapStatus,
-    junk_flow_heatmap_experiment_summary: junkFlowHeatmapExperimentSummary,
     moomoo_check: moomooCheck,
     files: [
       fileInfo('logs/capture-status.json'),
@@ -420,27 +416,23 @@ function statusPayload() {
       fileInfo('logs/zero-dte-options-decisions.ndjson'),
       fileInfo('logs/zero-dte-options-entry-plans.ndjson'),
       fileInfo('logs/zero-dte-options-exit-plans.ndjson'),
-      fileInfo('logs/junk-multi-options-status.json'),
-      fileInfo('logs/junk-multi-options-runtime-state.json'),
-      fileInfo('logs/junk-multi-options-experiment-summary.json'),
-      fileInfo('logs/junk-flow-heatmap-options-status.json'),
-      fileInfo('logs/junk-flow-heatmap-options-runtime-state.json'),
-      fileInfo('logs/junk-flow-heatmap-options-experiment-summary.json'),
       fileInfo('logs/moomoo-check.json'),
     ],
     latest_flow_events: tailNdjson('logs/zero-dte-options-flow-events.ndjson', 10).reverse(),
-    latest_trade_events: tailNdjson('logs/zero-dte-options-trades.ndjson', 12).reverse(),
+    latest_trade_events: tailNdjson('logs/zero-dte-options-trades.ndjson', 12).reverse().map(row => ({
+      ...row, performance_exclusion: trade_day_exclusion(row),
+    })),
     latest_decisions: tailNdjson('logs/zero-dte-options-decisions.ndjson', 8).reverse(),
   };
 }
 
 function junkPerformancePayload() {
-  const report = build_junk_performance_report({
+  const mainReport = build_junk_performance_report({
     events: read_ndjson(path.join(logsDir, 'zero-dte-options-trades.ndjson')),
     policy: readJson(path.join(ROOT, 'config', 'zero-dte-options-policy.json')) || {},
     experimentSummary: readJson(path.join(logsDir, 'zero-dte-options-experiment-summary.json')),
   });
-  return { ...report, onchain: trade_notary_status() };
+  return { ...mainReport, onchain: trade_notary_status() };
 }
 
 function sendJson(res, payload, status = 200, extraHeaders = {}) {
@@ -606,7 +598,7 @@ function dashboardHtmlPage() {
       <div class="metric"><div class="label">OpenD</div><div class="value" id="opend">-</div></div>
       <div class="metric"><div class="label">Execution Environment</div><div class="value" id="mode">-</div></div>
       <div class="metric"><div class="label">Positions / Active Orders</div><div class="value" id="positions">-</div></div>
-      <div class="metric"><div class="label">Daily Realized P&amp;L</div><div class="value" id="pnl">-</div></div>
+      <div class="metric"><div class="label">原始账本当日盈亏（未剔除作废日）</div><div class="value" id="pnl">-</div></div>
       <div class="metric"><div class="label">Nightwatch Monthly Quota</div><div class="value" id="quota">-</div></div>
     </section>
 
@@ -700,12 +692,14 @@ function dashboardHtmlPage() {
 
     function renderExperiment(data) {
       const manifest = data.junk_status?.experiment?.manifest || {};
-      const summaryLines = new Map((data.experiment_summary?.lines || []).map((line) => [line.line_id, line]));
+      const performance = data.experiment_summary?.performance;
+      const summaryLines = new Map((performance?.lines || data.experiment_summary?.lines || [])
+        .map((line) => [line.experiment_line_id || line.line_id, line]));
       el('experimentRows').innerHTML = (manifest.lines || []).map((line) => {
         const profile = line.exit_profile || {};
         const result = summaryLines.get(line.line_id) || {};
         const takeProfit = profile.option_take_profit_enabled ? profile.option_take_profit_pct + '%' : 'off';
-        return '<tr><td>' + safe(line.label || line.line_id) + (line.control ? ' <span class="info">control</span>' : '') + '</td><td>' + money(line.paper_equity_usd) + '</td><td>-' + safe(profile.option_stop_loss_pct) + '%</td><td>' + safe(takeProfit) + '</td><td>' + safe(result.status || 'waiting for paired samples') + ' / ' + money(result.realized_pnl_usd) + '</td></tr>';
+        return '<tr><td>' + safe(line.label || line.line_id) + (line.control ? ' <span class="info">control</span>' : '') + '</td><td>' + money(line.paper_equity_usd) + '</td><td>-' + safe(profile.option_stop_loss_pct) + '%</td><td>' + safe(takeProfit) + '</td><td>' + (performance ? '调整后收益（剔除作废日）' : '原始账本收益') + ' / ' + money(result.realized_pnl_usd || 0) + '</td></tr>';
       }).join('') || '<tr><td colspan="5" class="hint">No experiment-line data</td></tr>';
     }
 
@@ -714,7 +708,7 @@ function dashboardHtmlPage() {
         const qty = row.qty ?? row.filled_qty ?? row.exited_qty;
         const price = row.fill_avg_price ?? row.exit_fill_avg_price ?? row.exit_fill_price ?? row.limit_price ?? row.price;
         const reason = row.trigger?.reason || row.reason || '-';
-        return '<tr><td class="mono">' + safe(time(row.event_at)) + '</td><td>' + safe(row.event) + '</td><td class="mono">' + safe(row.code) + '</td><td>' + safe(qty) + ' @ ' + safe(price) + '</td><td>' + money(row.realized_pnl_usd) + ' / ' + safe(reason) + '</td></tr>';
+        return '<tr><td class="mono">' + safe(time(row.event_at)) + '</td><td>' + safe(row.event) + (row.performance_exclusion ? ' <strong>作废日·不计策略收益</strong>' : '') + '</td><td class="mono">' + safe(row.code) + '</td><td>' + safe(qty) + ' @ ' + safe(price) + '</td><td>' + money(row.realized_pnl_usd) + ' / ' + safe(reason) + '</td></tr>';
       }).join('') || '<tr><td colspan="5" class="hint">No trade events</td></tr>';
     }
 

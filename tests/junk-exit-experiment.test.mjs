@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import policy from '../config/zero-dte-options-policy.json' with { type: 'json' };
+import policy from './fixtures/junk-eight-line-policy.mjs';
 import {
   apply_junk_experiment_exit_cumulative_fill,
   begin_junk_experiment_exit_batch,
@@ -48,7 +48,31 @@ function basePlan(qty = 1) {
   };
 }
 
-test('manifest has seven exit-grid lines plus one observation-only latest line sharing base entry', () => {
+test('voided day adjusts reporting view only, keeping broker risk accounting and raw ledger intact', () => {
+  const manifest = load_junk_exit_experiment(policy);
+  const cohort = build_junk_experiment_cohort(basePlan(1), manifest);
+  let ledger = finalize_junk_experiment_entry_allocation(create_junk_experiment_ledger(cohort.experiment), {
+    filled_qty: 7, fill_avg_price: 12.3,
+  });
+  ledger = begin_junk_experiment_exit_batch(ledger, {
+    allocations: Object.fromEntries(Object.values(ledger.variants).filter(v => v.allocated_entry_qty > 0).map(v => [v.line_id, 1])),
+  });
+  ledger = apply_junk_experiment_exit_cumulative_fill(ledger, {
+    cumulative_fill_qty: 7, cumulative_fill_avg_price: .45, terminal: true,
+  }).ledger;
+  const state = { business_line: 'zero-dte-options', session_date_et: '2026-09-11', orders: {
+    test: { entry_filled_at: '2026-09-11T14:46:01Z', expiration: '2026-09-11', experiment_ledger: ledger },
+  } };
+  const before = JSON.stringify(state);
+  const report = summarize_junk_exit_experiment(state);
+  assert.equal(report.physical_realized_pnl_usd, -8295);
+  assert.equal(report.session_physical_realized_pnl_usd, -8295);
+  assert.equal(report.performance.physical_realized_pnl_usd, 0);
+  assert.equal(report.performance.voided_cohort_count, 1);
+  assert.equal(JSON.stringify(state), before);
+});
+
+test('historical fixture retains seven exit-grid lines plus the retired observation line', () => {
   const manifest = load_junk_exit_experiment(policy);
   assert.equal(manifest.enabled, true);
   assert.equal(manifest.line_count, 8);

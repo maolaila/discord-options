@@ -2,6 +2,7 @@ param(
   [int]$Port = 9222,
   [string]$BrowserPath = "",
   [string]$Profile = "$PSScriptRoot\profile",
+  [string]$DiscordUrl = "https://discord.com/channels/1434960637561409689/1515786763417813094",
   [switch]$OpenDiscord
 )
 
@@ -41,11 +42,15 @@ New-Item -ItemType Directory -Force -Path $Profile | Out-Null
 $arguments = @(
   "--remote-debugging-port=$Port",
   "--user-data-dir=$Profile",
-  "--no-first-run"
+  "--no-first-run",
+  "--start-minimized"
 )
 
 if ($OpenDiscord) {
-  $arguments += "https://discord.com/app"
+  if ($DiscordUrl -notmatch '^https://discord\.com/channels/\d+/\d+$') {
+    throw "DiscordUrl must be a discord.com channel URL."
+  }
+  $arguments += $DiscordUrl
 }
 
 Start-Process -FilePath $browser -ArgumentList $arguments -WindowStyle Normal

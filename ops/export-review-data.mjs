@@ -217,6 +217,7 @@ export const rawInputNdjsonSources = [
 
 export const jsonSources = [
   ['logs/zero-dte-options-runtime-state.json', 'junk/zero-dte-options-runtime-state.json'],
+  ['config/trade-day-validity.json', 'junk/trade-day-validity.json'],
   ['logs/zero-dte-options-status.json', 'junk/zero-dte-options-status.json'],
   ['logs/zero-dte-options-post-deploy-summary.json', 'junk/zero-dte-options-post-deploy-summary.json'],
   ['logs/zero-dte-options-experiment-summary.json', 'junk/zero-dte-options-experiment-summary.json'],

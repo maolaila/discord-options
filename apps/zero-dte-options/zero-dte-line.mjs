@@ -60,7 +60,6 @@ import {
 } from './junk-api-evidence.mjs';
 import {
   apply_junk_v3_evidence,
-  evaluate_junk_latest_line_entry,
 } from './junk-trading-model-v2.mjs';
 import {
   attach_junk_oi_structure_background,
@@ -2239,7 +2238,12 @@ export function advance_junk_experiment_exit_latch(current_latch, variant_plan, 
   if (remaining < 1) return null;
   const full_reason = experiment_full_exit_reason(variant_plan);
   if (current_latch?.kind === 'full') {
-    return { ...current_latch, remaining_qty: remaining };
+    const upgrade = full_reason && experiment_exit_priority(full_reason) < experiment_exit_priority(current_latch.reason);
+    return {
+      ...current_latch,
+      remaining_qty: remaining,
+      ...(upgrade ? { reason: full_reason, management_update: variant_plan.management_update || {} } : {}),
+    };
   }
   if (full_reason) {
     return {
@@ -2262,6 +2266,18 @@ export function advance_junk_experiment_exit_latch(current_latch, variant_plan, 
     remaining_qty: planned_requested_qty,
     management_update: variant_plan.management_update || {},
   };
+}
+
+// Matches the existing exit planner's precedence; this is not a new strategy gate.
+function experiment_exit_priority(reason = '') {
+  if (/force_close|expiry|unpriced_entry_force_close/.test(reason)) return 0;
+  if (/invalidation/.test(reason)) return 1;
+  if (/close_exit_time/.test(reason)) return 2;
+  if (/stop_loss/.test(reason)) return 3;
+  if (/breakeven/.test(reason)) return 4;
+  if (/take_profit/.test(reason)) return 5;
+  if (/gex_node_target/.test(reason)) return 6;
+  return 7;
 }
 
 function experiment_exit_latch(row, line_id) {
@@ -2294,6 +2310,8 @@ function reset_experiment_exit_attempt(row, now) {
   row.exit_order_accounted_fill_qty = 0;
   row.exit_order_accounted_fill_value = 0;
   row.exit_cancel_requested_at = null;
+  row.exit_cancel_attempted_at = null;
+  row.exit_cancel_reason = null;
   row.experiment_exit_management_by_line = null;
   row.experiment_exit_requested_by_line = null;
   row.updated_at = now.toISOString();
@@ -2332,7 +2350,7 @@ export function apply_experiment_filled_management(row, deltas, terminal = false
   }
 }
 
-async function reconcile_junk_experiment_row({
+export async function reconcile_junk_experiment_row({
   runtime,
   state,
   row,
@@ -2349,7 +2367,14 @@ async function reconcile_junk_experiment_row({
   order_rows,
   fills_by_order,
   option_snapshot,
+  effects = {},
 }) {
+  const emitExperiment = effects.experimentEvent || write_experiment_event;
+  const emitTrade = effects.tradeEvent || write_trade_event;
+  const appendPlan = effects.appendPlan || ((plan) => append_json_line(exit_plans_path, plan));
+  const cancelExit = effects.cancel || cancelOrder;
+  const executeExit = effects.execute || executeZeroDteSimulatedExit;
+  let active_exit_order = null;
   const fields = experiment_event_fields(row, {
     plan_id: row.plan_id,
     signal_id: row.signal_id,
@@ -2393,7 +2418,7 @@ async function reconcile_junk_experiment_row({
       row.experiment_ledger.ownership_status = 'recovery_blocked';
       row.updated_at = now.toISOString();
       await persist_state();
-      await write_experiment_event('experiment_recovery_blocked', row, { reason: row.last_error });
+      await emitExperiment('experiment_recovery_blocked', row, { reason: row.last_error });
       return { submitted: false, blocked: true };
     }
     const exit_fill = broker_fill_summary(exit_order, fills_for_identity(fills_by_order, exit_order));
@@ -2416,7 +2441,7 @@ async function reconcile_junk_experiment_row({
         error_code: 'experiment_exit_fill_reconciliation_blocked',
       };
       await persist_state();
-      await write_experiment_event('experiment_exit_fill_reconciliation_blocked', row, {
+      await emitExperiment('experiment_exit_fill_reconciliation_blocked', row, {
         reason: row.last_error,
         broker_cumulative_fill_qty: exit_fill.qty,
         accounted_fill_qty,
@@ -2437,7 +2462,7 @@ async function reconcile_junk_experiment_row({
     apply_experiment_filled_management(row, allocation.deltas, terminal);
     await persist_state();
     for (const delta of allocation.deltas) {
-      await write_experiment_event('experiment_exit_fill_allocated', row, {
+      await emitExperiment('experiment_exit_fill_allocated', row, {
         line_id: delta.line_id,
         allocation_key: delta.allocation_key,
         qty: delta.qty,
@@ -2447,7 +2472,7 @@ async function reconcile_junk_experiment_row({
         exit_order_id: row.exit_order_id,
         exit_order_id_ex: row.exit_order_id_ex,
       });
-      await write_trade_event('experiment_line_exit_fill_progress', {
+      await emitTrade('experiment_line_exit_fill_progress', {
         ...fields,
         line_id: delta.line_id,
         allocation_key: delta.allocation_key,
@@ -2468,8 +2493,8 @@ async function reconcile_junk_experiment_row({
             trigger_reason: reason_by_line[delta.line_id] || null,
             exit_profile_hash: after.exit_profile_hash,
           };
-          await write_experiment_event('experiment_line_position_closed', row, closed_payload);
-          await write_trade_event('experiment_line_position_closed', {
+          await emitExperiment('experiment_line_position_closed', row, closed_payload);
+          await emitTrade('experiment_line_position_closed', {
             ...fields,
             ...closed_payload,
           });
@@ -2480,7 +2505,7 @@ async function reconcile_junk_experiment_row({
     row.updated_at = now.toISOString();
     await persist_state();
     if (row.exited_qty > previous_exited_qty) {
-      await write_trade_event('exit_order_fill_progress', {
+      await emitTrade('exit_order_fill_progress', {
         ...fields,
         exited_qty: row.exited_qty,
         exit_fill_avg_price: row.exit_fill_price,
@@ -2505,11 +2530,11 @@ async function reconcile_junk_experiment_row({
       row.realized_pnl_status = row.entry_fill_unpriced === true ? 'unpriced' : 'priced';
       recompute_session_risk(state);
       await persist_state();
-      await write_experiment_event('experiment_cohort_closed', row, {
+      await emitExperiment('experiment_cohort_closed', row, {
         aggregate_qty: row.exited_qty,
         aggregate_realized_pnl_usd: row.realized_pnl_usd,
       });
-      await write_trade_event('position_closed', {
+      await emitTrade('position_closed', {
         ...fields,
         qty: row.exited_qty,
         entry_fill_price: row.entry_fill_price,
@@ -2522,25 +2547,14 @@ async function reconcile_junk_experiment_row({
     if (terminal) {
       reset_experiment_exit_attempt(row, now);
       await persist_state();
-      await write_experiment_event('experiment_exit_terminal_retry_pending', row, {
+      await emitExperiment('experiment_exit_terminal_retry_pending', row, {
         broker_order_status: exit_order.orderStatus,
         remaining_qty: experiment_total_remaining_qty(row.experiment_ledger),
       });
-    } else if (allow_execution && force_close && row.exit_order_type === 'limit' && !row.exit_cancel_requested_at) {
-      try {
-        await with_timeout(cancelOrder(runtime.client, runtime.config, {
-          orderID: broker_order_identity(exit_order).order_id || row.exit_order_id,
-          orderIDEx: row.exit_order_id_ex,
-        }), 10_000, 'cancel experiment force-close limit order');
-        row.exit_cancel_requested_at = now.toISOString();
-        row.updated_at = now.toISOString();
-        await persist_state();
-      } catch (error) {
-        row.last_error = sanitized_error(error);
-        await persist_state();
-      }
+      // Refresh broker position/sellability on the next cycle before replacing.
+      return { submitted: false, active: false, needs_broker_refresh: true };
     }
-    return { submitted: false, active: !terminal };
+    active_exit_order = exit_order;
   }
 
   const invariant = junk_experiment_ownership_invariant(row, position);
@@ -2555,7 +2569,7 @@ async function reconcile_junk_experiment_row({
       error_code: 'experiment_broker_ledger_qty_mismatch',
     };
     await persist_state();
-    await write_experiment_event('experiment_ownership_invariant_failed', row, invariant);
+    await emitExperiment('experiment_ownership_invariant_failed', row, invariant);
     return { submitted: false, blocked: true };
   }
   if (experiment_all_variants_flat(row.experiment_ledger)) return { submitted: false };
@@ -2578,7 +2592,7 @@ async function reconcile_junk_experiment_row({
     row.experiment_ledger.ownership_status = 'recovery_blocked';
     row.updated_at = now.toISOString();
     await persist_state();
-    await write_experiment_event('experiment_unpriced_force_close_submission_blocked', row, {
+    await emitExperiment('experiment_unpriced_force_close_submission_blocked', row, {
       reason: row.last_error,
       expiration: row.expiration || null,
       session_date_et: session_date_et || null,
@@ -2630,7 +2644,7 @@ async function reconcile_junk_experiment_row({
     );
     const variant = row.experiment_ledger.variants[line_id];
     if (variant_plan.management_update?.breakeven_armed === true && current_variant.breakeven_armed !== true) {
-      await write_experiment_event('experiment_line_breakeven_armed', row, {
+      await emitExperiment('experiment_line_breakeven_armed', row, {
         line_id,
         option_return_pct: variant.option_return_pct,
         peak_option_return_pct: variant.peak_option_return_pct,
@@ -2662,6 +2676,59 @@ async function reconcile_junk_experiment_row({
       ? 'experiment_unpriced_entry_force_close'
       : 'experiment_unallocated_entry_liquidation';
   }
+  if (active_exit_order) {
+    // Account fills first, then evaluate EVERY remaining variant above, even
+    // while one subset has a live sell order. Never place a replacement until
+    // the previous order's terminal status and cumulative fills are confirmed.
+    const pending = row.experiment_ledger.pending_exit_batch;
+    const remaining_allocations = Object.fromEntries(Object.entries(pending.allocations || {})
+      .map(([key, qty]) => [key, Math.max(0, qty - (pending.accounted_qty_by_key?.[key] || 0))])
+      .filter(([, qty]) => qty > 0));
+    const changed_lines = Object.keys(allocations).some((key) => (
+      allocations[key] !== (remaining_allocations[key] || 0)
+      || (reason_by_line[key] && reason_by_line[key] !== pending.reason_by_line?.[key])
+    ));
+    const price_plan = buildZeroDteSimulatedExplicitExitPlan({
+      owned_position: { ...exit_owned_position(row), pending_exit_qty: 0 },
+      option_snapshot,
+      requested_exit_qty: Math.max(1, pending.requested_qty - pending.accounted_fill_qty),
+      reason: 'experiment_pending_exit_reprice',
+      config: exit_config,
+      now,
+    });
+    const next_price = price_plan.gate.passed ? positive_number(price_plan.order?.price) : null;
+    const old_price = positive_number(active_exit_order.price, positive_number(row.exit_submitted_price));
+    const reprice = next_price !== null && old_price !== null && next_price < old_price;
+    const limit_order = row.exit_order_type === 'limit';
+    const cancel_reason = force_close ? 'force_close'
+      : (changed_lines ? 'remaining_variant_exit_changed' : (reprice ? 'limit_no_longer_marketable' : null));
+    row.updated_at = now.toISOString();
+    await persist_state();
+    if (allow_execution && limit_order && cancel_reason) {
+      // Repeating CANCEL for the same still-live identity is safe; an ACK or
+      // timeout is never treated as proof that its remaining quantity is free.
+      row.exit_cancel_reason = cancel_reason;
+      row.exit_cancel_attempted_at = now.toISOString();
+      await persist_state();
+      try {
+        await with_timeout(cancelExit(runtime.client, runtime.config, {
+          orderID: broker_order_identity(active_exit_order).order_id || row.exit_order_id,
+          orderIDEx: row.exit_order_id_ex,
+        }), 10_000, 'cancel experiment pending limit order');
+        row.exit_cancel_requested_at = now.toISOString();
+        row.last_error = null;
+        await emitExperiment('experiment_exit_cancel_requested', row, {
+          reason: cancel_reason, old_price, next_price,
+          remaining_allocations, requested_allocations: allocations,
+        });
+      } catch (error) {
+        row.last_error = sanitized_error(error);
+        await emitExperiment('experiment_exit_cancel_failed', row, { reason: cancel_reason, error: row.last_error });
+      }
+      await persist_state();
+    }
+    return { submitted: false, active: true, cancel_reason };
+  }
   row.status = 'open';
   row.updated_at = now.toISOString();
   await persist_state();
@@ -2672,7 +2739,7 @@ async function reconcile_junk_experiment_row({
     row.last_error = `experiment_requested_exit_exceeds_broker_can_sell:${aggregate_requested_qty}:${finite_number(position?.canSellQty, 0)}`;
     row.experiment_ledger.ownership_status = 'recovery_blocked';
     await persist_state();
-    await write_experiment_event('experiment_exit_sellability_invariant_failed', row, {
+    await emitExperiment('experiment_exit_sellability_invariant_failed', row, {
       aggregate_requested_qty,
       broker_can_sell_qty: finite_number(position?.canSellQty, 0),
     });
@@ -2702,11 +2769,11 @@ async function reconcile_junk_experiment_row({
     now,
   });
   if (!exit_plan.gate.passed) {
-    await append_json_line(exit_plans_path, exit_plan);
+    await appendPlan(exit_plan);
     return { submitted: false };
   }
   if (!allow_execution) {
-    await append_json_line(exit_plans_path, {
+    await appendPlan({
       ...exit_plan,
       experiment_allocations: allocations,
       experiment_reason_by_line: reason_by_line,
@@ -2744,9 +2811,9 @@ async function reconcile_junk_experiment_row({
   row.exit_order_accounted_fill_qty = 0;
   row.exit_order_accounted_fill_value = 0;
   row.updated_at = now.toISOString();
-  await append_json_line(exit_plans_path, exit_plan);
+  await appendPlan(exit_plan);
   await persist_state();
-  await write_experiment_event('experiment_exit_batch_intent', row, {
+  await emitExperiment('experiment_exit_batch_intent', row, {
     allocations,
     reason_by_line,
     aggregate_requested_qty,
@@ -2754,7 +2821,7 @@ async function reconcile_junk_experiment_row({
   });
   let execution;
   try {
-    execution = await executeZeroDteSimulatedExit({
+    execution = await executeExit({
       client: runtime.client,
       config: exit_config,
       plan: exit_plan,
@@ -2789,7 +2856,7 @@ async function reconcile_junk_experiment_row({
     reset_experiment_exit_attempt(row, now);
     row.last_error = execution.execution?.reason || 'experiment_exit_not_submitted';
     await persist_state();
-    await append_json_line(exit_plans_path, execution);
+    await appendPlan(execution);
     return { submitted: false };
   }
   if (!has_broker_order_identity(execution.execution)) {
@@ -2797,7 +2864,7 @@ async function reconcile_junk_experiment_row({
     row.last_error = 'experiment_exit_submission_accepted_without_broker_order_identity';
     row.updated_at = new Date().toISOString();
     await persist_state();
-    await append_json_line(exit_plans_path, execution);
+    await appendPlan(execution);
     return { submitted: false };
   }
   row.status = 'exit_submitted';
@@ -2807,8 +2874,8 @@ async function reconcile_junk_experiment_row({
   row.exit_cancel_requested_at = null;
   row.updated_at = now.toISOString();
   await persist_state();
-  await append_json_line(exit_plans_path, execution);
-  await write_trade_event('exit_order_submitted', {
+  await appendPlan(execution);
+  await emitTrade('exit_order_submitted', {
     ...fields,
     line_ids: triggered_line_ids,
     allocations,
@@ -4623,28 +4690,11 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
         entry_plan: prepared_entry_plan,
         audit: contract_audit,
       });
-      const latest_line_entry = evaluate_junk_latest_line_entry({
-        candidate: audited.decision,
-        gex_node_history: state.gex_node_history,
-        market_context,
-        policy: config.policy?.exit_experiment?.latest_entry_profile || {},
-        now_ms: market_context_at,
-      });
-      decision = {
-        ...audited.decision,
-        experiment_entry_profiles: {
-          latest_regime_lifecycle_v1: latest_line_entry,
-        },
-      };
+      decision = audited.decision;
       prepared_entry_plan = build_junk_experiment_entry_cohort(
         audited.entry_plan,
         exit_experiment,
         config.policy,
-        {
-          line_participation: {
-            latest_regime_lifecycle: latest_line_entry,
-          },
-        },
       );
     }
     last_decision = decision;

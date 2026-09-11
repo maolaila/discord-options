@@ -1161,6 +1161,9 @@ function experimentReport(manifest, state) {
 
 export async function runJunkMultiLine(cliArgs = process.argv.slice(2)) {
   const args = parseCliArgs(cliArgs);
+  if (!businessLine.enabled) {
+    throw new Error(`${ACTIVE_BUSINESS_LINE} is retired; only zero-dte-options may run. Historical records remain available.`);
+  }
   if (flag(args['execute-real'])) throw new Error(`${ACTIVE_BUSINESS_LINE} is simulation-only.`);
   const statusOnly = flag(args.status) && !flag(args.watch) && !flag(args['execute-simulate']) && !flag(args['dry-run']);
   if (statusOnly) {
@@ -1542,7 +1545,9 @@ if (isMain) {
   runJunkMultiLine().catch(async (error) => {
     const message = sanitizedError(error);
     try {
-      await writeStatus({ phase: 'fatal', mode: 'unknown', process_id: process.pid, last_error: message });
+      if (businessLine.enabled) {
+        await writeStatus({ phase: 'fatal', mode: 'unknown', process_id: process.pid, last_error: message });
+      }
     } catch {
       // Preserve the original failure.
     }

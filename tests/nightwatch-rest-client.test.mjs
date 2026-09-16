@@ -22,6 +22,27 @@ function json_response(status, payload, headers = {}) {
   };
 }
 
+test('research methods use documented read-only endpoints and preserve requested historical dates', async () => {
+  const requests = [];
+  const client = create_nightwatch_rest_client({ api_key: 'research_test_secret',
+    fetch_impl: async (url, options) => {
+      requests.push({ url: String(url), method: options.method });
+      return json_response(200, { data: {} });
+    } });
+  await client.get_volatility_stats('spx');
+  await client.get_volatility_term_structure('SPX');
+  await client.get_economic_calendar();
+  await client.get_options_chain_history('SPX', { query: {
+    expiration: '2026-09-16', right: 'C', from: '2026-09-16', to: '2026-09-17', interval: '1m',
+  } });
+  assert.deepEqual(requests.map((r) => new URL(r.url).pathname), [
+    '/v1/volatility/stats/SPX', '/v1/volatility/term-structure/SPX',
+    '/v1/market/economic-calendar', '/v1/options/chain-history/SPX',
+  ]);
+  assert.ok(requests.every((r) => r.method === 'GET' && !r.url.includes('research_test_secret')));
+  assert.equal(new URL(requests[3].url).searchParams.get('expiration'), '2026-09-16');
+});
+
 test('discover uses bearer authentication without placing a key in the URL', async () => {
   const requests = [];
   const client = create_nightwatch_rest_client({

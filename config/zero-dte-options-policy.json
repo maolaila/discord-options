@@ -14,6 +14,11 @@
     "external_model_calls_allowed": false,
     "decision_engine": "local_deterministic_program"
   },
+  "research_context": {
+    "enabled": true,
+    "mode": "observation_only",
+    "description": "Daily SPX IV/term structure and economic calendar are recorded asynchronously. They never gate entries, sizing or exits. Quote journaling supports read-only replay of frozen exit rules. VEX remains disabled without a public API."
+  },
   "provider": {
     "name": "nightwatch",
     "base_url": "https://api.yehangshe.com",

@@ -328,6 +328,16 @@ export function create_nightwatch_rest_client({
   return Object.freeze({
     base_url: resolved_base_url,
     discover_datasets: (options) => get_json('/v1/discover', options),
+    get_volatility_stats: (ticker, options) => get_json(
+      `/v1/volatility/stats/${encodeURIComponent(normalized_ticker(ticker))}`, options,
+    ),
+    get_volatility_term_structure: (ticker, options) => get_json(
+      `/v1/volatility/term-structure/${encodeURIComponent(normalized_ticker(ticker))}`, options,
+    ),
+    get_economic_calendar: (options) => get_json('/v1/market/economic-calendar', options),
+    get_options_chain_history: (ticker, options) => get_json(
+      `/v1/options/chain-history/${encodeURIComponent(normalized_ticker(ticker))}`, options,
+    ),
     get_dealer_gex_snapshot: (ticker, options) => get_json(
       `/v1/derived/dealer-gex/${encodeURIComponent(normalized_derived_ticker(ticker))}/snapshot`,
       options,

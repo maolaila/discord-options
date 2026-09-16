@@ -23,6 +23,8 @@
     "stack:install-autostart": "powershell -NoProfile -ExecutionPolicy Bypass -File ./ops/install-junk-stack-autostart.ps1",
     "review:junk-post-deploy": "node ./ops/write-junk-post-deploy-summary.mjs",
     "review:export": "node ./ops/export-review-data.mjs",
+    "research:snapshot": "node ./ops/junk-research.mjs snapshot",
+    "research:replay": "node ./ops/junk-research.mjs replay",
     "onchain:status": "node ./apps/trade-notary/trade-notary-cli.mjs status",
     "onchain:dry-run": "node ./apps/trade-notary/trade-notary-cli.mjs dry-run",
     "onchain:publish": "node ./apps/trade-notary/trade-notary-cli.mjs publish",

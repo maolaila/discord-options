@@ -68,6 +68,8 @@ import {
   refresh_junk_oi_structure_background,
 } from './junk-oi-background-service.mjs';
 import { open_junk_oi_research_store } from './junk-oi-research-store.mjs';
+import { create_research_context_service, load_research_sources } from './junk-research-context.mjs';
+import { create_replay_recorder, replay_observation } from './junk-exit-replay.mjs';
 import {
   JUNK_GEX_STRATEGY,
   JUNK_FLOW_HEATMAP_BUSINESS_LINE,
@@ -118,6 +120,9 @@ const trades_path = businessLineLogPath(business_line, 'trades.ndjson');
 const experiment_events_path = businessLineLogPath(business_line, 'experiment-events.ndjson');
 const experiment_summary_path = businessLineLogPath(business_line, 'experiment-summary.json');
 const oi_background_path = businessLineLogPath(business_line, 'oi-structure-background.json');
+const research_context_path = businessLineLogPath(business_line, 'research-context.json');
+const research_history_path = businessLineLogPath(business_line, 'research-context.ndjson');
+const replay_observations_path = businessLineLogPath(business_line, 'replay-observations.ndjson');
 const flow_events_path = businessLineLogPath(business_line, 'flow-events.ndjson');
 const capture_status_path = path.join(path.dirname(status_path), 'capture-status.json');
 const oi_research_db_path = path.join(PROJECT_ROOT, 'data', 'junk-oi-research', 'junk-oi-research.sqlite');
@@ -2896,6 +2901,7 @@ async function reconcile_line_orders({
   underlying_price_usd,
   allow_execution,
   persist_state,
+  replay_recorder = null,
   schedule = market_schedule(runtime.config.policy, ny_context(now)),
 }) {
   const active_rows = active_order_rows(state);
@@ -2938,6 +2944,15 @@ async function reconcile_line_orders({
   const session_date_et = ny_context(now).date_key;
   const force_close = schedule.market_open && ny_context(now).minutes >= schedule.force_close_start_minutes;
   const exit_config = exit_config_for_schedule(runtime.config, schedule);
+
+  // A bounded asynchronous journal of the same inputs used below. No provider
+  // call, broker command or awaited filesystem write is added to exit handling.
+  try {
+    replay_recorder?.record(active_rows.map((row) => replay_observation({
+      row, snapshot: option_snapshots.get(String(row.code)), underlying_price_usd, now,
+      schedule_exit_rule_overrides: exit_config.schedule_exit_rule_overrides,
+    })));
+  } catch { /* optional research must not interrupt position management */ }
 
   for (const row of active_rows) {
     const expected_entry_remark = row.entry_remark || `junk_gex:${row.signal_id}`.slice(0, 60);
@@ -3572,6 +3587,7 @@ function compact_decision(decision) {
     } : null,
     experiment_entry_profiles: decision.experiment_entry_profiles || null,
     oi_structure_background: decision.oi_structure_background || null,
+    research_context: decision.research_context || null,
   };
 }
 
@@ -3712,6 +3728,14 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
   const execute_simulate = flag(args['execute-simulate']);
   const mode = execute_simulate ? 'execute_simulate' : 'dry_run';
   const release_runtime_lock = await acquire_runtime_lock();
+  const research_enabled = config.policy?.research_context?.enabled === true;
+  const replay_recorder = research_enabled ? create_replay_recorder(replay_observations_path) : null;
+  const research_service = create_research_context_service({
+    client: nightwatch, latest_path: research_context_path, history_path: research_history_path,
+    initial_sources: await load_research_sources(research_context_path),
+  });
+  const research_status = () => ({ ...research_service.snapshot(), enabled: research_enabled,
+    replay_recorder: replay_recorder?.status() || null });
   let oi_research_store = null;
   let state = await load_runtime_state();
   state.experiment_manifest = exit_experiment;
@@ -4037,6 +4061,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
         quota: state.quota,
         experiment: experiment_status(),
         oi_structure_background: oi_structure_background_status(),
+        research_context: research_status(),
         risk: risk_state(state),
         active_orders: [],
         broker_recovery: state.broker_recovery,
@@ -4056,6 +4081,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
       underlying_price_usd: fresh_last_gex_spot(state, new Date()),
       allow_execution: allow_broker_execution,
       persist_state,
+      replay_recorder,
       schedule,
     });
 
@@ -4070,6 +4096,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
         quota: state.quota,
         experiment: experiment_status(),
         oi_structure_background: oi_structure_background_status(),
+        research_context: research_status(),
         moomoo: {
           connected: true,
           account: runtime.simulated_account,
@@ -4110,6 +4137,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
         quota: state.quota,
         experiment: experiment_status(),
         oi_structure_background: oi_structure_background_status(),
+        research_context: research_status(),
         risk: risk_state(state),
         active_orders: active_order_rows(state).map(compact_order),
         broker_recovery: state.broker_recovery,
@@ -4138,6 +4166,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
         quota: state.quota,
         experiment: experiment_status(),
         oi_structure_background: oi_structure_background_status(),
+        research_context: research_status(),
         risk: risk_state(state),
         active_orders: active_order_rows(state).map(compact_order),
         broker_recovery: state.broker_recovery,
@@ -4285,6 +4314,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
         quota: state.quota,
         experiment: experiment_status(),
         oi_structure_background: oi_structure_background_status(),
+        research_context: research_status(),
         risk: risk_state(state),
         active_orders: active_order_rows(state).map(compact_order),
         broker_recovery: state.broker_recovery,
@@ -4347,6 +4377,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
       underlying_price_usd: market_context.last_price_usd,
       allow_execution: allow_broker_execution,
       persist_state,
+      replay_recorder,
       schedule,
     });
     const reconcile = {
@@ -4697,6 +4728,8 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
         config.policy,
       );
     }
+    // Attach only after all strategy and execution gates have been evaluated.
+    decision = { ...decision, research_context: research_status() };
     last_decision = decision;
     await append_json_line(decisions_path, decision);
 
@@ -4855,6 +4888,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
         directional_option_chain: state.directional_option_chain || null,
       },
       oi_structure_background: oi_structure_background_status(),
+      research_context: research_status(),
       automated_flow: {
         availability_status: flow_context.availability_status,
         source_connected: flow_context.source_connected,
@@ -4910,6 +4944,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
     quota: state.quota,
     experiment: experiment_status(),
     oi_structure_background: oi_structure_background_status(),
+    research_context: research_status(),
     risk: risk_state(state),
   });
 
@@ -4920,6 +4955,17 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
       try {
         const result = await cycle();
         delay_ms = result.delay_ms;
+        try {
+          const research_now = new Date();
+          const research_ny = ny_context(research_now);
+          const research_schedule = market_schedule(config.policy, research_ny);
+          research_service.kick({
+            enabled: watch && research_enabled && !research_schedule.closed
+              && research_ny.minutes >= 8 * 60
+              && research_ny.minutes <= research_schedule.session_close_minutes + 15,
+            provider_blocked: provider_wait_ms() > 0,
+          });
+        } catch { /* optional research never resets the broker connection */ }
       } catch (error) {
         last_error = sanitized_error(error);
         const retry_after_ms = apply_provider_backoff(error);
@@ -4932,6 +4978,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
           quota: state.quota,
           experiment: experiment_status(),
           oi_structure_background: oi_structure_background_status(),
+          research_context: research_status(),
           risk: risk_state(state),
           active_orders: active_order_rows(state).map(compact_order),
           broker_recovery: state.broker_recovery,
@@ -4950,6 +4997,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
       await wait_with_price_sampling(Math.max(0, delay_ms - (Date.now() - cycle_started_at)));
     } while (!stop_requested);
   } finally {
+    research_service.stop();
     try {
       await reset_moomoo();
     } finally {
@@ -4968,6 +5016,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
       quota: state.quota,
       experiment: experiment_status(),
       oi_structure_background: oi_structure_background_status(),
+      research_context: research_status(),
       risk: risk_state(state),
       active_orders: active_order_rows(state).map(compact_order),
       last_decision: compact_decision(last_decision),

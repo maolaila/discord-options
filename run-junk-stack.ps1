@@ -402,7 +402,7 @@ function Invoke-MoomooApiHealthProbe {
       return [pscustomobject]@{ Healthy = $false; Reason = 'health_result_file_stale'; CheckedAt = $null }
     }
 
-    $payload = Get-Content -LiteralPath $moomooCheckResultPath -Raw | ConvertFrom-Json
+    $payload = Get-Content -LiteralPath $moomooCheckResultPath -Raw -Encoding UTF8 | ConvertFrom-Json
     return Get-MoomooCheckValidation `
       -Payload $payload `
       -ProbeStartedAt $probeStartedAt `
@@ -537,7 +537,7 @@ function Assert-SimulationOnlyConfiguration {
     throw '.env is not explicitly simulation-only; JUNKMAN was not started.'
   }
 
-  $policy = Get-Content -LiteralPath $policyPath -Raw | ConvertFrom-Json
+  $policy = Get-Content -LiteralPath $policyPath -Raw -Encoding UTF8 | ConvertFrom-Json
   if (
     $policy.business_line.id -ne 'zero-dte-options' -or
     $policy.business_line.status -ne 'active_simulation' -or
@@ -547,7 +547,7 @@ function Assert-SimulationOnlyConfiguration {
     throw 'The active policy is not the JUNKMAN simulation-only policy.'
   }
 
-  $supervisorText = Get-Content -LiteralPath $junkSupervisorPath -Raw
+  $supervisorText = Get-Content -LiteralPath $junkSupervisorPath -Raw -Encoding UTF8
   if ($supervisorText -notmatch '--execute-simulate' -or $supervisorText -match '--execute-real') {
     throw 'run-junk-gex.ps1 is not locked to --execute-simulate.'
   }
@@ -1152,7 +1152,7 @@ function Test-JunkWatcherRunning {
   }
 
   try {
-    $status = Get-Content -LiteralPath $statusPath -Raw | ConvertFrom-Json
+    $status = Get-Content -LiteralPath $statusPath -Raw -Encoding UTF8 | ConvertFrom-Json
     $assessment = Get-JunkWatcherStatusAssessment -Status $status -MaxAgeSeconds $MaxAgeSeconds
   } catch {
     if ($verifiedProcesses.Count -gt 0) {
@@ -1227,7 +1227,7 @@ function Test-JunkWatcherRunning {
   # before stopping. This closes the window where a fresh heartbeat or PID reuse
   # could otherwise turn a safe stale-process recycle into an unsafe kill.
   try {
-    $latestStatus = Get-Content -LiteralPath $statusPath -Raw | ConvertFrom-Json
+    $latestStatus = Get-Content -LiteralPath $statusPath -Raw -Encoding UTF8 | ConvertFrom-Json
     $latestAssessment = Get-JunkWatcherStatusAssessment `
       -Status $latestStatus `
       -MaxAgeSeconds $MaxAgeSeconds

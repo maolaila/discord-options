@@ -172,7 +172,7 @@ function Read-JunkGexWatchdogStatusAssessment {
   }
 
   try {
-    $status = Get-Content -LiteralPath $StatusPath -Raw | ConvertFrom-Json
+    $status = Get-Content -LiteralPath $StatusPath -Raw -Encoding UTF8 | ConvertFrom-Json
     return Get-JunkGexWatchdogStatusAssessment `
       -Status $status `
       -ExpectedProcessId $ExpectedProcessId `

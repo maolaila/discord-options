@@ -29,3 +29,5 @@ The September 16 review contains nine comparable completed cohorts per retained 
 - Set `research_context.enabled` to `false` and restart the watcher to disable the observer and recording. Existing trading rules remain independent of that switch.
 
 Validation covers source schema/identity/freshness, unknown calendar age, materialization, blocked requests, 429 retry timing, failed journal writes, quote-path gaps, stop variants, take-profit/breakeven behavior, void days and production integration. The existing trading suite is also required before deployment.
+
+Deployment also reproduced a pre-existing Windows PowerShell 5.1 watchdog failure: BOM-less UTF-8 status JSON containing Chinese text was read with the default ANSI encoding, then rejected as malformed JSON. This caused a healthy watcher to be protected as unreadable and its child supervisor to be removed. Both supervisors now explicitly read UTF-8 for status, policy and health files. A Windows PowerShell regression exercises both watchdogs with Node-written Chinese JSON without a BOM.

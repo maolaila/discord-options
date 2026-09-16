@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -16,10 +16,11 @@ const powershellPath = path.join(
   'powershell.exe',
 );
 
-function runPowerShell(source, extraEnv = {}) {
+function runPowerShell(source, extraEnv = {}, encoded = false) {
   return spawnSync(
     powershellPath,
-    ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', '-'],
+    ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+      ...(encoded ? ['-EncodedCommand', Buffer.from(source, 'utf16le').toString('base64')] : ['-Command', '-'])],
     {
       cwd: repositoryRoot,
       encoding: 'utf8',
@@ -28,11 +29,52 @@ function runPowerShell(source, extraEnv = {}) {
         JUNK_GEX_SUPERVISOR_PATH: supervisorScriptPath,
         ...extraEnv,
       },
-      input: source,
+      input: encoded ? undefined : source,
       timeout: 30_000,
     },
   );
 }
+
+test('both Windows PowerShell watchdogs read Node UTF-8 status with Chinese text and no BOM', () => {
+  const temporaryRoot = mkdtempSync(path.join(tmpdir(), 'junk-utf8-status-'));
+  try {
+    mkdirSync(path.join(temporaryRoot, 'logs'));
+    writeFileSync(path.join(temporaryRoot, 'logs/zero-dte-options-status.json'), JSON.stringify({
+      updated_at: new Date().toISOString(), process_id: 4242, mode: 'execute_simulate',
+      real_trading_allowed: false, active_orders: [], risk: { open_position_count: 0 },
+      note: '状态检查：行情已连接，旧数据无法使用',
+    }), 'utf8');
+    const result = runPowerShell(String.raw`
+$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
+Set-StrictMode -Version Latest
+$tokens = $null
+$errors = $null
+foreach ($scriptPath in @($env:JUNK_GEX_SUPERVISOR_PATH, $env:TEST_STACK_SCRIPT)) {
+  $ast = [System.Management.Automation.Language.Parser]::ParseFile($scriptPath, [ref]$tokens, [ref]$errors)
+  foreach ($fn in $ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)) {
+    Invoke-Expression $fn.Extent.Text
+  }
+}
+$rootPath = $env:TEST_JUNK_ROOT
+$logDirectory = Join-Path $rootPath 'logs'
+$WatcherStatusMaxAgeSeconds = 75
+$script:LastState = $null
+function Get-VerifiedJunkWatcherProcesses { return @([pscustomobject]@{ProcessId=4242}) }
+function Set-ComponentState { param($Name, $State, $Detail, $Level); $script:LastState = $State }
+$running = Test-JunkWatcherRunning -MaxAgeSeconds 75
+if (-not $running -or $script:LastState -ne 'healthy' -or $script:junkWatcherRequiresSupervisorRemoval) {
+  throw "Stack misread UTF-8 status: $script:LastState"
+}
+$assessment = Read-JunkGexWatchdogStatusAssessment -StatusPath (Join-Path $logDirectory 'zero-dte-options-status.json') -ExpectedProcessId 4242 -MinimumHeartbeatAt ([DateTimeOffset]::UtcNow.AddMinutes(-10))
+if ($assessment.State -ne 'healthy') { throw "Child watchdog misread UTF-8: $($assessment.State)" }
+Write-Output 'UTF8_STATUS_BOTH_HEALTHY'
+`, { TEST_JUNK_ROOT: temporaryRoot, TEST_STACK_SCRIPT: path.join(repositoryRoot, 'run-junk-stack.ps1') }, true);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.match(result.stdout, /UTF8_STATUS_BOTH_HEALTHY/);
+    assert.equal(result.stderr, '', result.stderr);
+  } finally { rmSync(temporaryRoot, { recursive: true, force: true }); }
+});
 
 test('run-junk-gex.ps1 passes the PowerShell parser', () => {
   const result = runPowerShell(String.raw`

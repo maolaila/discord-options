@@ -117,9 +117,18 @@ function Add-AmbiguousTextVariants {
   )
 
   # Try every one-character OCR ambiguity before combining substitutions.
-  # This avoids locking out a correct late-position variant behind an
-  # exponential set of earlier combinations.
-  for ($index = 0; $index -lt $Text.Length; $index += 1) {
+  # OCR confuses narrow digits and lowercase glyphs most often, so try those
+  # positions before uppercase substitutions and reach a late 0/o in time.
+  $orderedIndices = [System.Collections.Generic.List[int]]::new()
+  foreach ($pattern in @('[0-9]', '[a-z]', '[A-Z]')) {
+    for ($index = 0; $index -lt $Text.Length; $index += 1) {
+      if ([string]$Text[$index] -cmatch $pattern) {
+        $orderedIndices.Add($index)
+      }
+    }
+  }
+  for ($position = 0; $position -lt $orderedIndices.Count; $position += 1) {
+    $index = $orderedIndices[$position]
     $current = [string]$Text[$index]
     $group = $groups | Where-Object { $_ -contains $current } | Select-Object -First 1
     if (-not $group) { continue }
@@ -150,6 +159,7 @@ foreach ($process in @(Get-Process -Name 'moomoo_OpenD' -ErrorAction Stop)) {
 
 $nativeCode = @'
 using System;
+using System.Text;
 using System.Runtime.InteropServices;
 public static class OpenDRecoveryWindow {
     public delegate bool EnumWindowsCallback(IntPtr handle, IntPtr parameter);
@@ -159,6 +169,7 @@ public static class OpenDRecoveryWindow {
     [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr handle);
     [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr handle, out uint processId);
     [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr handle, out Rect rect);
+    [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr handle, StringBuilder text, int maxCount);
     [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr handle, int command);
     [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr handle, IntPtr insertAfter, int x, int y, int width, int height, uint flags);
     [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
@@ -175,13 +186,17 @@ $windows = [System.Collections.Generic.List[object]]::new()
   param($handle, $parameter)
   [uint32]$processId = 0
   [OpenDRecoveryWindow]::GetWindowThreadProcessId($handle, [ref]$processId) | Out-Null
-  if ($openDProcessIds.Contains($processId) -and [OpenDRecoveryWindow]::IsWindowVisible($handle)) {
+  if ($openDProcessIds.Contains($processId)) {
+    $title = [Text.StringBuilder]::new(128)
+    [OpenDRecoveryWindow]::GetWindowText($handle, $title, $title.Capacity) | Out-Null
     $rect = [OpenDRecoveryWindow+Rect]::new()
     if (-not [OpenDRecoveryWindow]::GetWindowRect($handle, [ref]$rect)) { return $true }
     $area = [Math]::Max(0, $rect.Right - $rect.Left) * [Math]::Max(0, $rect.Bottom - $rect.Top)
     $windows.Add([pscustomobject]@{
       handle = $handle
+      title = $title.ToString()
       area = $area
+      was_visible = [OpenDRecoveryWindow]::IsWindowVisible($handle)
       original_left = $rect.Left
       original_top = $rect.Top
       original_width = [Math]::Max(0, $rect.Right - $rect.Left)
@@ -191,8 +206,12 @@ $windows = [System.Collections.Generic.List[object]]::new()
   return $true
 }, [IntPtr]::Zero) | Out-Null
 
-$window = $windows | Sort-Object area -Descending | Select-Object -First 1
-if (-not $window) { throw 'No visible moomoo OpenD window was found.' }
+$window = $windows |
+  Where-Object { $_.area -ge 100000 -and $_.title -like 'moomoo_OpenD*' } |
+  Sort-Object -Property @{ Expression = 'was_visible'; Descending = $true },
+    @{ Expression = 'area'; Descending = $true } |
+  Select-Object -First 1
+if (-not $window) { throw 'No usable moomoo OpenD window was found.' }
 
 $noSize = 0x0001
 $showWindow = 0x0040
@@ -555,6 +574,9 @@ try {
     $window.original_height,
     $showWindow
   ) | Out-Null
+  if (-not $window.was_visible) {
+    [OpenDRecoveryWindow]::ShowWindow($window.handle, 0) | Out-Null
+  }
   if ($null -eq $originalDirectKey) {
     Remove-Item Env:MOOMOO_OPEND_WS_KEY -ErrorAction SilentlyContinue
   } else {

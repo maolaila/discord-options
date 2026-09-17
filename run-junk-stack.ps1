@@ -399,7 +399,12 @@ function Invoke-MoomooApiHealthProbe {
     }
     $resultItem = Get-Item -LiteralPath $moomooCheckResultPath
     if ($resultItem.LastWriteTimeUtc -lt $probeStartedAt.UtcDateTime.AddSeconds(-2)) {
-      return [pscustomobject]@{ Healthy = $false; Reason = 'health_result_file_stale'; CheckedAt = $null }
+      $reason = if (Test-MoomooProbeLooksLikeAuthenticationFailure) {
+        'websocket_login_failed'
+      } else {
+        'health_result_file_stale'
+      }
+      return [pscustomobject]@{ Healthy = $false; Reason = $reason; CheckedAt = $null }
     }
 
     $payload = Get-Content -LiteralPath $moomooCheckResultPath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -442,6 +447,20 @@ function Invoke-OpenDAuthRecovery {
 
   $process = $null
   try {
+    $configuredKeyFile = Get-DotEnvValue -FilePath $envPath -Name 'MOOMOO_OPEND_WS_KEY_FILE'
+    if ([string]::IsNullOrWhiteSpace($configuredKeyFile)) {
+      $configuredKeyFile = 'secrets\moomoo_opend_ws_key.txt'
+    }
+    $keyFilePath = if ([IO.Path]::IsPathRooted($configuredKeyFile)) {
+      [IO.Path]::GetFullPath($configuredKeyFile)
+    } else {
+      [IO.Path]::GetFullPath((Join-Path $rootPath $configuredKeyFile))
+    }
+    $keyFileModifiedBefore = if (Test-Path -LiteralPath $keyFilePath -PathType Leaf) {
+      (Get-Item -LiteralPath $keyFilePath).LastWriteTimeUtc
+    } else {
+      [DateTime]::MinValue
+    }
     Remove-OpenDAuthRecoveryArtifacts
     Write-StackLog -Level 'WARN' -Message 'Attempting bounded local OpenD WebSocket authentication recovery; no credential value will be logged.'
     $process = Start-Process `
@@ -470,7 +489,13 @@ function Invoke-OpenDAuthRecovery {
         -Level 'ERROR'
       return $false
     }
-    if (-not $waitResult.Exited -or $waitResult.ExitCode -ne 0) {
+    $keyFileModifiedAfter = if (Test-Path -LiteralPath $keyFilePath -PathType Leaf) {
+      (Get-Item -LiteralPath $keyFilePath).LastWriteTimeUtc
+    } else {
+      [DateTime]::MinValue
+    }
+    if (-not $waitResult.Exited -or $waitResult.ExitCode -ne 0 -or
+        $keyFileModifiedAfter -le $keyFileModifiedBefore) {
       Set-ComponentState `
         -Name 'opend_auth_recovery' `
         -State 'failed' `

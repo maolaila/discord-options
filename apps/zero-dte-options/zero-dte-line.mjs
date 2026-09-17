@@ -209,11 +209,24 @@ async function write_json(file_path, payload) {
     await handle.sync();
     await handle.close();
     handle = null;
-    await fsp.rename(temporary_path, file_path);
-    await fsp.copyFile(file_path, `${file_path}.bak`);
+    await retry_transient_windows_file_error(() => fsp.rename(temporary_path, file_path));
+    await retry_transient_windows_file_error(() => fsp.copyFile(file_path, `${file_path}.bak`));
   } finally {
     await handle?.close().catch(() => {});
     await fsp.unlink(temporary_path).catch(() => {});
+  }
+}
+
+async function retry_transient_windows_file_error(operation) {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (process.platform !== 'win32' || !['EPERM', 'EACCES', 'EBUSY'].includes(error?.code) || attempt >= 7) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 125));
+    }
   }
 }
 

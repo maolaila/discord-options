@@ -1,0 +1,1969 @@
+- generic [ref=e1]:
+  - generic [ref=e2312]:
+    - log [ref=e2313]:
+      - generic [ref=e3209]: 搜索已开始
+    - log [ref=e2316]:
+      - generic [ref=e3210]: 6个结果
+  - generic [ref=e4]:
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - generic [ref=e13]: Alpha夜航社
+        - generic [ref=e17]:
+          - button "收件箱" [ref=e20] [cursor=pointer]
+          - link [ref=e24] [cursor=pointer]:
+            - /url: https://support.discord.com
+            - button "帮助" [ref=e25]
+      - generic [ref=e29]:
+        - generic [ref=e30]:
+          - navigation "服务器侧边栏" [ref=e31]:
+            - tree [ref=e32]:
+              - generic [ref=e33]:
+                - treeitem "私信" [level=1] [ref=e42] [cursor=pointer]
+                - group "服务器" [ref=e49]:
+                  - generic [ref=e50]:
+                    - generic [ref=e55]:
+                      - treeitem "8 个提及，Alpha夜航社" [level=1] [selected] [ref=e60] [cursor=pointer]
+                      - generic: "8"
+                    - generic [ref=e62]:
+                      - generic:
+                        - generic:
+                          - img "社区服务器"
+                          - generic:
+                            - generic:
+                              - generic: 社区服务器
+                              - generic: 有邀请链接的人可以加入。
+                            - generic:
+                              - generic: 等级 3
+                              - generic: 22 个助力
+                          - generic: Alpha夜航社
+                  - generic [ref=e63]:
+                    - treeitem "急急如律令" [level=1] [ref=e73] [cursor=pointer]
+                    - generic [ref=e75]: 急急如律令
+                  - generic [ref=e76]:
+                    - treeitem "粉红大兵的服务器" [level=1] [ref=e86] [cursor=pointer]:
+                      - generic [aria-hidden] [ref=e88]: 粉红大兵的服务器
+                    - generic [ref=e89]: 粉红大兵的服务器
+                - treeitem "添加服务器" [level=1] [ref=e96] [cursor=pointer]
+                - treeitem "发现" [level=1] [ref=e107] [cursor=pointer]
+                - treeitem "下载APP" [level=1] [ref=e118] [cursor=pointer]
+          - navigation "Alpha夜航社 (服务器)" [ref=e122]:
+            - generic [ref=e125]:
+              - button "Alpha夜航社，服务器操作" [ref=e126] [cursor=pointer]:
+                - generic [ref=e127]:
+                  - generic [ref=e128]:
+                    - button "社区服务器" [ref=e129]
+                    - generic [ref=e133]:
+                      - generic [ref=e134]:
+                        - generic: 社区服务器
+                        - generic: 有邀请链接的人可以加入。
+                      - generic [ref=e135]:
+                        - generic [ref=e136]: 等级 3
+                        - generic [ref=e143]: 22 个助力
+                  - heading "Alpha夜航社" [level=2] [ref=e145]
+              - button "邀请至服务器" [ref=e150] [cursor=pointer]
+            - heading "频道" [level=2] [ref=e155]
+            - generic [ref=e157] [cursor=pointer]
+            - list "频道" [ref=e159]:
+              - listitem [ref=e161]:
+                - generic [ref=e162]:
+                  - button "浏览频道"
+                  - generic [aria-hidden] [ref=e167] [cursor=pointer]: 浏览频道
+              - listitem [ref=e170]:
+                - link "欢迎-和-规则（文字频道）" [ref=e173] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1434960638559522999
+                  - generic [ref=e174]:
+                    - img "规则 icon" [ref=e175]
+                    - generic [ref=e178]: 规则
+                    - generic [aria-hidden] [ref=e179]: 欢迎-和-规则
+              - listitem [ref=e180]:
+                - button "星河会客厅 （类别）" [expanded] [ref=e182] [cursor=pointer]:
+                  - heading "星河会客厅" [level=3] [ref=e183]
+              - listitem [ref=e187]:
+                - link "未读，🎲｜日内交易专区（文字频道）, 私密频道（已锁）" [ref=e191] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1434960638559523002
+                  - generic [ref=e192]:
+                    - img "文字信息（受限） icon" [ref=e193]
+                    - generic [ref=e197]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e198]: 🎲｜日内交易专区
+              - listitem [ref=e199]:
+                - link "未读，heatmap讨论区（文字频道）, 私密频道（已锁）" [ref=e203] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1525493029329309766
+                  - generic [ref=e204]:
+                    - img "文字信息（受限） icon" [ref=e205]
+                    - generic [ref=e209]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e210]: heatmap讨论区
+              - listitem [ref=e211]:
+                - link "未读，星河会客厅交流区（文字频道）" [ref=e215] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1478800599389569065
+                  - generic [ref=e216]:
+                    - img "文字信息 icon" [ref=e217]
+                    - generic [ref=e220]: 文字信息
+                    - generic [aria-hidden] [ref=e221]: 星河会客厅交流区
+                    - generic: 邀请到频道
+              - listitem [ref=e223]:
+                - link "api-mcp相关讨论（文字频道）, 私密频道（已锁）" [ref=e1461] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1534900873107341413
+                  - generic [ref=e228]:
+                    - img "文字信息（受限） icon" [ref=e229]
+                    - generic [ref=e233]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e234]: api-mcp相关讨论
+              - listitem [ref=e235]:
+                - link "未读，junkman-analysis（文字频道）, 私密频道（已锁）" [ref=e239] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1515786763417813094
+                  - generic [ref=e240]:
+                    - img "文字信息（受限） icon" [ref=e241]
+                    - generic [ref=e245]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e246]: junkman-analysis
+              - listitem [ref=e247]:
+                - link "未读，leomessi-note（文字频道）, 私密频道（已锁）" [ref=e251] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1520737975472754849
+                  - generic [ref=e252]:
+                    - img "文字信息（受限） icon" [ref=e253]
+                    - generic [ref=e257]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e258]: leomessi-note
+              - listitem [ref=e259]:
+                - link "未读，volume-profile-analysis（文字频道）, 私密频道（已锁）" [ref=e263] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1535897932799156265
+                  - generic [ref=e264]:
+                    - img "文字信息（受限） icon" [ref=e265]
+                    - generic [ref=e269]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e270]: volume-profile-analysis
+              - listitem [ref=e271]:
+                - link "未读，期权深度研报（文字频道）, 私密频道（已锁）" [ref=e275] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1508483908155740211
+                  - generic [ref=e276]:
+                    - img "文字信息（受限） icon" [ref=e277]
+                    - generic [ref=e281]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e282]: 期权深度研报
+              - listitem [ref=e283]:
+                - link "未读，每日期权结构研报（文字频道）, 私密频道（已锁）" [ref=e287] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1509085172488736819
+                  - generic [ref=e288]:
+                    - img "文字信息（受限） icon" [ref=e289]
+                    - generic [ref=e293]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e294]: 每日期权结构研报
+              - listitem [ref=e295]:
+                - link "个股讨论（论坛频道）, 私密频道（已锁）" [ref=e298] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1533876389709611189
+                  - generic [ref=e299]:
+                    - img "论坛（受限） icon" [ref=e300]
+                    - generic [ref=e304]: 论坛（受限）
+                    - generic [aria-hidden] [ref=e305]: 个股讨论
+              - listitem [ref=e306]:
+                - link "学习资料（论坛频道）, 私密频道（已锁）" [ref=e309] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1533877640069517332
+                  - generic [ref=e310]:
+                    - img "论坛（受限） icon" [ref=e311]
+                    - generic [ref=e315]: 论坛（受限）
+                    - generic [aria-hidden] [ref=e316]: 学习资料
+              - listitem [ref=e317]:
+                - link "未读，产品需求和bug反馈（论坛频道）" [ref=e321] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1505094711675981825
+                  - generic [ref=e322]:
+                    - img "论坛 icon" [ref=e323]
+                    - generic [ref=e327]: 论坛
+                    - generic [aria-hidden] [ref=e328]: 产品需求和bug反馈
+                    - generic [ref=e329]:
+                      - button "邀请到频道" [ref=e1720]
+                      - generic [ref=e332]: 邀请到频道
+              - listitem [ref=e333]:
+                - button "讨论区 （类别）" [expanded] [ref=e335] [cursor=pointer]:
+                  - heading "讨论区" [level=3] [ref=e336]
+              - listitem [ref=e340]:
+                - link "未读，💴｜异常期权专区（文字频道）, 私密频道（已锁）" [ref=e344] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1519605317091196969
+                  - generic [ref=e345]:
+                    - img "文字信息（受限） icon" [ref=e346]
+                    - generic [ref=e350]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e351]: 💴｜异常期权专区
+                    - generic: 邀请到频道
+              - listitem [ref=e353]:
+                - link "未读，闲聊区（文字频道）, 私密频道（已锁）" [ref=e357] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1514332090978799677
+                  - generic [ref=e358]:
+                    - img "文字信息（受限） icon" [ref=e359]
+                    - generic [ref=e363]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e364]: 闲聊区
+                    - generic: 邀请到频道
+              - listitem [ref=e366]:
+                - link "未读，晒单区（文字频道）, 私密频道（已锁）" [ref=e370] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1468665944824877171
+                  - generic [ref=e371]:
+                    - img "文字信息（受限） icon" [ref=e372]
+                    - generic [ref=e376]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e377]: 晒单区
+                    - generic: 邀请到频道
+              - listitem [ref=e379]:
+                - link "未读，诈骗举报（文字频道）, 私密频道（已锁）" [ref=e383] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1493499907909353584
+                  - generic [ref=e384]:
+                    - img "文字信息（受限） icon" [ref=e385]
+                    - generic [ref=e389]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e390]: 诈骗举报
+                    - generic: 邀请到频道
+              - listitem [ref=e392]:
+                - button "NightWatch Alert （类别）" [expanded] [ref=e394] [cursor=pointer]:
+                  - heading "NightWatch Alert" [level=3] [ref=e395]
+              - listitem [ref=e399]:
+                - link "日内期权ai信号必读（文字频道）" [ref=e402] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1487738029102596236
+                  - generic [ref=e403]:
+                    - img "文字信息 icon" [ref=e404]
+                    - generic [ref=e407]: 文字信息
+                    - generic [aria-hidden] [ref=e408]: 日内期权ai信号必读
+                    - generic: 邀请到频道
+              - listitem [ref=e410]:
+                - link "未读，spy日内期权1号机（文字频道）" [ref=e414] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1476555018206449674
+                  - generic [ref=e415]:
+                    - img "文字信息 icon" [ref=e416]
+                    - generic [ref=e419]: 文字信息
+                    - generic [aria-hidden] [ref=e420]: spy日内期权1号机
+                    - generic [ref=e421]:
+                      - generic [ref=e422]:
+                        - generic [aria-hidden]:
+                          - generic: "2"
+                      - generic [ref=e423]: 邀请到频道
+              - listitem [ref=e424]:
+                - link "0dte-flow-alert（文字频道）" [ref=e427] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1513450634148577350
+                  - generic [ref=e428]:
+                    - img "文字信息 icon" [ref=e429]
+                    - generic [ref=e432]: 文字信息
+                    - generic [aria-hidden] [ref=e433]: 0dte-flow-alert
+                    - generic: 邀请到频道
+              - listitem [ref=e441]:
+                - link "未读，彩票频道（文字频道）" [ref=e445] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1503846806835040286
+                  - generic [ref=e446]:
+                    - img "文字信息 icon" [ref=e447]
+                    - generic [ref=e450]: 文字信息
+                    - generic [aria-hidden] [ref=e451]: 彩票频道
+                    - generic: 邀请到频道
+              - listitem [ref=e453]:
+                - link "未读，dennis-tape（文字频道）" [ref=e457] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1492437553171660921
+                  - generic [ref=e458]:
+                    - img "文字信息 icon" [ref=e459]
+                    - generic [ref=e462]: 文字信息
+                    - generic [aria-hidden] [ref=e463]: dennis-tape
+                    - generic [ref=e464]:
+                      - generic [ref=e465]:
+                        - generic [aria-hidden]:
+                          - generic: "1"
+                      - generic [ref=e466]: 邀请到频道
+              - listitem [ref=e467]:
+                - button "订阅与公告 （类别）" [expanded] [ref=e469] [cursor=pointer]:
+                  - heading "订阅与公告" [level=3] [ref=e470]
+              - listitem [ref=e474]:
+                - link "新人必读（文字频道）, 私密频道（已锁）" [ref=e477] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1510222695382646844
+                  - generic [ref=e478]:
+                    - img "文字信息（受限） icon" [ref=e479]
+                    - generic [ref=e483]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e484]: 新人必读
+                    - generic: 邀请到频道
+              - listitem [ref=e486]:
+                - link "付费会员权益（文字频道）, 私密频道（已锁）" [ref=e489] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1510233673390227547
+                  - generic [ref=e490]:
+                    - img "文字信息（受限） icon" [ref=e491]
+                    - generic [ref=e495]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e496]: 付费会员权益
+                    - generic: 邀请到频道
+              - listitem [ref=e498]:
+                - link "未读，更新公告（文字频道）, 私密频道（已锁）" [ref=e502] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1489519795954122883
+                  - generic [ref=e503]:
+                    - img "文字信息（受限） icon" [ref=e504]
+                    - generic [ref=e508]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e509]: 更新公告
+                    - generic [ref=e511]:
+                      - generic [aria-hidden]:
+                        - generic: "2"
+              - listitem [ref=e512]:
+                - button "异常期权分析 （类别）" [expanded] [ref=e514] [cursor=pointer]:
+                  - heading "异常期权分析" [level=3] [ref=e515]
+              - listitem [ref=e519]:
+                - link "分析师订阅面板（文字频道）, 私密频道（已锁）" [ref=e522] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1467503844006166588
+                  - generic [ref=e523]:
+                    - img "文字信息（受限） icon" [ref=e524]
+                    - generic [ref=e528]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e529]: 分析师订阅面板
+                    - generic: 邀请到频道
+              - listitem [ref=e531]:
+                - link "未读，异常期权（文字频道）, 私密频道（已锁）" [ref=e535] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1434960638559523000
+                  - generic [ref=e536]:
+                    - img "文字信息（受限） icon" [ref=e537]
+                    - generic [ref=e541]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e542]: 异常期权
+              - listitem [ref=e543]:
+                - link "未读，pa分析师（文字频道）, 私密频道（已锁）" [ref=e546] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1467498779497201716
+                  - generic [ref=e547]:
+                    - img "文字信息（受限） icon" [ref=e548]
+                    - generic [ref=e552]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e553]: pa分析师
+                    - generic: 邀请到频道
+              - listitem [ref=e555]:
+                - link "未读，mr分析师（文字频道）, 私密频道（已锁）" [ref=e559] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1467498808488235122
+                  - generic [ref=e560]:
+                    - img "文字信息（受限） icon" [ref=e561]
+                    - generic [ref=e565]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e566]: mr分析师
+                    - generic: 邀请到频道
+              - listitem [ref=e1724]:
+                - link "未读，qmr分析师（文字频道）, 私密频道（已锁）" [ref=e1728] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1467498823265026188
+                  - generic [ref=e1729]:
+                    - img "文字信息（受限） icon" [ref=e1730]
+                    - generic [ref=e1734]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e1735]: qmr分析师
+                    - generic: 邀请到频道
+            - button "8 个新提及" [ref=e994] [cursor=pointer]
+          - separator "Resize Sidebar" [ref=e583]
+          - region "用户状态和设置" [ref=e584]:
+            - generic [aria-hidden] [ref=e589]:
+              - generic:
+                - generic:
+                  - button:
+                    - generic:
+                      - paragraph: 了解
+                      - paragraph: 更多
+                - generic:
+                  - generic:
+                    - button
+                  - generic: 获取奖励！
+                - generic:
+                  - button:
+                    - generic: 推广
+                  - generic:
+                    - button
+              - generic [ref=e592]:
+                - generic [ref=e593]:
+                  - heading [level=2] [ref=e594]: ROBLOX 任务
+                  - generic [ref=e596]:
+                    - text: 用您的 Discord 客户端打开并游玩 15 分钟
+                    - link [ref=e597] [cursor=pointer]: "The Hunt: Roblox 20"
+                    - text: ，即可赢得 Blurple 8-Bit Wings。
+                - button [ref=e600] [cursor=pointer]:
+                  - generic [ref=e601]: 接受任务
+            - generic [ref=e608]:
+              - generic [ref=e609] [cursor=pointer]:
+                - button "管理个人资料和状态"
+                - generic [ref=e612]:
+                  - generic [ref=e613]: 粉红大兵
+                  - generic [ref=e617]:
+                    - generic: fenhongdabing
+                    - generic: 在线
+              - generic [ref=e618]:
+                - generic [ref=e619]:
+                  - switch "静音" [checked] [ref=e620] [cursor=pointer]
+                  - generic [ref=e641]: 取消静音
+                  - button "输入选项" [ref=e642] [cursor=pointer]
+                - generic [ref=e646]:
+                  - switch "耳机静音" [ref=e647] [cursor=pointer]
+                  - button "输出选项" [ref=e659] [cursor=pointer]
+                - button "用户设置" [ref=e663] [cursor=pointer]
+        - generic [ref=e674]:
+          - region "频道标题" [ref=e1737]:
+            - generic [ref=e1738]:
+              - generic [ref=e1739]:
+                - generic [ref=e1744]: 文字频道
+                - 'heading "Alpha夜航社: 更新公告" [level=1] [ref=e1746]':
+                  - generic [ref=e1747]: "Alpha夜航社:"
+                  - text: 更新公告
+              - generic [ref=e1748]:
+                - button "子区" [ref=e1749] [cursor=pointer]
+                - button "通知设定" [ref=e1752] [cursor=pointer]
+                - button "已标注消息" [ref=e1755] [cursor=pointer]
+                - button "显示成员名单" [ref=e1758] [cursor=pointer]
+                - generic [ref=e1763]:
+                  - combobox "搜索 Alpha夜航社" [active] [ref=e1764]:
+                    - generic [ref=e1765]: 修复
+                  - button [ref=e2320] [cursor=pointer]:
+                    - img "清除" [ref=e2321]
+          - generic [ref=e710]:
+            - main "更新公告 （频道）" [ref=e1772]:
+              - heading "更新公告 聊天" [level=2] [ref=e1774]
+              - generic [ref=e1775]:
+                - generic [ref=e1776]:
+                  - button "跳转至最后的未读信息" [ref=e1777] [cursor=pointer]: 自从 2026年9月17日 01:40 以来有 2 条新消息
+                  - button "标记为已读" [ref=e1779] [cursor=pointer]
+                - group [ref=e1784]:
+                  - list "更新公告中的消息" [ref=e1786]:
+                    - generic [ref=e1787]:
+                      - heading [level=3] [ref=e1790]
+                      - heading [level=3] [ref=e1807]
+                      - heading [level=3] [ref=e1813]
+                      - heading [level=3] [ref=e1819]
+                      - heading [level=3] [ref=e1836]
+                      - heading [level=3] [ref=e1848]
+                      - heading [level=3] [ref=e1857]
+                      - heading [level=3] [ref=e1863]
+                      - heading [level=3] [ref=e1875]
+                    - separator "2026年8月7日"
+                    - listitem [ref=e1883]:
+                      - article "时间的狱友(不会主动私聊你) 服务器标签：夜航社 , @everyone API已经上线测试，可以自助在网站右上角个人中心创建API Key来使用，没有的话刷新下。大家要是遇到什么问题随时反馈 🫡 图片 🫡 22 👍 6 添加反应 , 2026/8/7 00:41" [ref=e1884]:
+                        - generic [ref=e1885]:
+                          - img [aria-hidden] [ref=e1886] [cursor=pointer]
+                          - heading [level=3] [ref=e1887]:
+                            - generic [ref=e1888]:
+                              - button "时间的狱友(不会主动私聊你)" [ref=e1889]
+                              - button "服务器标签：夜航社" [ref=e1891] [cursor=pointer]:
+                                - generic [ref=e1892]:
+                                  - generic [ref=e1893]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/8/7 00:41
+                              - generic: 2026年8月7日星期五 00:41
+                          - generic [ref=e1899]:
+                            - button "@everyone" [ref=e1900] [cursor=pointer]
+                            - text: API已经上线测试，可以自助在网站右上角个人中心创建API Key来使用，没有的话刷新下。大家要是遇到什么问题随时反馈
+                            - button [ref=e1901] [cursor=pointer]:
+                              - img "🫡" [ref=e1902]
+                        - generic [ref=e1903]:
+                          - generic [ref=e1909] [cursor=pointer]:
+                            - link [aria-hidden] [ref=e1910]:
+                              - /url: https://cdn.discordapp.com/attachments/1489519795954122883/1534949642435956776/image.png?ex=6aaead40&is=6aad5bc0&hm=f6f70b377fc1eeb5db5fb248d4ade950488cbb8267773dd3a8c164a0800c4306&
+                            - button "图片" [ref=e1911]
+                          - group [ref=e1913]:
+                            - generic [ref=e1914] [cursor=pointer]:
+                              - img "🫡" [ref=e1915]
+                              - generic [ref=e1916]: "22"
+                            - generic [ref=e1917] [cursor=pointer]:
+                              - img "👍" [ref=e1918]
+                              - generic [ref=e1919]: "6"
+                            - button [ref=e1921] [cursor=pointer]
+                            - generic [ref=e1924]: 添加反应
+                    - separator "2026年8月13日"
+                    - listitem [ref=e1925]:
+                      - article "时间的狱友(不会主动私聊你) 服务器标签：夜航社 , 对API/MCP接口进行了更新，收窄了一些自研数据的范围，但是不会影响大家使用的主要功能，节约点流量，另外发现有些人在恶意打API接口大量下载数据，别被我抓到，不然有你好果子吃。 图片 👍 5 添加反应 , 2026/8/13 21:40" [ref=e1926]:
+                        - generic [ref=e1927]:
+                          - img [aria-hidden] [ref=e1928] [cursor=pointer]
+                          - heading [level=3] [ref=e1929]:
+                            - generic [ref=e1930]:
+                              - button "时间的狱友(不会主动私聊你)" [ref=e1931]
+                              - button "服务器标签：夜航社" [ref=e1933] [cursor=pointer]:
+                                - generic [ref=e1934]:
+                                  - generic [ref=e1935]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/8/13 21:40
+                              - generic: 2026年8月13日星期四 21:40
+                          - generic [ref=e1941]: 对API/MCP接口进行了更新，收窄了一些自研数据的范围，但是不会影响大家使用的主要功能，节约点流量，另外发现有些人在恶意打API接口大量下载数据，别被我抓到，不然有你好果子吃。
+                        - generic [ref=e1942]:
+                          - generic [ref=e1948] [cursor=pointer]:
+                            - link [aria-hidden] [ref=e1949]:
+                              - /url: https://cdn.discordapp.com/attachments/1489519795954122883/1537440716366815282/image.png?ex=6aaf2b7f&is=6aadd9ff&hm=0bbe447444208b351122b16dc210b56c3c624d48d100941716c1c0e015219565&
+                            - button "图片" [ref=e1950]
+                          - group [ref=e1952]:
+                            - generic [ref=e1953] [cursor=pointer]:
+                              - img "👍" [ref=e1954]
+                              - generic [ref=e1955]: "5"
+                            - button [ref=e1957] [cursor=pointer]
+                            - generic [ref=e1960]: 添加反应
+                    - listitem [ref=e1961]:
+                      - article "时间的狱友(不会主动私聊你) 服务器标签：夜航社 , 另外新的split view视角也已经更新上线了，大家可以多用用，Heatmap和Chart左右两边的ticker都可以自定义选择，有问题及时提。 @everyone 图片 ❤️ 22 👑 7 👍 3 添加反应 , 21:40" [ref=e1962]:
+                        - generic [ref=e1963]:
+                          - generic:
+                            - generic:
+                              - time:
+                                - generic [aria-hidden]: "["
+                                - text: 21:40
+                                - generic [aria-hidden]: "]"
+                            - generic: 2026年8月13日星期四 21:40
+                          - generic [ref=e1970]:
+                            - text: 另外新的split view视角也已经更新上线了，大家可以多用用，Heatmap和Chart左右两边的ticker都可以自定义选择，有问题及时提。
+                            - button "@everyone" [ref=e1971] [cursor=pointer]
+                        - generic [ref=e1972]:
+                          - generic [ref=e1978] [cursor=pointer]:
+                            - link [aria-hidden] [ref=e1979]:
+                              - /url: https://cdn.discordapp.com/attachments/1489519795954122883/1537440778928791613/image.png?ex=6aaf2b8d&is=6aadda0d&hm=12355a0ad4b23359fbcf25cc5197ee1796667b3df393b1ab4422adadbdec331f&
+                            - button "图片" [ref=e1980]
+                          - group [ref=e1982]:
+                            - generic [ref=e1983] [cursor=pointer]:
+                              - img "❤️" [ref=e1984]
+                              - generic [ref=e1985]: "22"
+                            - generic [ref=e1986] [cursor=pointer]:
+                              - img "👑" [ref=e1987]
+                              - generic [ref=e1988]: "7"
+                            - generic [ref=e1989] [cursor=pointer]:
+                              - img "👍" [ref=e1990]
+                              - generic [ref=e1991]: "3"
+                            - button [ref=e1993] [cursor=pointer]
+                            - generic [ref=e1996]: 添加反应
+                    - separator "2026年8月17日"
+                    - listitem [ref=e1997]:
+                      - article [ref=e1998]:
+                        - generic [ref=e1999]:
+                          - img [aria-hidden] [ref=e2000] [cursor=pointer]
+                          - heading [level=3] [ref=e2001]:
+                            - button "Karrigan" [ref=e2003]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/8/17 20:49
+                              - generic: 2026年8月17日星期一 20:49
+                          - generic [ref=e2009]:
+                            - button "@everyone" [ref=e2010] [cursor=pointer]
+                            - text: 更新公告
+                            - button [ref=e2011] [cursor=pointer]:
+                              - img "📢" [ref=e2012]
+                            - text: Heatmap Replay 功能将于今天正式上线，大家可以更直观地回顾市场走势与交易过程，欢迎体验并向我们反馈使用感受。 另外，本次日内交流频道体验活动将于今天结束，会员内容也将恢复为仅对付费会员开放。 再次感谢每一位朋友对社区的关注与支持。我们会继续打磨产品、完善内容，为大家带来更好的使用体验！
+                            - button [ref=e2013] [cursor=pointer]:
+                              - img "🚀" [ref=e2014]
+                            - text: 祝大家交易顺利！
+                            - button [ref=e2015] [cursor=pointer]:
+                              - img "❤️" [ref=e2016]
+                        - group [ref=e2018]:
+                          - generic [ref=e2019] [cursor=pointer]:
+                            - img "❤️" [ref=e2020]
+                            - generic [ref=e2021]: "32"
+                          - button [ref=e2023] [cursor=pointer]
+                          - generic [ref=e2026]: 添加反应
+                    - separator "2026年8月23日"
+                    - listitem [ref=e2027]:
+                      - article [ref=e2028]:
+                        - generic [ref=e2029]:
+                          - img [aria-hidden] [ref=e2030] [cursor=pointer]
+                          - heading [level=3] [ref=e2031]:
+                            - generic [ref=e2032]:
+                              - button "时间的狱友(不会主动私聊你)" [ref=e2033]
+                              - button "服务器标签：夜航社" [ref=e2035] [cursor=pointer]:
+                                - generic [ref=e2036]:
+                                  - generic [ref=e2037]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/8/23 01:21
+                              - generic: 2026年8月23日星期日 01:21
+                          - generic [ref=e2043]:
+                            - button "@everyone" [ref=e2044] [cursor=pointer]
+                            - text: 这次更新优化了许多前端体验和细节，并且整体网站速度会更快。 并且大家反馈的Chart和replay lab的优化也基本都安排上去了。 策略复盘也加入了蝴蝶策略，大家可以继续多投品鉴复盘Heatmap
+                            - button [ref=e2045] [cursor=pointer]:
+                              - img ":emoji_25:" [ref=e2046]
+                            - text: 祝大家的交易更上一层楼
+                        - group [ref=e2048]:
+                          - generic [ref=e2049] [cursor=pointer]:
+                            - img "👍" [ref=e2050]
+                            - generic [ref=e2051]: "31"
+                          - generic [ref=e2052] [cursor=pointer]:
+                            - img "🔥" [ref=e2053]
+                            - generic [ref=e2054]: "6"
+                          - button [ref=e2056] [cursor=pointer]
+                          - generic [ref=e2059]: 添加反应
+                    - separator "2026年8月27日"
+                    - listitem [ref=e2060]:
+                      - article "时间的狱友(不会主动私聊你) 服务器标签：夜航社 , @everyone VWAP已经上线，刷新之后就可以看到这个按钮，支持所有的股票，指数不支持 图片 🔥 21 添加反应 , 2026/8/27 21:12" [ref=e2061]:
+                        - generic [ref=e2062]:
+                          - img [aria-hidden] [ref=e2063] [cursor=pointer]
+                          - heading [level=3] [ref=e2064]:
+                            - generic [ref=e2065]:
+                              - button "时间的狱友(不会主动私聊你)" [ref=e2066]
+                              - button "服务器标签：夜航社" [ref=e2068] [cursor=pointer]:
+                                - generic [ref=e2069]:
+                                  - generic [ref=e2070]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/8/27 21:12
+                              - generic: 2026年8月27日星期四 21:12
+                          - generic [ref=e2076]:
+                            - button "@everyone" [ref=e2077] [cursor=pointer]
+                            - text: VWAP已经上线，刷新之后就可以看到这个按钮，支持所有的股票，指数不支持
+                        - generic [ref=e2078]:
+                          - generic [ref=e2084] [cursor=pointer]:
+                            - link [aria-hidden] [ref=e2085]:
+                              - /url: https://cdn.discordapp.com/attachments/1489519795954122883/1542506973155827752/image.png?ex=6aaf24d0&is=6aadd350&hm=1a63cfd80d4c868797c14015549abeea7301b31d7ebdd7d9ec357eca4e31b77d&
+                            - button "图片" [ref=e2086]
+                          - group [ref=e2088]:
+                            - generic [ref=e2089] [cursor=pointer]:
+                              - img "🔥" [ref=e2090]
+                              - generic [ref=e2091]: "21"
+                            - button [ref=e2093] [cursor=pointer]
+                            - generic [ref=e2096]: 添加反应
+                    - separator "2026年9月9日"
+                    - listitem [ref=e2097]:
+                      - article "时间的狱友(不会主动私聊你) 服务器标签：夜航社 , @everyone Flow相关的功能已经上线测试了，如果没看到就刷新下，目前的已知问题是NCP和NPP计算不太准确，或者性能方面会卡一下，这个之后会修复，然后可能还有一些体验类的小Bug，大家要是遇到的话可以在论坛频道⁠产品需求和bug反馈 反馈，如果有交互和数据方面的问题也可以一并提出，不多说别的，在看Flow这块基本上可以平替unusual whale了。 图片 👍 18 🚀 3 添加反应 , 2026/9/9 01:40" [ref=e2098]:
+                        - generic [ref=e2099]:
+                          - img [aria-hidden] [ref=e2100] [cursor=pointer]
+                          - heading [level=3] [ref=e2101]:
+                            - generic [ref=e2102]:
+                              - button "时间的狱友(不会主动私聊你)" [ref=e2103]
+                              - button "服务器标签：夜航社" [ref=e2105] [cursor=pointer]:
+                                - generic [ref=e2106]:
+                                  - generic [ref=e2107]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/9 01:40
+                              - generic: 2026年9月9日星期三 01:40
+                          - generic [ref=e2113]:
+                            - button "@everyone" [ref=e2114] [cursor=pointer]
+                            - text: Flow相关的功能已经上线测试了，如果没看到就刷新下，目前的已知问题是NCP和NPP计算不太准确，或者性能方面会卡一下，这个之后会修复，然后可能还有一些体验类的小Bug，大家要是遇到的话可以在
+                            - link "论坛频道⁠产品需求和bug反馈" [ref=e2115] [cursor=pointer]:
+                              - generic [ref=e2116]:
+                                - generic [ref=e2117]:
+                                  - img "论坛频道" [ref=e2118]
+                                  - text: ⁠
+                                - generic [ref=e2121]: 产品需求和bug反馈
+                            - text: 反馈，如果有交互和数据方面的问题也可以一并提出，不多说别的，在看Flow这块基本上可以平替unusual whale了。
+                        - generic [ref=e2122]:
+                          - generic [ref=e2128] [cursor=pointer]:
+                            - link [aria-hidden] [ref=e2129]:
+                              - /url: https://cdn.discordapp.com/attachments/1489519795954122883/1546923270677463101/image.png?ex=6aaebb10&is=6aad6990&hm=5f20ae27e7762fafe3c222d4c509b2f903a7035bc04b3e13c5e19d5672c3ed23&
+                            - button "图片" [ref=e2130]
+                          - group [ref=e2132]:
+                            - generic [ref=e2133] [cursor=pointer]:
+                              - img "👍" [ref=e2134]
+                              - generic [ref=e2135]: "18"
+                            - generic [ref=e2136] [cursor=pointer]:
+                              - img "🚀" [ref=e2137]
+                              - generic [ref=e2138]: "3"
+                            - button [ref=e2140] [cursor=pointer]
+                            - generic [ref=e2143]: 添加反应
+                    - separator "2026年9月14日"
+                    - listitem [ref=e2144]:
+                      - article [ref=e2145]:
+                        - generic [ref=e2146]:
+                          - img [aria-hidden] [ref=e2147] [cursor=pointer]
+                          - heading [level=3] [ref=e2148]:
+                            - generic [ref=e2149]:
+                              - button "时间的狱友(不会主动私聊你)" [ref=e2150]
+                              - button "服务器标签：夜航社" [ref=e2152] [cursor=pointer]:
+                                - generic [ref=e2153]:
+                                  - generic [ref=e2154]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/14 15:54
+                              - generic: 2026年9月14日星期一 15:54
+                          - generic [ref=e2160]:
+                            - text: 本周更新公告： Dealer Vex正式上线，相关文档已经更新完毕。 • GEX 告诉你价格动多少会触发对冲流，VEX 告诉你波动率动多少会触发对冲流。IV 每变化 1 个百分点，做市商在哪个行权价、哪个到期日被迫买入或卖出多少美元——全部实时展示在你熟悉的热图上，GEX / VEX 一键切换。波动率交易者的第二张地图。（API和历史回放之后会上线） Ask APEX 升级： • 看得到所有股票：新增全市场不同ticker的对比，可以直接让Apex对好几个股票的结构进行比较。 • 看得懂"变化"：新增的结构对比能力，可以告诉你"现在和一小时前相比，市场结构发生了什么变化"——墙移了没？射程扩了没？ • 更懂波动率：接入 VEX 情景描述与 IV 条件判读，回答的维度再上一层。 • 更可靠：长回答不再莫名消失，异常提示清晰可见，一键快捷问句"解读一下当前结构"随点随答。 Heatmap 全面提速 • 首屏加载更快、稳定性大幅提升，多开几个标签页也不会再被误伤限流、连接更稳。背后的管道刚刚经历了一轮彻底的性能重构。 开发者体验 • Data API 与 MCP 服务完成一轮可靠性加固：历史回填更稳、错误语义更清晰、降低了大家的额度消耗， 预告：模拟交易（Paper Trading） 多腿价差、保证金账户、实时盯市，AI分析交易记录都已经在最后测试阶段，即将开放敬请期待。
+                            - button "@everyone" [ref=e2161] [cursor=pointer]
+                        - group [ref=e2163]:
+                          - generic [ref=e2164] [cursor=pointer]:
+                            - img "🔥" [ref=e2165]
+                            - generic [ref=e2166]: "36"
+                          - generic [ref=e2167] [cursor=pointer]:
+                            - img "🤣" [ref=e2168]
+                            - generic [ref=e2169]: "1"
+                          - generic [ref=e2170] [cursor=pointer]:
+                            - img "❤️" [ref=e2171]
+                            - generic [ref=e2172]: "2"
+                          - button [ref=e2174] [cursor=pointer]
+                          - generic [ref=e2177]: 添加反应
+                    - separator "新的, 2026年9月17日":
+                      - generic: 2026年9月17日
+                      - generic: 新的
+                    - listitem [ref=e2178]:
+                      - article "时间的狱友(不会主动私聊你) 服务器标签：夜航社 , 更新了Heatmap的聚焦模式和变化速率在格子上直接显示的功能，鼠标悬停在开关上可以看到具体说明，赶在FOMC之前给大家安排上了 @everyone 图片 saluting face, 17 个反应，按下以反应 添加反应 , 2026/9/17 01:40" [ref=e2179]:
+                        - generic [ref=e2180]:
+                          - img [aria-hidden] [ref=e2181] [cursor=pointer]
+                          - heading [level=3] [ref=e2182]:
+                            - generic [ref=e2183]:
+                              - button "时间的狱友(不会主动私聊你)" [ref=e2184]
+                              - button "服务器标签：夜航社" [ref=e2186] [cursor=pointer]:
+                                - generic [ref=e2187]:
+                                  - generic [ref=e2188]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/17 01:40
+                              - generic: 2026年9月17日星期四 01:40
+                          - generic [ref=e2194]:
+                            - text: 更新了Heatmap的聚焦模式和变化速率在格子上直接显示的功能，鼠标悬停在开关上可以看到具体说明，赶在FOMC之前给大家安排上了
+                            - button "@everyone" [ref=e2195] [cursor=pointer]
+                        - generic [ref=e2196]:
+                          - generic [ref=e2202] [cursor=pointer]:
+                            - link [aria-hidden] [ref=e2203]:
+                              - /url: https://cdn.discordapp.com/attachments/1489519795954122883/1549822215447519322/image.png?ex=6aaebaea&is=6aad696a&hm=e964c84ae4f5bb04aeebc592fec7e68daaa1677309be9fec7dcf21df0ec6d9c6&
+                            - button "图片" [ref=e2204]:
+                              - img "图片" [ref=e2206]
+                          - group [ref=e2207]:
+                            - button "saluting face, 17 个反应，按下以反应" [ref=e2210] [cursor=pointer]:
+                              - img "🫡" [ref=e2212]
+                              - generic [ref=e2213]: "17"
+                            - button [ref=e2215] [cursor=pointer]
+                            - generic [ref=e2218]: 添加反应
+                    - separator "2026年9月18日"
+                    - listitem [ref=e2219]:
+                      - article "时间的狱友(不会主动私聊你) 服务器标签：夜航社 , 期权模拟盘上线了，支持所有的Heatmap ticker，支持0DTE，支持多腿期权组合，支持纯卖期权，保证金风控和手续费基本和实盘的是差不多的，初始资金10万U，大家先玩玩有什么问题及时反馈，交易比赛晚点再上 @everyone 图片 🫡 13 🔥 5 添加反应 , 昨天18:06" [ref=e2220]:
+                        - generic [ref=e2221]:
+                          - img [aria-hidden] [ref=e2222] [cursor=pointer]
+                          - heading [level=3] [ref=e2223]:
+                            - generic [ref=e2224]:
+                              - button "时间的狱友(不会主动私聊你)" [ref=e2225]
+                              - button "服务器标签：夜航社" [ref=e2227] [cursor=pointer]:
+                                - generic [ref=e2228]:
+                                  - generic [ref=e2229]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 昨天18:06
+                              - generic: 2026年9月18日星期五 18:06
+                          - generic [ref=e2235]:
+                            - text: 期权模拟盘上线了，支持所有的Heatmap ticker，支持0DTE，支持多腿期权组合，支持纯卖期权，保证金风控和手续费基本和实盘的是差不多的，初始资金10万U，大家先玩玩有什么问题及时反馈，交易比赛晚点再上
+                            - button "@everyone" [ref=e2236] [cursor=pointer]
+                        - generic [ref=e2237]:
+                          - generic [ref=e2243] [cursor=pointer]:
+                            - link [aria-hidden] [ref=e2244]:
+                              - /url: https://cdn.discordapp.com/attachments/1489519795954122883/1550432774777737277/image.png?ex=6aaef94b&is=6aada7cb&hm=afdfe158f9519320cf062e8936a7a0967e51ea7c9f6795afaf6d423b82496f7d&
+                            - button "图片" [ref=e2245]
+                          - group [ref=e2247]:
+                            - generic [ref=e2248] [cursor=pointer]:
+                              - img "🫡" [ref=e2249]
+                              - generic [ref=e2250]: "13"
+                            - generic [ref=e2251] [cursor=pointer]:
+                              - img "🔥" [ref=e2252]
+                              - generic [ref=e2253]: "5"
+                            - button [ref=e2255] [cursor=pointer]
+                            - generic [ref=e2258]: 添加反应
+              - generic [ref=e2264]:
+                - generic:
+                  - generic:
+                    - generic [aria-hidden]: 您没有权限在此频道中发送消息。
+                    - generic "您没有权限在此频道中发送消息。"
+            - region "搜索结果" [ref=e2322]:
+              - generic [ref=e2323]:
+                - status [ref=e2324]:
+                  - generic [ref=e3211]: 286个结果
+                - generic [ref=e2326]:
+                  - button "筛选" [ref=e2327] [cursor=pointer]
+                  - button "排序" [ref=e2333] [cursor=pointer]
+              - list [ref=e3212]:
+                - group "盘后日报, 信息分享" [ref=e3213]:
+                  - button "盘后日报 盘后日报 信息分享" [ref=e3214]:
+                    - generic [ref=e3215] [cursor=pointer]:
+                      - generic [ref=e3219]:
+                        - generic [ref=e3220]: 盘后日报
+                        - generic [ref=e3222]: 盘后日报
+                      - generic [ref=e3223]: 信息分享
+                  - listitem [ref=e3227]:
+                    - button [ref=e3228] [cursor=pointer]:
+                      - article "AlphaAgent APP , 🎯 收盘结构日报 2026-09-18 市场情绪仍在轮动，半导体：设备与EDA、金融科技与数字资产方向相对占优，尾盘结构暂未出现明显失衡。 市场概况 M7 平均：-0.06% , 宽度：83涨 / 117跌 / 0平 (42%) , 恐慌指数：UVXY +0.34% , 大盘：SPY +0.05%，QQQ +0.79% , 结论：情绪有所修复，但轮动仍在继续。 , 06:02" [ref=e3230]:
+                        - generic [ref=e3231]:
+                          - heading [level=2] [ref=e3232]:
+                            - generic [ref=e3233]:
+                              - button "AlphaAgent" [ref=e3234]
+                              - img "APP" [ref=e3235]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 06:02
+                              - generic: 2026年9月19日星期六 06:02
+                          - generic [ref=e3237]:
+                            - button [ref=e3238]:
+                              - img "🎯" [ref=e3239]
+                            - text: 收盘结构日报 2026-09-18 市场情绪仍在轮动，半导体：设备与EDA、金融科技与数字资产方向相对占优，尾盘结构暂未出现明显失衡。 市场概况
+                            - list [ref=e3240]:
+                              - listitem [ref=e3241]:
+                                - generic [ref=e3242]: M7 平均：-0.06%
+                                - generic [ref=e3243]: ","
+                              - listitem [ref=e3244]:
+                                - generic [ref=e3245]: 宽度：83涨 / 117跌 / 0平 (42%)
+                                - generic [ref=e3246]: ","
+                              - listitem [ref=e3247]:
+                                - generic [ref=e3248]: 恐慌指数：UVXY +0.34%
+                                - generic [ref=e3249]: ","
+                              - listitem [ref=e3250]:
+                                - generic [ref=e3251]: 大盘：SPY +0.05%，QQQ +0.79%
+                                - generic [ref=e3252]: ","
+                            - text: 结论：情绪有所修复，但轮动仍在继续。
+                  - listitem [ref=e3253]:
+                    - button [ref=e3254] [cursor=pointer]:
+                      - article "AlphaAgent APP , 🎯 收盘结构日报 2026-09-17 风险偏好回暖，半导体：计算芯片与设计、半导体：设备与EDA方向相对占优，尾盘结构暂未出现明显失衡。 市场概况 M7 平均：+1.65% , 宽度：131涨 / 68跌 / 1平 (66%) , 恐慌指数：UVXY -5.62% , 大盘：SPY +1.07%，QQQ +1.62% , 结论：情绪有所修复，但轮动仍在继续。 , 昨天06:01" [ref=e3256]:
+                        - generic [ref=e3257]:
+                          - heading [level=2] [ref=e3258]:
+                            - generic [ref=e3259]:
+                              - button "AlphaAgent" [ref=e3260]
+                              - img "APP" [ref=e3261]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 昨天06:01
+                              - generic: 2026年9月18日星期五 06:01
+                          - generic [ref=e3263]:
+                            - button [ref=e3264]:
+                              - img "🎯" [ref=e3265]
+                            - text: 收盘结构日报 2026-09-17 风险偏好回暖，半导体：计算芯片与设计、半导体：设备与EDA方向相对占优，尾盘结构暂未出现明显失衡。 市场概况
+                            - list [ref=e3266]:
+                              - listitem [ref=e3267]:
+                                - generic [ref=e3268]: M7 平均：+1.65%
+                                - generic [ref=e3269]: ","
+                              - listitem [ref=e3270]:
+                                - generic [ref=e3271]: 宽度：131涨 / 68跌 / 1平 (66%)
+                                - generic [ref=e3272]: ","
+                              - listitem [ref=e3273]:
+                                - generic [ref=e3274]: 恐慌指数：UVXY -5.62%
+                                - generic [ref=e3275]: ","
+                              - listitem [ref=e3276]:
+                                - generic [ref=e3277]: 大盘：SPY +1.07%，QQQ +1.62%
+                                - generic [ref=e3278]: ","
+                            - text: 结论：情绪有所修复，但轮动仍在继续。
+                  - listitem [ref=e3279]:
+                    - button [ref=e3280] [cursor=pointer]:
+                      - article "AlphaAgent APP , 🎯 收盘结构日报 2026-09-16 市场情绪转弱，存储与数据中心硬件、半导体：设备与EDA方向相对占优，尾盘结构暂未出现明显失衡。 市场概况 M7 平均：-0.04% , 宽度：76涨 / 123跌 / 1平 (38%) , 恐慌指数：UVXY +1.96% , 大盘：SPY -0.44%，QQQ +0.05% , 结论：情绪有所修复，但轮动仍在继续。 , 2026/9/17 06:01" [ref=e3282]:
+                        - generic [ref=e3283]:
+                          - heading [level=2] [ref=e3284]:
+                            - generic [ref=e3285]:
+                              - button "AlphaAgent" [ref=e3286]
+                              - img "APP" [ref=e3287]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/17 06:01
+                              - generic: 2026年9月17日星期四 06:01
+                          - generic [ref=e3289]:
+                            - button [ref=e3290]:
+                              - img "🎯" [ref=e3291]
+                            - text: 收盘结构日报 2026-09-16 市场情绪转弱，存储与数据中心硬件、半导体：设备与EDA方向相对占优，尾盘结构暂未出现明显失衡。 市场概况
+                            - list [ref=e3292]:
+                              - listitem [ref=e3293]:
+                                - generic [ref=e3294]: M7 平均：-0.04%
+                                - generic [ref=e3295]: ","
+                              - listitem [ref=e3296]:
+                                - generic [ref=e3297]: 宽度：76涨 / 123跌 / 1平 (38%)
+                                - generic [ref=e3298]: ","
+                              - listitem [ref=e3299]:
+                                - generic [ref=e3300]: 恐慌指数：UVXY +1.96%
+                                - generic [ref=e3301]: ","
+                              - listitem [ref=e3302]:
+                                - generic [ref=e3303]: 大盘：SPY -0.44%，QQQ +0.05%
+                                - generic [ref=e3304]: ","
+                            - text: 结论：情绪有所修复，但轮动仍在继续。
+                  - listitem [ref=e3305]:
+                    - button [ref=e3306] [cursor=pointer]:
+                      - article "AlphaAgent APP , 🎯 收盘结构日报 2026-09-15 市场情绪转弱，半导体：计算芯片与设计、网络安全方向相对占优，尾盘结构暂未出现明显失衡。 市场概况 M7 平均：-0.65% , 宽度：79涨 / 119跌 / 2平 (40%) , 恐慌指数：UVXY -0.35% , 大盘：SPY -0.37%，QQQ -0.55% , 结论：情绪有所修复，但轮动仍在继续。 , 2026/9/16 06:01" [ref=e3308]:
+                        - generic [ref=e3309]:
+                          - heading [level=2] [ref=e3310]:
+                            - generic [ref=e3311]:
+                              - button "AlphaAgent" [ref=e3312]
+                              - img "APP" [ref=e3313]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/16 06:01
+                              - generic: 2026年9月16日星期三 06:01
+                          - generic [ref=e3315]:
+                            - button [ref=e3316]:
+                              - img "🎯" [ref=e3317]
+                            - text: 收盘结构日报 2026-09-15 市场情绪转弱，半导体：计算芯片与设计、网络安全方向相对占优，尾盘结构暂未出现明显失衡。 市场概况
+                            - list [ref=e3318]:
+                              - listitem [ref=e3319]:
+                                - generic [ref=e3320]: M7 平均：-0.65%
+                                - generic [ref=e3321]: ","
+                              - listitem [ref=e3322]:
+                                - generic [ref=e3323]: 宽度：79涨 / 119跌 / 2平 (40%)
+                                - generic [ref=e3324]: ","
+                              - listitem [ref=e3325]:
+                                - generic [ref=e3326]: 恐慌指数：UVXY -0.35%
+                                - generic [ref=e3327]: ","
+                              - listitem [ref=e3328]:
+                                - generic [ref=e3329]: 大盘：SPY -0.37%，QQQ -0.55%
+                                - generic [ref=e3330]: ","
+                            - text: 结论：情绪有所修复，但轮动仍在继续。
+                  - listitem [ref=e3331]:
+                    - button [ref=e3332] [cursor=pointer]:
+                      - article "AlphaAgent APP , 🎯 收盘结构日报 2026-09-14 市场情绪仍在轮动，网络安全、企业软件与数据平台方向相对占优，尾盘结构暂未出现明显失衡。 市场概况 M7 平均：+0.28% , 宽度：103涨 / 96跌 / 1平 (52%) , 恐慌指数：UVXY +0.94% , 大盘：SPY -0.43%，QQQ -0.68% , 结论：情绪有所修复，但轮动仍在继续。 , 2026/9/15 06:01" [ref=e3334]:
+                        - generic [ref=e3335]:
+                          - heading [level=2] [ref=e3336]:
+                            - generic [ref=e3337]:
+                              - button "AlphaAgent" [ref=e3338]
+                              - img "APP" [ref=e3339]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/15 06:01
+                              - generic: 2026年9月15日星期二 06:01
+                          - generic [ref=e3341]:
+                            - button [ref=e3342]:
+                              - img "🎯" [ref=e3343]
+                            - text: 收盘结构日报 2026-09-14 市场情绪仍在轮动，网络安全、企业软件与数据平台方向相对占优，尾盘结构暂未出现明显失衡。 市场概况
+                            - list [ref=e3344]:
+                              - listitem [ref=e3345]:
+                                - generic [ref=e3346]: M7 平均：+0.28%
+                                - generic [ref=e3347]: ","
+                              - listitem [ref=e3348]:
+                                - generic [ref=e3349]: 宽度：103涨 / 96跌 / 1平 (52%)
+                                - generic [ref=e3350]: ","
+                              - listitem [ref=e3351]:
+                                - generic [ref=e3352]: 恐慌指数：UVXY +0.94%
+                                - generic [ref=e3353]: ","
+                              - listitem [ref=e3354]:
+                                - generic [ref=e3355]: 大盘：SPY -0.43%，QQQ -0.68%
+                                - generic [ref=e3356]: ","
+                            - text: 结论：情绪有所修复，但轮动仍在继续。
+                  - listitem [ref=e3357]:
+                    - button [ref=e3358] [cursor=pointer]:
+                      - article "AlphaAgent APP , 🎯 收盘结构日报 2026-09-11 风险偏好回暖，存储与数据中心硬件、半导体：计算芯片与设计方向相对占优，尾盘结构暂未出现明显失衡。 市场概况 M7 平均：+0.98% , 宽度：140涨 / 61跌 / 0平 (70%) , 恐慌指数：UVXY -6.67% , 大盘：SPY +0.86%，QQQ +0.88% , 结论：情绪有所修复，但轮动仍在继续。 , 2026/9/12 06:01" [ref=e3360]:
+                        - generic [ref=e3361]:
+                          - heading [level=2] [ref=e3362]:
+                            - generic [ref=e3363]:
+                              - button "AlphaAgent" [ref=e3364]
+                              - img "APP" [ref=e3365]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/12 06:01
+                              - generic: 2026年9月12日星期六 06:01
+                          - generic [ref=e3367]:
+                            - button [ref=e3368]:
+                              - img "🎯" [ref=e3369]
+                            - text: 收盘结构日报 2026-09-11 风险偏好回暖，存储与数据中心硬件、半导体：计算芯片与设计方向相对占优，尾盘结构暂未出现明显失衡。 市场概况
+                            - list [ref=e3370]:
+                              - listitem [ref=e3371]:
+                                - generic [ref=e3372]: M7 平均：+0.98%
+                                - generic [ref=e3373]: ","
+                              - listitem [ref=e3374]:
+                                - generic [ref=e3375]: 宽度：140涨 / 61跌 / 0平 (70%)
+                                - generic [ref=e3376]: ","
+                              - listitem [ref=e3377]:
+                                - generic [ref=e3378]: 恐慌指数：UVXY -6.67%
+                                - generic [ref=e3379]: ","
+                              - listitem [ref=e3380]:
+                                - generic [ref=e3381]: 大盘：SPY +0.86%，QQQ +0.88%
+                                - generic [ref=e3382]: ","
+                            - text: 结论：情绪有所修复，但轮动仍在继续。
+                - group "junkman-analysis, 星河会客厅" [ref=e3383]:
+                  - button "junkman-analysis junkman-analysis 星河会客厅" [ref=e3384]:
+                    - generic [ref=e3385] [cursor=pointer]:
+                      - generic [ref=e3389]:
+                        - generic [ref=e3390]: junkman-analysis
+                        - generic [ref=e3392]: junkman-analysis
+                      - generic [ref=e3393]: 星河会客厅
+                  - listitem [ref=e3397]:
+                    - button [ref=e3398] [cursor=pointer]:
+                      - article "junk_man 服务器标签：夜航社 , ⚡ SPX｜更新分析 💵 SPY 推算开盘约 7591.3（09:27 ET），不是现金指数实时价。页面上的 7636.49 不作为今日开盘参考。 7600 未收复前，先按弱势修复处理，不预设价格一定向上磁吸。 🎯 关键位与操作 🔴 7635｜上墙； 🔵 7630.3｜局部 Flip：沿用较早快照，属于远端背景位，暂不作为开盘入场依据。 , 🟢 7600｜原 Put Wall，现位于预计开盘价上方：不同来源在这里的 Gamma 符号相反，既可能钉住，也可能形成反压。只有站稳并回踩守住，才观察 7605 → 7610；冲上去又跌回，则修复失败。 , 🚧 7595｜最近反压：反抽不过，先看 7590 → 7585；重新站稳并回踩守住，才有条件试探 7600。 , ⚠️ 7590｜下行确认位：跌破且反抽不过，观察 7585 → 7580；重新收回 7590，则暂停追空。 , 🛟 7585–7580｜条件承接区：有结构分歧，不能当硬支撑。止跌并收回 7590 才观察反弹；继续失守，下一观察点是 7575。 , 🎬 开盘交易计划 📉 反抽受阻： 等 7595 附近反抽失败，再观察 7590 / 7585；站稳 7595，该空头条件失效。 📈 修复反弹： 等 7595 收复并回踩守住，先看 7600；突破 7600 后需再次确认，不能直接把 7610 当必达目标。 ⏸️ 等待： 若困在 7590–7595 反复穿越，先不选方向。以一根 5 分钟收线加回踩/反抽确认；确认时若已到第一目标，就不追。 核心判断：先看能否收回 7595，再看能否收复 7600；守不住 7590，才打开下方空间。 , 2026/9/10 22:31" [ref=e3400]:
+                        - generic [ref=e3401]:
+                          - heading [level=2] [ref=e3402]:
+                            - generic [ref=e3403]:
+                              - button "junk_man" [ref=e3404]
+                              - button "服务器标签：夜航社" [ref=e3406]:
+                                - generic [ref=e3407]:
+                                  - generic [ref=e3408]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/10 22:31
+                              - generic: 2026年9月10日星期四 22:31
+                          - generic [ref=e3409]:
+                            - button [ref=e3410]:
+                              - img "⚡" [ref=e3411]
+                            - text: SPX｜更新分析
+                            - button [ref=e3412]:
+                              - img "💵" [ref=e3413]
+                            - text: SPY 推算开盘约 7591.3（09:27 ET），不是现金指数实时价。页面上的 7636.49 不作为今日开盘参考。 7600 未收复前，先按弱势修复处理，不预设价格一定向上磁吸。
+                            - button [ref=e3414]:
+                              - img "🎯" [ref=e3415]
+                            - text: 关键位与操作
+                            - list [ref=e3416]:
+                              - listitem [ref=e3417]:
+                                - generic [ref=e3418]:
+                                  - button [ref=e3419]:
+                                    - img "🔴" [ref=e3420]
+                                  - text: 7635｜上墙；
+                                  - button [ref=e3421]:
+                                    - img "🔵" [ref=e3422]
+                                  - text: 7630.3｜局部 Flip：沿用较早快照，属于远端背景位，暂不作为开盘入场依据。
+                                - generic [ref=e3423]: ","
+                              - listitem [ref=e3424]:
+                                - generic [ref=e3425]:
+                                  - button [ref=e3426]:
+                                    - img "🟢" [ref=e3427]
+                                  - text: 7600｜原 Put Wall，现位于预计开盘价上方：不同来源在这里的 Gamma 符号相反，既可能钉住，也可能形成反压。只有站稳并回踩守住，才观察 7605 → 7610；冲上去又跌回，则修复失败。
+                                - generic [ref=e3428]: ","
+                              - listitem [ref=e3429]:
+                                - generic [ref=e3430]:
+                                  - button [ref=e3431]:
+                                    - img "🚧" [ref=e3432]
+                                  - text: 7595｜最近反压：反抽不过，先看 7590 → 7585；重新站稳并回踩守住，才有条件试探 7600。
+                                - generic [ref=e3433]: ","
+                              - listitem [ref=e3434]:
+                                - generic [ref=e3435]:
+                                  - button [ref=e3436]:
+                                    - img "⚠️" [ref=e3437]
+                                  - text: 7590｜下行确认位：跌破且反抽不过，观察 7585 → 7580；重新收回 7590，则暂停追空。
+                                - generic [ref=e3438]: ","
+                              - listitem [ref=e3439]:
+                                - generic [ref=e3440]:
+                                  - button [ref=e3441]:
+                                    - img "🛟" [ref=e3442]
+                                  - text: 7585–7580｜条件承接区：有结构分歧，不能当硬支撑。止跌并收回 7590 才观察反弹；继续失守，下一观察点是 7575。
+                                - generic [ref=e3443]: ","
+                            - button [ref=e3444]:
+                              - img "🎬" [ref=e3445]
+                            - text: 开盘交易计划
+                            - button [ref=e3446]:
+                              - img "📉" [ref=e3447]
+                            - text: 反抽受阻： 等 7595 附近反抽失败，再观察 7590 / 7585；站稳 7595，该空头条件失效。
+                            - button [ref=e3448]:
+                              - img "📈" [ref=e3449]
+                            - text: 修复反弹： 等 7595 收复并回踩守住，先看 7600；突破 7600 后需再次确认，不能直接把 7610 当必达目标。
+                            - button [ref=e3450]:
+                              - img "⏸️" [ref=e3451]
+                            - text: 等待： 若困在 7590–7595 反复穿越，先不选方向。以一根 5 分钟收线加回踩/反抽确认；确认时若已到第一目标，就不追。 核心判断：先看能否收回 7595，再看能否收复 7600；守不住 7590，才打开下方空间。
+                - group "盘后日报, 信息分享" [ref=e3452]:
+                  - button "盘后日报 盘后日报 信息分享" [ref=e3453]:
+                    - generic [ref=e3454] [cursor=pointer]:
+                      - generic [ref=e3458]:
+                        - generic [ref=e3459]: 盘后日报
+                        - generic [ref=e3461]: 盘后日报
+                      - generic [ref=e3462]: 信息分享
+                  - listitem [ref=e3466]:
+                    - button [ref=e3467] [cursor=pointer]:
+                      - article "AlphaAgent APP , 🎯 收盘结构日报 2026-09-09 市场情绪转弱，网络安全、能源与公用事业方向相对占优，尾盘结构暂未出现明显失衡。 市场概况 M7 平均：+0.11% , 宽度：64涨 / 135跌 / 1平 (32%) , 恐慌指数：UVXY +2.34% , 大盘：SPY -0.43%，QQQ -0.29% , 结论：情绪有所修复，但轮动仍在继续。 , 2026/9/10 06:02" [ref=e3469]:
+                        - generic [ref=e3470]:
+                          - heading [level=2] [ref=e3471]:
+                            - generic [ref=e3472]:
+                              - button "AlphaAgent" [ref=e3473]
+                              - img "APP" [ref=e3474]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/10 06:02
+                              - generic: 2026年9月10日星期四 06:02
+                          - generic [ref=e3476]:
+                            - button [ref=e3477]:
+                              - img "🎯" [ref=e3478]
+                            - text: 收盘结构日报 2026-09-09 市场情绪转弱，网络安全、能源与公用事业方向相对占优，尾盘结构暂未出现明显失衡。 市场概况
+                            - list [ref=e3479]:
+                              - listitem [ref=e3480]:
+                                - generic [ref=e3481]: M7 平均：+0.11%
+                                - generic [ref=e3482]: ","
+                              - listitem [ref=e3483]:
+                                - generic [ref=e3484]: 宽度：64涨 / 135跌 / 1平 (32%)
+                                - generic [ref=e3485]: ","
+                              - listitem [ref=e3486]:
+                                - generic [ref=e3487]: 恐慌指数：UVXY +2.34%
+                                - generic [ref=e3488]: ","
+                              - listitem [ref=e3489]:
+                                - generic [ref=e3490]: 大盘：SPY -0.43%，QQQ -0.29%
+                                - generic [ref=e3491]: ","
+                            - text: 结论：情绪有所修复，但轮动仍在继续。
+                - group "junkman-analysis, 星河会客厅" [ref=e3492]:
+                  - button "junkman-analysis junkman-analysis 星河会客厅" [ref=e3493]:
+                    - generic [ref=e3494] [cursor=pointer]:
+                      - generic [ref=e3498]:
+                        - generic [ref=e3499]: junkman-analysis
+                        - generic [ref=e3501]: junkman-analysis
+                      - generic [ref=e3502]: 星河会客厅
+                  - listitem [ref=e3506]:
+                    - button [ref=e3507] [cursor=pointer]:
+                      - article [ref=e3509]:
+                        - generic [ref=e3510]:
+                          - heading [level=2] [ref=e3511]:
+                            - generic [ref=e3512]:
+                              - button "junk_man" [ref=e3513]
+                              - button "服务器标签：夜航社" [ref=e3515]:
+                                - generic [ref=e3516]:
+                                  - generic [ref=e3517]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/9 22:30
+                              - generic: 2026年9月9日星期三 22:30
+                          - generic [ref=e3518]:
+                            - text: ━━━━━━━━━━━━━━━━━━━━
+                            - heading "⚡ SPXW ," [level=2] [ref=e3519]:
+                              - generic [ref=e3520]:
+                                - button [ref=e3521]:
+                                  - img "⚡" [ref=e3522]
+                                - text: SPXW
+                              - generic [ref=e3523]: ","
+                            - blockquote [ref=e3526]:
+                              - button [ref=e3527]:
+                                - img "💵" [ref=e3528]
+                              - text: SPY 推算开盘
+                              - strong [ref=e3529]: 7,650.9
+                              - text: ｜
+                              - button [ref=e3530]:
+                                - img "🟡" [ref=e3531]
+                              - strong [ref=e3532]: 主源负 GEX，近端承接存在分歧
+                              - button [ref=e3533]:
+                                - img "🔴" [ref=e3534]
+                              - text: 上墙
+                              - strong [ref=e3535]: 7,675
+                              - text: ｜
+                              - button [ref=e3536]:
+                                - img "🔵" [ref=e3537]
+                              - text: 局部
+                              - code [ref=e3538]: FLIP
+                              - strong [ref=e3539]: 7,666.5
+                              - text: ｜
+                              - button [ref=e3540]:
+                                - img "🧲" [ref=e3541]
+                              - text: 首要观察
+                              - strong [ref=e3542]: 7,650
+                              - text: ｜
+                              - button [ref=e3543]:
+                                - img "🟢" [ref=e3544]
+                              - text: 下方结构墙
+                              - strong [ref=e3545]: 7,625
+                            - strong [ref=e3546]:
+                              - button [ref=e3547]:
+                                - img "🎯" [ref=e3548]
+                              - text: 关键位与操作
+                            - list [ref=e3549]:
+                              - listitem [ref=e3550]:
+                                - generic [ref=e3551]:
+                                  - button [ref=e3552]:
+                                    - img "🔴" [ref=e3553]
+                                  - strong [ref=e3554]: 7,675
+                                  - text: ｜主源 Call/Put 集中位均在这里，位于估算价上方；不是下方保护。先收复
+                                  - strong [ref=e3555]: 7,666.5–7,670
+                                  - text: 才观察上墙，冲高不能站稳不追多。
+                                - generic [ref=e3556]: ","
+                              - listitem [ref=e3557]:
+                                - generic [ref=e3558]:
+                                  - button [ref=e3559]:
+                                    - img "🔵" [ref=e3560]
+                                  - strong [ref=e3561]: 7,666.5
+                                  - code [ref=e3562]: FLIP
+                                  - text: ｜仅为主源局部转换，未获另一来源确认；反抽
+                                  - strong [ref=e3563]: 7,655–7,665
+                                  - text: 仍经过负 Gamma 区，不能直接假设回到 Flip。
+                                - generic [ref=e3564]: ","
+                              - listitem [ref=e3565]:
+                                - generic [ref=e3566]:
+                                  - button [ref=e3567]:
+                                    - img "🧲" [ref=e3568]
+                                  - strong [ref=e3569]: 7,650
+                                  - text: ｜补充图有强正 Gamma，主源却为负值：作为承接测试位，不视为必守磁吸。守住并收复
+                                  - strong [ref=e3570]: 7,655
+                                  - text: 才看
+                                  - strong [ref=e3571]: 7,660
+                                  - text: ；失守反抽不过先看
+                                  - strong [ref=e3572]: 7,645 → 7,640
+                                  - text: 。
+                                - generic [ref=e3573]: ","
+                              - listitem [ref=e3574]:
+                                - generic [ref=e3575]:
+                                  - button [ref=e3576]:
+                                    - img "🟢" [ref=e3577]
+                                  - strong [ref=e3578]: 7,640 / 7,625
+                                  - text: ｜补充图的下方承接层，同样存在来源分歧；
+                                  - strong [ref=e3579]: 7,640
+                                  - text: 失守先看
+                                  - strong [ref=e3580]: 7,635 → 7,630
+                                  - text: ，再观察
+                                  - strong [ref=e3581]: 7,625
+                                  - text: 。这里是结构墙，不冒充 Put Wall；
+                                  - strong [ref=e3582]: 7,625
+                                  - text: 失守关注负 Gamma 节点
+                                  - strong [ref=e3583]: 7,620
+                                  - text: 。
+                                - generic [ref=e3584]: ","
+                            - strong [ref=e3585]:
+                              - button [ref=e3586]:
+                                - img "🎯" [ref=e3587]
+                              - text: 开盘策略｜先验证 7650，不预设方向
+                            - list [ref=e3588]:
+                              - listitem [ref=e3589]:
+                                - generic [ref=e3590]:
+                                  - text: 做多条件：
+                                  - strong [ref=e3591]: 7,650
+                                  - text: 获得承接后，5 分钟收回
+                                  - strong [ref=e3592]: 7,655
+                                  - text: 且回踩守住，先看
+                                  - strong [ref=e3593]: 7,660
+                                  - text: ，再看
+                                  - strong [ref=e3594]: 7,665
+                                  - text: ；跌回
+                                  - strong [ref=e3595]: 7,655
+                                  - text: 且收不回失效。
+                                - generic [ref=e3596]: ","
+                              - listitem [ref=e3597]:
+                                - generic [ref=e3598]:
+                                  - text: 做空条件：5 分钟收在
+                                  - strong [ref=e3599]: 7,650
+                                  - text: 下方、反抽不过，先看
+                                  - strong [ref=e3600]: 7,645
+                                  - text: ，再看
+                                  - strong [ref=e3601]: 7,640
+                                  - text: ；重新站稳
+                                  - strong [ref=e3602]: 7,650
+                                  - text: 失效。
+                                - generic [ref=e3603]: ","
+                              - listitem [ref=e3604]:
+                                - generic [ref=e3605]: 进场前检查剩余空间：确认时已经到达第一目标，就不追单，等待新的回踩。
+                                - generic [ref=e3606]: ","
+                            - strong [ref=e3607]:
+                              - button [ref=e3608]:
+                                - img "🎬" [ref=e3609]
+                              - text: 三情景｜结构路径
+                            - list [ref=e3610]:
+                              - listitem [ref=e3611]:
+                                - generic [ref=e3612]:
+                                  - button [ref=e3613]:
+                                    - img "📈" [ref=e3614]
+                                  - strong [ref=e3615]: 修复
+                                  - text: ｜
+                                  - strong [ref=e3616]: 7,650.9 → 7,655 → 7,660
+                                  - text: 触发：收复
+                                  - strong [ref=e3617]: 7,655
+                                  - text: 并回踩守住；失效：跌回该位且收不回。
+                                - generic [ref=e3618]: ","
+                              - listitem [ref=e3619]:
+                                - generic [ref=e3620]:
+                                  - button [ref=e3621]:
+                                    - img "↔️" [ref=e3622]
+                                  - strong [ref=e3623]: 承接震荡
+                                  - text: ｜
+                                  - strong [ref=e3624]: 7,650.9 → 7,650 → 7,655
+                                  - text: 触发：
+                                  - strong [ref=e3625]: 7,650
+                                  - text: 有承接、
+                                  - strong [ref=e3626]: 7,655
+                                  - text: 仍受阻；失效：区间边界被有效突破。
+                                - generic [ref=e3627]: ","
+                              - listitem [ref=e3628]:
+                                - generic [ref=e3629]:
+                                  - button [ref=e3630]:
+                                    - img "📉" [ref=e3631]
+                                  - strong [ref=e3632]: 承接失败
+                                  - text: ｜
+                                  - strong [ref=e3633]: 7,650.9 → 7,645 → 7,640
+                                  - text: 触发：失守
+                                  - strong [ref=e3634]: 7,650
+                                  - text: 后反抽不过；失效：重新站稳
+                                  - strong [ref=e3635]: 7,650
+                                  - text: 。
+                                - generic [ref=e3636]: ","
+                - group "盘后日报, 信息分享" [ref=e3637]:
+                  - button "盘后日报 盘后日报 信息分享" [ref=e3638]:
+                    - generic [ref=e3639] [cursor=pointer]:
+                      - generic [ref=e3643]:
+                        - generic [ref=e3644]: 盘后日报
+                        - generic [ref=e3646]: 盘后日报
+                      - generic [ref=e3647]: 信息分享
+                  - listitem [ref=e3651]:
+                    - button [ref=e3652] [cursor=pointer]:
+                      - article "AlphaAgent APP , 🎯 收盘结构日报 2026-09-08 市场情绪转弱，存储与数据中心硬件、半导体：设备与EDA方向相对占优，尾盘结构暂未出现明显失衡。 市场概况 M7 平均：-0.30% , 宽度：76涨 / 124跌 / 0平 (38%) , 恐慌指数：UVXY +2.57% , 大盘：SPY -0.59%，QQQ -0.15% , 结论：情绪有所修复，但轮动仍在继续。 , 2026/9/9 06:01" [ref=e3654]:
+                        - generic [ref=e3655]:
+                          - heading [level=2] [ref=e3656]:
+                            - generic [ref=e3657]:
+                              - button "AlphaAgent" [ref=e3658]
+                              - img "APP" [ref=e3659]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/9 06:01
+                              - generic: 2026年9月9日星期三 06:01
+                          - generic [ref=e3661]:
+                            - button [ref=e3662]:
+                              - img "🎯" [ref=e3663]
+                            - text: 收盘结构日报 2026-09-08 市场情绪转弱，存储与数据中心硬件、半导体：设备与EDA方向相对占优，尾盘结构暂未出现明显失衡。 市场概况
+                            - list [ref=e3664]:
+                              - listitem [ref=e3665]:
+                                - generic [ref=e3666]: M7 平均：-0.30%
+                                - generic [ref=e3667]: ","
+                              - listitem [ref=e3668]:
+                                - generic [ref=e3669]: 宽度：76涨 / 124跌 / 0平 (38%)
+                                - generic [ref=e3670]: ","
+                              - listitem [ref=e3671]:
+                                - generic [ref=e3672]: 恐慌指数：UVXY +2.57%
+                                - generic [ref=e3673]: ","
+                              - listitem [ref=e3674]:
+                                - generic [ref=e3675]: 大盘：SPY -0.59%，QQQ -0.15%
+                                - generic [ref=e3676]: ","
+                            - text: 结论：情绪有所修复，但轮动仍在继续。
+                - group "更新公告, 订阅与公告" [ref=e3677]:
+                  - button "更新公告 更新公告 订阅与公告" [ref=e3678]:
+                    - generic [ref=e3679] [cursor=pointer]:
+                      - generic [ref=e3683]:
+                        - generic [ref=e3684]: 更新公告
+                        - generic [ref=e3686]: 更新公告
+                      - generic [ref=e3687]: 订阅与公告
+                  - listitem [ref=e3691]:
+                    - button [ref=e3692] [cursor=pointer]:
+                      - article "时间的狱友(不会主动私聊你) 服务器标签：夜航社 , @everyone Flow相关的功能已经上线测试了，如果没看到就刷新下，目前的已知问题是NCP和NPP计算不太准确，或者性能方面会卡一下，这个之后会修复，然后可能还有一些体验类的小Bug，大家要是遇到的话可以在论坛频道⁠产品需求和bug反馈 反馈，如果有交互和数据方面的问题也可以一并提出，不多说别的，在看Flow这块基本上可以平替unusual whale了。 图片 👍 18 🚀 3 添加反应 , 2026/9/9 01:40" [ref=e3694]:
+                        - generic [ref=e3695]:
+                          - heading "时间的狱友(不会主动私聊你) 服务器标签：夜航社 2026/9/9 01:40" [level=2] [ref=e3696]:
+                            - generic [ref=e3697]:
+                              - button "时间的狱友(不会主动私聊你)" [ref=e3698]
+                              - button "服务器标签：夜航社" [ref=e3700]:
+                                - generic [ref=e3701]:
+                                  - generic [ref=e3702]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/9 01:40
+                              - generic: 2026年9月9日星期三 01:40
+                          - generic [ref=e3703]:
+                            - button "@everyone" [ref=e3704]
+                            - text: Flow相关的功能已经上线测试了，如果没看到就刷新下，目前的已知问题是NCP和NPP计算不太准确，或者性能方面会卡一下，这个之后会修复，然后可能还有一些体验类的小Bug，大家要是遇到的话可以在
+                            - link "论坛频道⁠产品需求和bug反馈" [ref=e3705]:
+                              - generic [ref=e3706]:
+                                - generic [ref=e3707]:
+                                  - img "论坛频道" [ref=e3708]
+                                  - text: ⁠
+                                - generic [ref=e3711]: 产品需求和bug反馈
+                            - text: 反馈，如果有交互和数据方面的问题也可以一并提出，不多说别的，在看Flow这块基本上可以平替unusual whale了。
+                        - generic [ref=e3718]:
+                          - link [aria-hidden] [ref=e3719]:
+                            - /url: https://cdn.discordapp.com/attachments/1489519795954122883/1546923270677463101/image.png?ex=6aaebb10&is=6aad6990&hm=5f20ae27e7762fafe3c222d4c509b2f903a7035bc04b3e13c5e19d5672c3ed23&
+                          - button "图片" [ref=e3720]
+                - group "盘后日报, 信息分享" [ref=e3722]:
+                  - button "盘后日报 盘后日报 信息分享" [ref=e3723]:
+                    - generic [ref=e3724] [cursor=pointer]:
+                      - generic [ref=e3728]:
+                        - generic [ref=e3729]: 盘后日报
+                        - generic [ref=e3731]: 盘后日报
+                      - generic [ref=e3732]: 信息分享
+                  - listitem [ref=e3736]:
+                    - button [ref=e3737] [cursor=pointer]:
+                      - article "AlphaAgent APP , 🎯 收盘结构日报 2026-09-04 市场情绪仍在轮动，半导体：设备与EDA、存储与数据中心硬件方向相对占优，尾盘结构暂未出现明显失衡。 市场概况 M7 平均：-1.52% , 宽度：81涨 / 120跌 / 0平 (40%) , 恐慌指数：UVXY +0.46% , 大盘：SPY -0.49%，QQQ +0.05% , 结论：情绪有所修复，但轮动仍在继续。 , 2026/9/5 06:01" [ref=e3739]:
+                        - generic [ref=e3740]:
+                          - heading [level=2] [ref=e3741]:
+                            - generic [ref=e3742]:
+                              - button "AlphaAgent" [ref=e3743]
+                              - img "APP" [ref=e3744]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/5 06:01
+                              - generic: 2026年9月5日星期六 06:01
+                          - generic [ref=e3746]:
+                            - button [ref=e3747]:
+                              - img "🎯" [ref=e3748]
+                            - text: 收盘结构日报 2026-09-04 市场情绪仍在轮动，半导体：设备与EDA、存储与数据中心硬件方向相对占优，尾盘结构暂未出现明显失衡。 市场概况
+                            - list [ref=e3749]:
+                              - listitem [ref=e3750]:
+                                - generic [ref=e3751]: M7 平均：-1.52%
+                                - generic [ref=e3752]: ","
+                              - listitem [ref=e3753]:
+                                - generic [ref=e3754]: 宽度：81涨 / 120跌 / 0平 (40%)
+                                - generic [ref=e3755]: ","
+                              - listitem [ref=e3756]:
+                                - generic [ref=e3757]: 恐慌指数：UVXY +0.46%
+                                - generic [ref=e3758]: ","
+                              - listitem [ref=e3759]:
+                                - generic [ref=e3760]: 大盘：SPY -0.49%，QQQ +0.05%
+                                - generic [ref=e3761]: ","
+                            - text: 结论：情绪有所修复，但轮动仍在继续。
+                - group "💴｜异常期权专区, 讨论区" [ref=e3762]:
+                  - button "💴 ｜异常期权专区 💴｜异常期权专区 讨论区" [ref=e3763]:
+                    - generic [ref=e3764] [cursor=pointer]:
+                      - generic [ref=e3768]:
+                        - generic [ref=e3770]:
+                          - button [ref=e3771]:
+                            - img "💴" [ref=e3772]
+                          - text: ｜异常期权专区
+                        - generic [ref=e3773]: 💴｜异常期权专区
+                      - generic [ref=e3774]: 讨论区
+                  - listitem [ref=e3778]:
+                    - button [ref=e3779] [cursor=pointer]:
+                      - article "oxluffy , 盘前下跌，盘中修复 , 2026/9/4 21:54" [ref=e3781]:
+                        - generic [ref=e3782]:
+                          - heading [level=2] [ref=e3783]:
+                            - button "oxluffy" [ref=e3785]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/4 21:54
+                              - generic: 2026年9月4日星期五 21:54
+                          - generic [ref=e3786]: 盘前下跌，盘中修复
+                - group "🎲｜日内交易专区, 星河会客厅" [ref=e3787]:
+                  - button "🎲 ｜日内交易专区 🎲｜日内交易专区 星河会客厅" [ref=e3788]:
+                    - generic [ref=e3789] [cursor=pointer]:
+                      - generic [ref=e3793]:
+                        - generic [ref=e3795]:
+                          - button [ref=e3796]:
+                            - img "🎲" [ref=e3797]
+                          - text: ｜日内交易专区
+                        - generic [ref=e3798]: 🎲｜日内交易专区
+                      - generic [ref=e3799]: 星河会客厅
+                  - listitem [ref=e3803]:
+                    - button [ref=e3804] [cursor=pointer]:
+                      - article "junk_man 服务器标签：夜航社 , 这些空白处的数据应该都有，但是目前有很多bug，在修复 , 2026/9/4 10:06" [ref=e3806]:
+                        - generic [ref=e3807]:
+                          - heading [level=2] [ref=e3808]:
+                            - generic [ref=e3809]:
+                              - button "junk_man" [ref=e3810]
+                              - button "服务器标签：夜航社" [ref=e3812]:
+                                - generic [ref=e3813]:
+                                  - generic [ref=e3814]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/4 10:06
+                              - generic: 2026年9月4日星期五 10:06
+                          - generic [ref=e3815]: 这些空白处的数据应该都有，但是目前有很多bug，在修复
+                - group "盘后日报, 信息分享" [ref=e3816]:
+                  - button "盘后日报 盘后日报 信息分享" [ref=e3817]:
+                    - generic [ref=e3818] [cursor=pointer]:
+                      - generic [ref=e3822]:
+                        - generic [ref=e3823]: 盘后日报
+                        - generic [ref=e3825]: 盘后日报
+                      - generic [ref=e3826]: 信息分享
+                  - listitem [ref=e3830]:
+                    - button [ref=e3831] [cursor=pointer]:
+                      - article "AlphaAgent APP , 🎯 收盘结构日报 2026-09-03 市场情绪仍在轮动，金融科技与数字资产、企业软件与数据平台方向相对占优，尾盘结构暂未出现明显失衡。 市场概况 M7 平均：+2.50% , 宽度：130涨 / 71跌 / 0平 (65%) , 恐慌指数：UVXY -2.84% , 大盘：SPY +0.96%，QQQ +1.12% , 结论：情绪有所修复，但轮动仍在继续。 , 2026/9/4 06:01" [ref=e3833]:
+                        - generic [ref=e3834]:
+                          - heading [level=2] [ref=e3835]:
+                            - generic [ref=e3836]:
+                              - button "AlphaAgent" [ref=e3837]
+                              - img "APP" [ref=e3838]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/4 06:01
+                              - generic: 2026年9月4日星期五 06:01
+                          - generic [ref=e3840]:
+                            - button [ref=e3841]:
+                              - img "🎯" [ref=e3842]
+                            - text: 收盘结构日报 2026-09-03 市场情绪仍在轮动，金融科技与数字资产、企业软件与数据平台方向相对占优，尾盘结构暂未出现明显失衡。 市场概况
+                            - list [ref=e3843]:
+                              - listitem [ref=e3844]:
+                                - generic [ref=e3845]: M7 平均：+2.50%
+                                - generic [ref=e3846]: ","
+                              - listitem [ref=e3847]:
+                                - generic [ref=e3848]: 宽度：130涨 / 71跌 / 0平 (65%)
+                                - generic [ref=e3849]: ","
+                              - listitem [ref=e3850]:
+                                - generic [ref=e3851]: 恐慌指数：UVXY -2.84%
+                                - generic [ref=e3852]: ","
+                              - listitem [ref=e3853]:
+                                - generic [ref=e3854]: 大盘：SPY +0.96%，QQQ +1.12%
+                                - generic [ref=e3855]: ","
+                            - text: 结论：情绪有所修复，但轮动仍在继续。
+                  - listitem [ref=e3856]:
+                    - button [ref=e3857] [cursor=pointer]:
+                      - article "AlphaAgent APP , 🎯 收盘结构日报 2026-09-02 风险偏好回暖，金融科技与数字资产、消费互联网与电商/线上娱乐方向相对占优，尾盘结构暂未出现明显失衡。 市场概况 M7 平均：+0.82% , 宽度：125涨 / 74跌 / 1平 (62%) , 恐慌指数：UVXY -4.30% , 大盘：SPY +0.34%，QQQ +0.09% , 结论：情绪有所修复，但轮动仍在继续。 , 2026/9/3 06:02" [ref=e3859]:
+                        - generic [ref=e3860]:
+                          - heading [level=2] [ref=e3861]:
+                            - generic [ref=e3862]:
+                              - button "AlphaAgent" [ref=e3863]
+                              - img "APP" [ref=e3864]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/3 06:02
+                              - generic: 2026年9月3日星期四 06:02
+                          - generic [ref=e3866]:
+                            - button [ref=e3867]:
+                              - img "🎯" [ref=e3868]
+                            - text: 收盘结构日报 2026-09-02 风险偏好回暖，金融科技与数字资产、消费互联网与电商/线上娱乐方向相对占优，尾盘结构暂未出现明显失衡。 市场概况
+                            - list [ref=e3869]:
+                              - listitem [ref=e3870]:
+                                - generic [ref=e3871]: M7 平均：+0.82%
+                                - generic [ref=e3872]: ","
+                              - listitem [ref=e3873]:
+                                - generic [ref=e3874]: 宽度：125涨 / 74跌 / 1平 (62%)
+                                - generic [ref=e3875]: ","
+                              - listitem [ref=e3876]:
+                                - generic [ref=e3877]: 恐慌指数：UVXY -4.30%
+                                - generic [ref=e3878]: ","
+                              - listitem [ref=e3879]:
+                                - generic [ref=e3880]: 大盘：SPY +0.34%，QQQ +0.09%
+                                - generic [ref=e3881]: ","
+                            - text: 结论：情绪有所修复，但轮动仍在继续。
+                - group "🎲｜日内交易专区, 星河会客厅" [ref=e3882]:
+                  - button "🎲 ｜日内交易专区 🎲｜日内交易专区 星河会客厅" [ref=e3883]:
+                    - generic [ref=e3884] [cursor=pointer]:
+                      - generic [ref=e3888]:
+                        - generic [ref=e3890]:
+                          - button [ref=e3891]:
+                            - img "🎲" [ref=e3892]
+                          - text: ｜日内交易专区
+                        - generic [ref=e3893]: 🎲｜日内交易专区
+                      - generic [ref=e3894]: 星河会客厅
+                  - listitem [ref=e3898]:
+                    - button [ref=e3899] [cursor=pointer]:
+                      - article "Karma , 加密昨晚跌不少，今晚不知道有没有修复机会 , 2026/9/2 16:31" [ref=e3901]:
+                        - generic [ref=e3902]:
+                          - heading [level=2] [ref=e3903]:
+                            - button "Karma" [ref=e3905]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/2 16:31
+                              - generic: 2026年9月2日星期三 16:31
+                          - generic [ref=e3906]: 加密昨晚跌不少，今晚不知道有没有修复机会
+                  - listitem [ref=e3907]:
+                    - button [ref=e3908] [cursor=pointer]:
+                      - article "junk_man 服务器标签：夜航社 , 尾盘剧本概率 38%：7620-7635 附近磨到收盘 当前最容易发生。7625 本身是大节点，尾盘如果没有放量突破，会杀双边彩票。 , 30%：跌破 7620，下杀 7610 -> 7603/7600 这是更有速度的彩票剧本。图二里 7645-7620 是负 Vol GEX/Volatility 区，跌破 7620 后容易滑向下方黄线 7603.48。 , 24%：反抽 7640-7645，但在 7655 下方失败 这属于空头回补/修复，不一定是真反转。冲高失败后仍可能回到 7625。 , 8%：站回 7655 后 squeeze 到 7660-7670 必须先收回 7654.54，否则不提前押 call。 , , 2026/9/2 04:45" [ref=e3910]:
+                        - generic [ref=e3911]:
+                          - heading [level=2] [ref=e3912]:
+                            - generic [ref=e3913]:
+                              - button "junk_man" [ref=e3914]
+                              - button "服务器标签：夜航社" [ref=e3916]:
+                                - generic [ref=e3917]:
+                                  - generic [ref=e3918]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/2 04:45
+                              - generic: 2026年9月2日星期三 04:45
+                          - generic [ref=e3919]:
+                            - text: 尾盘剧本概率
+                            - list [ref=e3920]:
+                              - listitem [ref=e3921]:
+                                - generic [ref=e3922]: 38%：7620-7635 附近磨到收盘 当前最容易发生。7625 本身是大节点，尾盘如果没有放量突破，会杀双边彩票。
+                                - generic [ref=e3923]: ","
+                              - listitem [ref=e3924]:
+                                - generic [ref=e3925]: 30%：跌破 7620，下杀 7610 -> 7603/7600 这是更有速度的彩票剧本。图二里 7645-7620 是负 Vol GEX/Volatility 区，跌破 7620 后容易滑向下方黄线 7603.48。
+                                - generic [ref=e3926]: ","
+                              - listitem [ref=e3927]:
+                                - generic [ref=e3928]: 24%：反抽 7640-7645，但在 7655 下方失败 这属于空头回补/修复，不一定是真反转。冲高失败后仍可能回到 7625。
+                                - generic [ref=e3929]: ","
+                              - listitem [ref=e3930]:
+                                - generic [ref=e3931]: 8%：站回 7655 后 squeeze 到 7660-7670 必须先收回 7654.54，否则不提前押 call。
+                                - generic [ref=e3932]: ","
+                  - listitem [ref=e3933]:
+                    - button [ref=e3934] [cursor=pointer]:
+                      - article "Patrick 服务器标签：夜航社 , 多头修复｜7,633.9 → 7,650 → 7,665.6 , 2026/9/1 23:33" [ref=e3936]:
+                        - generic [ref=e3937]:
+                          - heading [level=2] [ref=e3938]:
+                            - generic [ref=e3939]:
+                              - button "Patrick" [ref=e3940]
+                              - button "服务器标签：夜航社" [ref=e3942]:
+                                - generic [ref=e3943]:
+                                  - generic [ref=e3944]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/1 23:33
+                              - generic: 2026年9月1日星期二 23:33
+                          - generic [ref=e3945]: 多头修复｜7,633.9 → 7,650 → 7,665.6
+                - group "junkman-analysis, 星河会客厅" [ref=e3946]:
+                  - button "junkman-analysis junkman-analysis 星河会客厅" [ref=e3947]:
+                    - generic [ref=e3948] [cursor=pointer]:
+                      - generic [ref=e3952]:
+                        - generic [ref=e3953]: junkman-analysis
+                        - generic [ref=e3955]: junkman-analysis
+                      - generic [ref=e3956]: 星河会客厅
+                  - listitem [ref=e3960]:
+                    - button [ref=e3961] [cursor=pointer]:
+                      - article [ref=e3963]:
+                        - generic [ref=e3964]:
+                          - heading [level=2] [ref=e3965]:
+                            - generic [ref=e3966]:
+                              - button "junk_man" [ref=e3967]
+                              - button "服务器标签：夜航社" [ref=e3969]:
+                                - generic [ref=e3970]:
+                                  - generic [ref=e3971]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/1 22:26
+                              - generic: 2026年9月1日星期二 22:26
+                          - generic [ref=e3972]:
+                            - text: ━━━━━━━━━━━━━━━━━━━━
+                            - heading "⚡ SPXW ," [level=2] [ref=e3973]:
+                              - generic [ref=e3974]:
+                                - button [ref=e3975]:
+                                  - img "⚡" [ref=e3976]
+                                - text: SPXW
+                              - generic [ref=e3977]: ","
+                            - blockquote [ref=e3980]:
+                              - button [ref=e3981]:
+                                - img "🧮" [ref=e3982]
+                              - text: SPY 推算盘前 SPX 约
+                              - strong [ref=e3983]: 7,633.9
+                              - text: ｜SPY
+                              - strong [ref=e3984]: "761.8"
+                              - text: ｜
+                              - button [ref=e3985]:
+                                - img "🔴" [ref=e3986]
+                              - strong [ref=e3987]: 负 Gamma｜波动放大
+                              - button [ref=e3988]:
+                                - img "🔴" [ref=e3989]
+                              - code [ref=e3990]: CALL WALL
+                              - strong [ref=e3991]: 7,716.66
+                              - text: 下方｜
+                              - button [ref=e3992]:
+                                - img "🔵" [ref=e3993]
+                              - code [ref=e3994]: PIVOT
+                              - strong [ref=e3995]: 7,700
+                              - text: 下方｜
+                              - button [ref=e3996]:
+                                - img "🟣" [ref=e3997]
+                              - code [ref=e3998]: MAGNET
+                              - strong [ref=e3999]: 7,685
+                              - text: –
+                              - strong [ref=e4000]: 7,690
+                              - text: 下方｜
+                              - button [ref=e4001]:
+                                - img "🟢" [ref=e4002]
+                              - code [ref=e4003]: PUT WALL
+                              - strong [ref=e4004]: 7,665.6
+                              - text: 下方 推算：
+                              - strong [ref=e4005]: 10 × 761.8 + 15.88 = 7,633.9
+                              - text: ；
+                              - strong [ref=e4006]: 7,686.38
+                              - text: 仅作 SPX 昨收基准。
+                            - strong [ref=e4007]:
+                              - button [ref=e4008]:
+                                - img "🎯" [ref=e4009]
+                              - text: 关键位与操作
+                            - list [ref=e4010]:
+                              - listitem [ref=e4011]:
+                                - generic [ref=e4012]:
+                                  - button [ref=e4013]:
+                                    - img "🔴" [ref=e4014]
+                                  - strong [ref=e4015]: 7,716.66
+                                  - code [ref=e4016]: CALL WALL
+                                  - text: ｜远端上墙；先收复
+                                  - strong [ref=e4017]: 7,700
+                                  - text: 才观察，站稳回踩后看
+                                  - strong [ref=e4018]: 7,725
+                                  - text: 。
+                                - generic [ref=e4019]: ","
+                              - listitem [ref=e4020]:
+                                - generic [ref=e4021]:
+                                  - button [ref=e4022]:
+                                    - img "🔵" [ref=e4023]
+                                  - strong [ref=e4024]: 7,700
+                                  - code [ref=e4025]: PIVOT
+                                  - text: ｜远离预计开盘；收复并接受才看
+                                  - strong [ref=e4026]: 7,716.66
+                                  - text: ，未收复前不作为做多依据。
+                                - generic [ref=e4027]: ","
+                              - listitem [ref=e4028]:
+                                - generic [ref=e4029]:
+                                  - button [ref=e4030]:
+                                    - img "🟣" [ref=e4031]
+                                  - strong [ref=e4032]: 7,685
+                                  - text: –
+                                  - strong [ref=e4033]: 7,690
+                                  - code [ref=e4034]: MAGNET
+                                  - text: ｜已在预计开盘上方；只有先收复
+                                  - strong [ref=e4035]: 7,665.6
+                                  - text: ，才观察回补至磁吸区。
+                                - generic [ref=e4036]: ","
+                              - listitem [ref=e4037]:
+                                - generic [ref=e4038]:
+                                  - button [ref=e4039]:
+                                    - img "🟢" [ref=e4040]
+                                  - strong [ref=e4041]: 7,665.6
+                                  - code [ref=e4042]: PUT WALL
+                                  - text: ｜预计低开在其下；反抽受阻看
+                                  - strong [ref=e4043]: 7,650 → 7,625
+                                  - text: ，重新接受上方才看
+                                  - strong [ref=e4044]: 7,685
+                                  - text: 。
+                                - generic [ref=e4045]: ","
+                              - listitem [ref=e4046]:
+                                - generic [ref=e4047]:
+                                  - button [ref=e4048]:
+                                    - img "🟠" [ref=e4049]
+                                  - strong [ref=e4050]: 7,650
+                                  - code [ref=e4051]: 反抽节点
+                                  - text: ｜收复并回踩守住看
+                                  - strong [ref=e4052]: 7,665.6
+                                  - text: ；反抽不过仍偏弱。
+                                - generic [ref=e4053]: ","
+                              - listitem [ref=e4054]:
+                                - generic [ref=e4055]:
+                                  - button [ref=e4056]:
+                                    - img "🟢" [ref=e4057]
+                                  - strong [ref=e4058]: 7,625
+                                  - code [ref=e4059]: 近端支撑
+                                  - text: ｜守住可回到
+                                  - strong [ref=e4060]: 7,650
+                                  - text: ；跌破并反抽不过看
+                                  - strong [ref=e4061]: 7,600
+                                  - text: 。
+                                - generic [ref=e4062]: ","
+                            - strong [ref=e4063]:
+                              - button [ref=e4064]:
+                                - img "🎯" [ref=e4065]
+                              - text: 开盘策略｜下墙下方先确认
+                            - blockquote [ref=e4068]:
+                              - text: 推算价位于下墙下方且处在
+                              - strong [ref=e4069]: 7,625–7,650
+                              - text: 之间，负 Gamma 环境先等开盘接受方向。
+                            - list [ref=e4070]:
+                              - listitem [ref=e4071]:
+                                - generic [ref=e4072]:
+                                  - text: 触发｜目标：收复
+                                  - strong [ref=e4073]: 7,650
+                                  - text: 并回踩守住看
+                                  - strong [ref=e4074]: 7,665.6
+                                  - text: ；失守
+                                  - strong [ref=e4075]: 7,625
+                                  - text: 且反抽不过看
+                                  - strong [ref=e4076]: 7,600
+                                - generic [ref=e4077]: ","
+                              - listitem [ref=e4078]:
+                                - generic [ref=e4079]:
+                                  - text: 失效｜避免：突破后立即回到原区间；
+                                  - strong [ref=e4080]: 7,625–7,650
+                                  - text: 中部不追单。
+                                - generic [ref=e4081]: ","
+                            - strong [ref=e4082]:
+                              - button [ref=e4083]:
+                                - img "🎬" [ref=e4084]
+                              - text: 三情景｜结构路径
+                            - list [ref=e4085]:
+                              - listitem [ref=e4086]:
+                                - generic [ref=e4087]:
+                                  - button [ref=e4088]:
+                                    - img "📈" [ref=e4089]
+                                  - strong [ref=e4090]: 多头修复
+                                  - text: ｜
+                                  - strong [ref=e4091]: 7,633.9
+                                  - text: →
+                                  - strong [ref=e4092]: 7,650
+                                  - text: →
+                                  - strong [ref=e4093]: 7,665.6
+                                  - text: 触发：收复
+                                  - strong [ref=e4094]: 7,650
+                                  - text: 并回踩守住｜失效：重新跌回
+                                  - strong [ref=e4095]: 7,650
+                                  - text: 下方且无法快速收回
+                                - generic [ref=e4096]: ","
+                              - listitem [ref=e4097]:
+                                - generic [ref=e4098]:
+                                  - button [ref=e4099]:
+                                    - img "↔️" [ref=e4100]
+                                  - strong [ref=e4101]: 区间消化
+                                  - text: ｜
+                                  - strong [ref=e4102]: 7,633.9
+                                  - text: →
+                                  - strong [ref=e4103]: 7,625
+                                  - text: →
+                                  - strong [ref=e4104]: 7,650
+                                  - text: 触发：两侧边界持续拒绝、均未形成接受｜失效：接受
+                                  - strong [ref=e4105]: 7,650
+                                  - text: 上方或
+                                  - strong [ref=e4106]: 7,625
+                                  - text: 下方
+                                - generic [ref=e4107]: ","
+                              - listitem [ref=e4108]:
+                                - generic [ref=e4109]:
+                                  - button [ref=e4110]:
+                                    - img "📉" [ref=e4111]
+                                  - strong [ref=e4112]: 空头扩张
+                                  - text: ｜
+                                  - strong [ref=e4113]: 7,633.9
+                                  - text: →
+                                  - strong [ref=e4114]: 7,625
+                                  - text: →
+                                  - strong [ref=e4115]: 7,600
+                                  - text: 触发：跌破
+                                  - strong [ref=e4116]: 7,625
+                                  - text: 且反抽不过｜失效：重新站回
+                                  - strong [ref=e4117]: 7,625
+                                  - text: 上方
+                                - generic [ref=e4118]: ","
+                - group "盘后日报, 信息分享" [ref=e4119]:
+                  - button "盘后日报 盘后日报 信息分享" [ref=e4120]:
+                    - generic [ref=e4121] [cursor=pointer]:
+                      - generic [ref=e4125]:
+                        - generic [ref=e4126]: 盘后日报
+                        - generic [ref=e4128]: 盘后日报
+                      - generic [ref=e4129]: 信息分享
+                  - listitem [ref=e4133]:
+                    - button [ref=e4134] [cursor=pointer]:
+                      - article "AlphaAgent APP , 🎯 收盘结构日报 2026-08-31 市场情绪仍在轮动，网络安全、能源与公用事业方向相对占优，尾盘结构暂未出现明显失衡。 市场概况 M7 平均：-0.07% , 宽度：84涨 / 117跌 / 0平 (42%) , 恐慌指数：UVXY -2.28% , 大盘：SPY -0.25%，QQQ +0.08% , 结论：情绪有所修复，但轮动仍在继续。 , 2026/9/1 06:01" [ref=e4136]:
+                        - generic [ref=e4137]:
+                          - heading [level=2] [ref=e4138]:
+                            - generic [ref=e4139]:
+                              - button "AlphaAgent" [ref=e4140]
+                              - img "APP" [ref=e4141]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/1 06:01
+                              - generic: 2026年9月1日星期二 06:01
+                          - generic [ref=e4143]:
+                            - button [ref=e4144]:
+                              - img "🎯" [ref=e4145]
+                            - text: 收盘结构日报 2026-08-31 市场情绪仍在轮动，网络安全、能源与公用事业方向相对占优，尾盘结构暂未出现明显失衡。 市场概况
+                            - list [ref=e4146]:
+                              - listitem [ref=e4147]:
+                                - generic [ref=e4148]: M7 平均：-0.07%
+                                - generic [ref=e4149]: ","
+                              - listitem [ref=e4150]:
+                                - generic [ref=e4151]: 宽度：84涨 / 117跌 / 0平 (42%)
+                                - generic [ref=e4152]: ","
+                              - listitem [ref=e4153]:
+                                - generic [ref=e4154]: 恐慌指数：UVXY -2.28%
+                                - generic [ref=e4155]: ","
+                              - listitem [ref=e4156]:
+                                - generic [ref=e4157]: 大盘：SPY -0.25%，QQQ +0.08%
+                                - generic [ref=e4158]: ","
+                            - text: 结论：情绪有所修复，但轮动仍在继续。
+                - group "🎲｜日内交易专区, 星河会客厅" [ref=e4159]:
+                  - button "🎲 ｜日内交易专区 🎲｜日内交易专区 星河会客厅" [ref=e4160]:
+                    - generic [ref=e4161] [cursor=pointer]:
+                      - generic [ref=e4165]:
+                        - generic [ref=e4167]:
+                          - button [ref=e4168]:
+                            - img "🎲" [ref=e4169]
+                          - text: ｜日内交易专区
+                        - generic [ref=e4170]: 🎲｜日内交易专区
+                      - generic [ref=e4171]: 星河会客厅
+                  - listitem [ref=e4175]:
+                    - button [ref=e4176] [cursor=pointer]:
+                      - article "空空空 服务器标签：天益宗 , 要修复了 , 2026/9/1 00:46" [ref=e4178]:
+                        - generic [ref=e4179]:
+                          - heading [level=2] [ref=e4180]:
+                            - generic [ref=e4181]:
+                              - button "空空空" [ref=e4182]
+                              - button "服务器标签：天益宗" [ref=e4184]:
+                                - generic [ref=e4185]:
+                                  - generic [ref=e4186]: 服务器标签：天益宗
+                                  - text: 天益宗
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/1 00:46
+                              - generic: 2026年9月1日星期二 00:46
+                          - generic [ref=e4187]: 要修复了
+                  - listitem [ref=e4188]:
+                    - button [ref=e4189] [cursor=pointer]:
+                      - article "Kkkkk 正在回复 空空空 , 没考虑过修复 , 2026/9/1 00:13" [ref=e4191]:
+                        - generic "Kkkkk 正在回复 空空空" [ref=e4192]:
+                          - button "@空空空" [ref=e4193]
+                          - button "服务器标签：天益宗" [ref=e4195]:
+                            - generic [ref=e4196]:
+                              - generic [ref=e4197]: 服务器标签：天益宗
+                              - text: 天益宗
+                          - button "修复行情？" [ref=e4198]
+                        - generic [ref=e4199]:
+                          - heading [level=2] [ref=e4200]:
+                            - button "Kkkkk" [ref=e4202]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/1 00:13
+                              - generic: 2026年9月1日星期二 00:13
+                          - generic [ref=e4203]: 没考虑过修复
+                  - listitem "消息无法加载 空空空 服务器标签：天益宗 2026/9/1 00:12 2026年9月1日星期二 00:12 修复行情？" [ref=e4204]:
+                    - button [ref=e4205] [cursor=pointer]:
+                      - article [ref=e4207]:
+                        - button "消息无法加载" [ref=e4212]
+                        - generic [ref=e4214]:
+                          - heading [level=2] [ref=e4215]:
+                            - generic [ref=e4216]:
+                              - button "空空空" [ref=e4217]
+                              - button "服务器标签：天益宗" [ref=e4219]:
+                                - generic [ref=e4220]:
+                                  - generic [ref=e4221]: 服务器标签：天益宗
+                                  - text: 天益宗
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/1 00:12
+                              - generic: 2026年9月1日星期二 00:12
+                          - generic [ref=e4222]: 修复行情？
+                  - listitem [ref=e4223]:
+                    - button [ref=e4224] [cursor=pointer]:
+                      - article "Karma , Qqq 也是难评，周五跌那么惨，今天修复都不给 , 2026/8/31 23:56" [ref=e4226]:
+                        - generic [ref=e4227]:
+                          - heading [level=2] [ref=e4228]:
+                            - button "Karma" [ref=e4230]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/8/31 23:56
+                              - generic: 2026年8月31日星期一 23:56
+                          - generic [ref=e4231]: Qqq 也是难评，周五跌那么惨，今天修复都不给
+              - navigation [ref=e3188]:
+                - button "上一页" [disabled] [ref=e3189]
+                - button "第 1 页" [ref=e3194] [cursor=pointer]:
+                  - generic [ref=e3195]: "1"
+                - button "第 2 页" [ref=e3196] [cursor=pointer]:
+                  - generic [ref=e3197]: "2"
+                - button "第 3 页" [ref=e3198] [cursor=pointer]:
+                  - generic [ref=e3199]: "3"
+                - button [ref=e3200]:
+                  - heading [level=2] [aria-hidden] [ref=e3201] [cursor=pointer]: …
+                - button "第 12 页" [ref=e4232] [cursor=pointer]:
+                  - generic [ref=e4233]: "12"
+                - button "下一页" [ref=e3204] [cursor=pointer]
+    - generic:
+      - generic [ref=e2267]:
+        - generic [ref=e2268]: 更多活跃帖子
+        - generic [ref=e2269]:
+          - button "timingprisoner Heatmap Ticker需求发这 • 10 小时前" [ref=e2270]:
+            - img "timingprisoner" [ref=e2272]
+            - generic [ref=e2273]:
+              - generic [ref=e2274]: Heatmap Ticker需求发这
+              - generic [ref=e2275]: •
+              - generic [ref=e2276]: 10 小时前
+          - button "rouen00007 yehangshe api 相关 • 22 小时前" [ref=e2277]:
+            - img "rouen00007" [ref=e2279]
+            - generic [ref=e2280]:
+              - generic [ref=e2281]: yehangshe api 相关
+              - generic [ref=e2282]: •
+              - generic [ref=e2283]: 22 小时前
+          - button "aalex_1207 显示bug • 1 天前" [ref=e2284]:
+            - img "aalex_1207" [ref=e2286]
+            - generic [ref=e2287]:
+              - generic [ref=e2288]: 显示bug
+              - generic [ref=e2289]: •
+              - generic [ref=e2290]: 1 天前
+          - button "junk_man mcp 增加新接口和盘前standard gex开放。 • 2 天前" [ref=e2291]:
+            - img "junk_man" [ref=e2293]
+            - generic [ref=e2294]:
+              - generic [ref=e2295]: mcp 增加新接口和盘前standard gex开放。
+              - generic [ref=e2296]: •
+              - generic [ref=e2297]: 2 天前
+          - button "haleymew 可以把新的功能更新到帮助文档嘛？ • 3 天前" [ref=e2298]:
+            - img "haleymew" [ref=e2300]
+            - generic [ref=e2301]:
+              - generic [ref=e2302]: 可以把新的功能更新到帮助文档嘛？
+              - generic [ref=e2303]: •
+              - generic [ref=e2304]: 3 天前
+          - button "查看所有" [ref=e2305]
+      - generic: 产品需求和bug反馈

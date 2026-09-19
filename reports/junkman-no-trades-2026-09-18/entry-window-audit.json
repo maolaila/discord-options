@@ -1,0 +1,26 @@
+{
+  "entry_window_decision_count": 1188,
+  "entry_window_reasons": {
+    "waiting_for_node_confirmation": 881,
+    "missing_call_directional_gex_reference": 112,
+    "target_reached_before_execution": 22,
+    "current_price_lost_tested_node": 57,
+    "missing_put_directional_gex_reference": 114,
+    "setup_invalidated_before_execution": 38,
+    "snapshot_stale": 2
+  },
+  "chain_timestamp_checks": {
+    "checked_against": "2026-09-18T19:25:43.006Z",
+    "snapshot_age_seconds": 83096.517,
+    "greeks_age_seconds": 83096.517,
+    "oi_ahead_of_snapshot_seconds": 50954.398,
+    "max_age_seconds": 600,
+    "max_oi_ahead_seconds": 5
+  },
+  "three_lines": [
+    "control_sl15_tp_off",
+    "sl10_tp_off",
+    "sl15_tp30"
+  ],
+  "scope": "Read-only forensic analysis; no orders submitted and no trading code/config changed"
+}

@@ -1,0 +1,1365 @@
+- generic [ref=e1]:
+  - generic [ref=e2312]:
+    - log [ref=e2313]:
+      - generic [ref=e2614]: 搜索已开始
+    - log [ref=e2316]:
+      - generic [ref=e2615]: 6个结果
+  - generic [ref=e4]:
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - generic [ref=e13]: Alpha夜航社
+        - generic [ref=e17]:
+          - button "收件箱" [ref=e20] [cursor=pointer]
+          - link [ref=e24] [cursor=pointer]:
+            - /url: https://support.discord.com
+            - button "帮助" [ref=e25]
+      - generic [ref=e29]:
+        - generic [ref=e30]:
+          - navigation "服务器侧边栏" [ref=e31]:
+            - tree [ref=e32]:
+              - generic [ref=e33]:
+                - treeitem "私信" [level=1] [ref=e42] [cursor=pointer]
+                - group "服务器" [ref=e49]:
+                  - generic [ref=e50]:
+                    - generic [ref=e55]:
+                      - treeitem "8 个提及，Alpha夜航社" [level=1] [selected] [ref=e60] [cursor=pointer]
+                      - generic: "8"
+                    - generic [ref=e62]:
+                      - generic:
+                        - generic:
+                          - img "社区服务器"
+                          - generic:
+                            - generic:
+                              - generic: 社区服务器
+                              - generic: 有邀请链接的人可以加入。
+                            - generic:
+                              - generic: 等级 3
+                              - generic: 22 个助力
+                          - generic: Alpha夜航社
+                  - generic [ref=e63]:
+                    - treeitem "急急如律令" [level=1] [ref=e73] [cursor=pointer]
+                    - generic [ref=e75]: 急急如律令
+                  - generic [ref=e76]:
+                    - treeitem "粉红大兵的服务器" [level=1] [ref=e86] [cursor=pointer]:
+                      - generic [aria-hidden] [ref=e88]: 粉红大兵的服务器
+                    - generic [ref=e89]: 粉红大兵的服务器
+                - treeitem "添加服务器" [level=1] [ref=e96] [cursor=pointer]
+                - treeitem "发现" [level=1] [ref=e107] [cursor=pointer]
+                - treeitem "下载APP" [level=1] [ref=e118] [cursor=pointer]
+          - navigation "Alpha夜航社 (服务器)" [ref=e122]:
+            - generic [ref=e125]:
+              - button "Alpha夜航社，服务器操作" [ref=e126] [cursor=pointer]:
+                - generic [ref=e127]:
+                  - generic [ref=e128]:
+                    - button "社区服务器" [ref=e129]
+                    - generic [ref=e133]:
+                      - generic [ref=e134]:
+                        - generic: 社区服务器
+                        - generic: 有邀请链接的人可以加入。
+                      - generic [ref=e135]:
+                        - generic [ref=e136]: 等级 3
+                        - generic [ref=e143]: 22 个助力
+                  - heading "Alpha夜航社" [level=2] [ref=e145]
+              - button "邀请至服务器" [ref=e150] [cursor=pointer]
+            - heading "频道" [level=2] [ref=e155]
+            - generic [ref=e157] [cursor=pointer]
+            - list "频道" [ref=e159]:
+              - listitem [ref=e161]:
+                - generic [ref=e162]:
+                  - button "浏览频道"
+                  - generic [aria-hidden] [ref=e167] [cursor=pointer]: 浏览频道
+              - listitem [ref=e170]:
+                - link "欢迎-和-规则（文字频道）" [ref=e173] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1434960638559522999
+                  - generic [ref=e174]:
+                    - img "规则 icon" [ref=e175]
+                    - generic [ref=e178]: 规则
+                    - generic [aria-hidden] [ref=e179]: 欢迎-和-规则
+              - listitem [ref=e180]:
+                - button "星河会客厅 （类别）" [expanded] [ref=e182] [cursor=pointer]:
+                  - heading "星河会客厅" [level=3] [ref=e183]
+              - listitem [ref=e187]:
+                - link "未读，🎲｜日内交易专区（文字频道）, 私密频道（已锁）" [ref=e191] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1434960638559523002
+                  - generic [ref=e192]:
+                    - img "文字信息（受限） icon" [ref=e193]
+                    - generic [ref=e197]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e198]: 🎲｜日内交易专区
+              - listitem [ref=e199]:
+                - link "未读，heatmap讨论区（文字频道）, 私密频道（已锁）" [ref=e203] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1525493029329309766
+                  - generic [ref=e204]:
+                    - img "文字信息（受限） icon" [ref=e205]
+                    - generic [ref=e209]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e210]: heatmap讨论区
+              - listitem [ref=e211]:
+                - link "未读，星河会客厅交流区（文字频道）" [ref=e215] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1478800599389569065
+                  - generic [ref=e216]:
+                    - img "文字信息 icon" [ref=e217]
+                    - generic [ref=e220]: 文字信息
+                    - generic [aria-hidden] [ref=e221]: 星河会客厅交流区
+                    - generic: 邀请到频道
+              - listitem [ref=e223]:
+                - link "api-mcp相关讨论（文字频道）, 私密频道（已锁）" [ref=e1461] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1534900873107341413
+                  - generic [ref=e228]:
+                    - img "文字信息（受限） icon" [ref=e229]
+                    - generic [ref=e233]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e234]: api-mcp相关讨论
+              - listitem [ref=e235]:
+                - link "未读，junkman-analysis（文字频道）, 私密频道（已锁）" [ref=e239] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1515786763417813094
+                  - generic [ref=e240]:
+                    - img "文字信息（受限） icon" [ref=e241]
+                    - generic [ref=e245]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e246]: junkman-analysis
+              - listitem [ref=e247]:
+                - link "未读，leomessi-note（文字频道）, 私密频道（已锁）" [ref=e251] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1520737975472754849
+                  - generic [ref=e252]:
+                    - img "文字信息（受限） icon" [ref=e253]
+                    - generic [ref=e257]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e258]: leomessi-note
+              - listitem [ref=e259]:
+                - link "未读，volume-profile-analysis（文字频道）, 私密频道（已锁）" [ref=e263] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1535897932799156265
+                  - generic [ref=e264]:
+                    - img "文字信息（受限） icon" [ref=e265]
+                    - generic [ref=e269]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e270]: volume-profile-analysis
+              - listitem [ref=e271]:
+                - link "未读，期权深度研报（文字频道）, 私密频道（已锁）" [ref=e275] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1508483908155740211
+                  - generic [ref=e276]:
+                    - img "文字信息（受限） icon" [ref=e277]
+                    - generic [ref=e281]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e282]: 期权深度研报
+              - listitem [ref=e283]:
+                - link "未读，每日期权结构研报（文字频道）, 私密频道（已锁）" [ref=e287] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1509085172488736819
+                  - generic [ref=e288]:
+                    - img "文字信息（受限） icon" [ref=e289]
+                    - generic [ref=e293]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e294]: 每日期权结构研报
+              - listitem [ref=e295]:
+                - link "个股讨论（论坛频道）, 私密频道（已锁）" [ref=e298] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1533876389709611189
+                  - generic [ref=e299]:
+                    - img "论坛（受限） icon" [ref=e300]
+                    - generic [ref=e304]: 论坛（受限）
+                    - generic [aria-hidden] [ref=e305]: 个股讨论
+              - listitem [ref=e306]:
+                - link "学习资料（论坛频道）, 私密频道（已锁）" [ref=e309] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1533877640069517332
+                  - generic [ref=e310]:
+                    - img "论坛（受限） icon" [ref=e311]
+                    - generic [ref=e315]: 论坛（受限）
+                    - generic [aria-hidden] [ref=e316]: 学习资料
+              - listitem [ref=e317]:
+                - link "未读，产品需求和bug反馈（论坛频道）" [ref=e321] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1505094711675981825
+                  - generic [ref=e322]:
+                    - img "论坛 icon" [ref=e323]
+                    - generic [ref=e327]: 论坛
+                    - generic [aria-hidden] [ref=e328]: 产品需求和bug反馈
+                    - generic [ref=e329]:
+                      - button "邀请到频道" [ref=e1720]
+                      - generic [ref=e332]: 邀请到频道
+              - listitem [ref=e333]:
+                - button "讨论区 （类别）" [expanded] [ref=e335] [cursor=pointer]:
+                  - heading "讨论区" [level=3] [ref=e336]
+              - listitem [ref=e340]:
+                - link "未读，💴｜异常期权专区（文字频道）, 私密频道（已锁）" [ref=e344] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1519605317091196969
+                  - generic [ref=e345]:
+                    - img "文字信息（受限） icon" [ref=e346]
+                    - generic [ref=e350]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e351]: 💴｜异常期权专区
+                    - generic: 邀请到频道
+              - listitem [ref=e353]:
+                - link "未读，闲聊区（文字频道）, 私密频道（已锁）" [ref=e357] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1514332090978799677
+                  - generic [ref=e358]:
+                    - img "文字信息（受限） icon" [ref=e359]
+                    - generic [ref=e363]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e364]: 闲聊区
+                    - generic: 邀请到频道
+              - listitem [ref=e366]:
+                - link "未读，晒单区（文字频道）, 私密频道（已锁）" [ref=e370] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1468665944824877171
+                  - generic [ref=e371]:
+                    - img "文字信息（受限） icon" [ref=e372]
+                    - generic [ref=e376]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e377]: 晒单区
+                    - generic: 邀请到频道
+              - listitem [ref=e379]:
+                - link "未读，诈骗举报（文字频道）, 私密频道（已锁）" [ref=e383] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1493499907909353584
+                  - generic [ref=e384]:
+                    - img "文字信息（受限） icon" [ref=e385]
+                    - generic [ref=e389]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e390]: 诈骗举报
+                    - generic: 邀请到频道
+              - listitem [ref=e392]:
+                - button "NightWatch Alert （类别）" [expanded] [ref=e394] [cursor=pointer]:
+                  - heading "NightWatch Alert" [level=3] [ref=e395]
+              - listitem [ref=e399]:
+                - link "日内期权ai信号必读（文字频道）" [ref=e402] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1487738029102596236
+                  - generic [ref=e403]:
+                    - img "文字信息 icon" [ref=e404]
+                    - generic [ref=e407]: 文字信息
+                    - generic [aria-hidden] [ref=e408]: 日内期权ai信号必读
+                    - generic: 邀请到频道
+              - listitem [ref=e410]:
+                - link "未读，spy日内期权1号机（文字频道）" [ref=e414] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1476555018206449674
+                  - generic [ref=e415]:
+                    - img "文字信息 icon" [ref=e416]
+                    - generic [ref=e419]: 文字信息
+                    - generic [aria-hidden] [ref=e420]: spy日内期权1号机
+                    - generic [ref=e421]:
+                      - generic [ref=e422]:
+                        - generic [aria-hidden]:
+                          - generic: "2"
+                      - generic [ref=e423]: 邀请到频道
+              - listitem [ref=e424]:
+                - link "0dte-flow-alert（文字频道）" [ref=e427] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1513450634148577350
+                  - generic [ref=e428]:
+                    - img "文字信息 icon" [ref=e429]
+                    - generic [ref=e432]: 文字信息
+                    - generic [aria-hidden] [ref=e433]: 0dte-flow-alert
+                    - generic: 邀请到频道
+              - listitem [ref=e441]:
+                - link "未读，彩票频道（文字频道）" [ref=e445] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1503846806835040286
+                  - generic [ref=e446]:
+                    - img "文字信息 icon" [ref=e447]
+                    - generic [ref=e450]: 文字信息
+                    - generic [aria-hidden] [ref=e451]: 彩票频道
+                    - generic: 邀请到频道
+              - listitem [ref=e453]:
+                - link "未读，dennis-tape（文字频道）" [ref=e457] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1492437553171660921
+                  - generic [ref=e458]:
+                    - img "文字信息 icon" [ref=e459]
+                    - generic [ref=e462]: 文字信息
+                    - generic [aria-hidden] [ref=e463]: dennis-tape
+                    - generic [ref=e464]:
+                      - generic [ref=e465]:
+                        - generic [aria-hidden]:
+                          - generic: "1"
+                      - generic [ref=e466]: 邀请到频道
+              - listitem [ref=e467]:
+                - button "订阅与公告 （类别）" [expanded] [ref=e469] [cursor=pointer]:
+                  - heading "订阅与公告" [level=3] [ref=e470]
+              - listitem [ref=e474]:
+                - link "新人必读（文字频道）, 私密频道（已锁）" [ref=e477] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1510222695382646844
+                  - generic [ref=e478]:
+                    - img "文字信息（受限） icon" [ref=e479]
+                    - generic [ref=e483]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e484]: 新人必读
+                    - generic: 邀请到频道
+              - listitem [ref=e486]:
+                - link "付费会员权益（文字频道）, 私密频道（已锁）" [ref=e489] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1510233673390227547
+                  - generic [ref=e490]:
+                    - img "文字信息（受限） icon" [ref=e491]
+                    - generic [ref=e495]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e496]: 付费会员权益
+                    - generic: 邀请到频道
+              - listitem [ref=e498]:
+                - link "未读，更新公告（文字频道）, 私密频道（已锁）" [ref=e502] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1489519795954122883
+                  - generic [ref=e503]:
+                    - img "文字信息（受限） icon" [ref=e504]
+                    - generic [ref=e508]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e509]: 更新公告
+                    - generic [ref=e511]:
+                      - generic [aria-hidden]:
+                        - generic: "2"
+              - listitem [ref=e512]:
+                - button "异常期权分析 （类别）" [expanded] [ref=e514] [cursor=pointer]:
+                  - heading "异常期权分析" [level=3] [ref=e515]
+              - listitem [ref=e519]:
+                - link "分析师订阅面板（文字频道）, 私密频道（已锁）" [ref=e522] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1467503844006166588
+                  - generic [ref=e523]:
+                    - img "文字信息（受限） icon" [ref=e524]
+                    - generic [ref=e528]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e529]: 分析师订阅面板
+                    - generic: 邀请到频道
+              - listitem [ref=e531]:
+                - link "未读，异常期权（文字频道）, 私密频道（已锁）" [ref=e535] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1434960638559523000
+                  - generic [ref=e536]:
+                    - img "文字信息（受限） icon" [ref=e537]
+                    - generic [ref=e541]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e542]: 异常期权
+              - listitem [ref=e543]:
+                - link "未读，pa分析师（文字频道）, 私密频道（已锁）" [ref=e546] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1467498779497201716
+                  - generic [ref=e547]:
+                    - img "文字信息（受限） icon" [ref=e548]
+                    - generic [ref=e552]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e553]: pa分析师
+                    - generic: 邀请到频道
+              - listitem [ref=e555]:
+                - link "未读，mr分析师（文字频道）, 私密频道（已锁）" [ref=e559] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1467498808488235122
+                  - generic [ref=e560]:
+                    - img "文字信息（受限） icon" [ref=e561]
+                    - generic [ref=e565]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e566]: mr分析师
+                    - generic: 邀请到频道
+              - listitem [ref=e1724]:
+                - link "未读，qmr分析师（文字频道）, 私密频道（已锁）" [ref=e1728] [cursor=pointer]:
+                  - /url: /channels/1434960637561409689/1467498823265026188
+                  - generic [ref=e1729]:
+                    - img "文字信息（受限） icon" [ref=e1730]
+                    - generic [ref=e1734]: 文字信息（受限）
+                    - generic [aria-hidden] [ref=e1735]: qmr分析师
+                    - generic: 邀请到频道
+            - button "8 个新提及" [ref=e994] [cursor=pointer]
+          - separator "Resize Sidebar" [ref=e583]
+          - region "用户状态和设置" [ref=e584]:
+            - generic [aria-hidden] [ref=e589]:
+              - generic:
+                - generic:
+                  - button:
+                    - generic:
+                      - paragraph: 了解
+                      - paragraph: 更多
+                - generic:
+                  - generic:
+                    - button
+                  - generic: 获取奖励！
+                - generic:
+                  - button:
+                    - generic: 推广
+                  - generic:
+                    - button
+              - generic [ref=e592]:
+                - generic [ref=e593]:
+                  - heading [level=2] [ref=e594]: ROBLOX 任务
+                  - generic [ref=e596]:
+                    - text: 用您的 Discord 客户端打开并游玩 15 分钟
+                    - link [ref=e597] [cursor=pointer]: "The Hunt: Roblox 20"
+                    - text: ，即可赢得 Blurple 8-Bit Wings。
+                - button [ref=e600] [cursor=pointer]:
+                  - generic [ref=e601]: 接受任务
+            - generic [ref=e608]:
+              - generic [ref=e609] [cursor=pointer]:
+                - button "管理个人资料和状态"
+                - generic [ref=e612]:
+                  - generic [ref=e613]: 粉红大兵
+                  - generic [ref=e617]:
+                    - generic: fenhongdabing
+                    - generic: 在线
+              - generic [ref=e618]:
+                - generic [ref=e619]:
+                  - switch "静音" [checked] [ref=e620] [cursor=pointer]
+                  - generic [ref=e641]: 取消静音
+                  - button "输入选项" [ref=e642] [cursor=pointer]
+                - generic [ref=e646]:
+                  - switch "耳机静音" [ref=e647] [cursor=pointer]
+                  - button "输出选项" [ref=e659] [cursor=pointer]
+                - button "用户设置" [ref=e663] [cursor=pointer]
+        - generic [ref=e674]:
+          - region "频道标题" [ref=e1737]:
+            - generic [ref=e1738]:
+              - generic [ref=e1739]:
+                - generic [ref=e1744]: 文字频道
+                - 'heading "Alpha夜航社: 更新公告" [level=1] [ref=e1746]':
+                  - generic [ref=e1747]: "Alpha夜航社:"
+                  - text: 更新公告
+              - generic [ref=e1748]:
+                - button "子区" [ref=e1749] [cursor=pointer]
+                - button "通知设定" [ref=e1752] [cursor=pointer]
+                - button "已标注消息" [ref=e1755] [cursor=pointer]
+                - button "显示成员名单" [ref=e1758] [cursor=pointer]
+                - generic [ref=e1763]:
+                  - combobox "搜索 Alpha夜航社" [active] [ref=e1764]:
+                    - generic [ref=e1765]: 维护
+                  - button [ref=e2320] [cursor=pointer]:
+                    - img "清除" [ref=e2321]
+          - generic [ref=e710]:
+            - main "更新公告 （频道）" [ref=e1772]:
+              - heading "更新公告 聊天" [level=2] [ref=e1774]
+              - generic [ref=e1775]:
+                - generic [ref=e1776]:
+                  - button "跳转至最后的未读信息" [ref=e1777] [cursor=pointer]: 自从 2026年9月17日 01:40 以来有 2 条新消息
+                  - button "标记为已读" [ref=e1779] [cursor=pointer]
+                - group [ref=e1784]:
+                  - list "更新公告中的消息" [ref=e1786]:
+                    - generic [ref=e1787]:
+                      - heading [level=3] [ref=e1790]
+                      - heading [level=3] [ref=e1807]
+                      - heading [level=3] [ref=e1813]
+                      - heading [level=3] [ref=e1819]
+                      - heading [level=3] [ref=e1836]
+                      - heading [level=3] [ref=e1848]
+                      - heading [level=3] [ref=e1857]
+                      - heading [level=3] [ref=e1863]
+                      - heading [level=3] [ref=e1875]
+                    - separator "2026年8月7日"
+                    - listitem [ref=e1883]:
+                      - article "时间的狱友(不会主动私聊你) 服务器标签：夜航社 , @everyone API已经上线测试，可以自助在网站右上角个人中心创建API Key来使用，没有的话刷新下。大家要是遇到什么问题随时反馈 🫡 图片 🫡 22 👍 6 添加反应 , 2026/8/7 00:41" [ref=e1884]:
+                        - generic [ref=e1885]:
+                          - img [aria-hidden] [ref=e1886] [cursor=pointer]
+                          - heading [level=3] [ref=e1887]:
+                            - generic [ref=e1888]:
+                              - button "时间的狱友(不会主动私聊你)" [ref=e1889]
+                              - button "服务器标签：夜航社" [ref=e1891] [cursor=pointer]:
+                                - generic [ref=e1892]:
+                                  - generic [ref=e1893]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/8/7 00:41
+                              - generic: 2026年8月7日星期五 00:41
+                          - generic [ref=e1899]:
+                            - button "@everyone" [ref=e1900] [cursor=pointer]
+                            - text: API已经上线测试，可以自助在网站右上角个人中心创建API Key来使用，没有的话刷新下。大家要是遇到什么问题随时反馈
+                            - button [ref=e1901] [cursor=pointer]:
+                              - img "🫡" [ref=e1902]
+                        - generic [ref=e1903]:
+                          - generic [ref=e1909] [cursor=pointer]:
+                            - link [aria-hidden] [ref=e1910]:
+                              - /url: https://cdn.discordapp.com/attachments/1489519795954122883/1534949642435956776/image.png?ex=6aaead40&is=6aad5bc0&hm=f6f70b377fc1eeb5db5fb248d4ade950488cbb8267773dd3a8c164a0800c4306&
+                            - button "图片" [ref=e1911]
+                          - group [ref=e1913]:
+                            - generic [ref=e1914] [cursor=pointer]:
+                              - img "🫡" [ref=e1915]
+                              - generic [ref=e1916]: "22"
+                            - generic [ref=e1917] [cursor=pointer]:
+                              - img "👍" [ref=e1918]
+                              - generic [ref=e1919]: "6"
+                            - button [ref=e1921] [cursor=pointer]
+                            - generic [ref=e1924]: 添加反应
+                    - separator "2026年8月13日"
+                    - listitem [ref=e1925]:
+                      - article "时间的狱友(不会主动私聊你) 服务器标签：夜航社 , 对API/MCP接口进行了更新，收窄了一些自研数据的范围，但是不会影响大家使用的主要功能，节约点流量，另外发现有些人在恶意打API接口大量下载数据，别被我抓到，不然有你好果子吃。 图片 👍 5 添加反应 , 2026/8/13 21:40" [ref=e1926]:
+                        - generic [ref=e1927]:
+                          - img [aria-hidden] [ref=e1928] [cursor=pointer]
+                          - heading [level=3] [ref=e1929]:
+                            - generic [ref=e1930]:
+                              - button "时间的狱友(不会主动私聊你)" [ref=e1931]
+                              - button "服务器标签：夜航社" [ref=e1933] [cursor=pointer]:
+                                - generic [ref=e1934]:
+                                  - generic [ref=e1935]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/8/13 21:40
+                              - generic: 2026年8月13日星期四 21:40
+                          - generic [ref=e1941]: 对API/MCP接口进行了更新，收窄了一些自研数据的范围，但是不会影响大家使用的主要功能，节约点流量，另外发现有些人在恶意打API接口大量下载数据，别被我抓到，不然有你好果子吃。
+                        - generic [ref=e1942]:
+                          - generic [ref=e1948] [cursor=pointer]:
+                            - link [aria-hidden] [ref=e1949]:
+                              - /url: https://cdn.discordapp.com/attachments/1489519795954122883/1537440716366815282/image.png?ex=6aaf2b7f&is=6aadd9ff&hm=0bbe447444208b351122b16dc210b56c3c624d48d100941716c1c0e015219565&
+                            - button "图片" [ref=e1950]
+                          - group [ref=e1952]:
+                            - generic [ref=e1953] [cursor=pointer]:
+                              - img "👍" [ref=e1954]
+                              - generic [ref=e1955]: "5"
+                            - button [ref=e1957] [cursor=pointer]
+                            - generic [ref=e1960]: 添加反应
+                    - listitem [ref=e1961]:
+                      - article "时间的狱友(不会主动私聊你) 服务器标签：夜航社 , 另外新的split view视角也已经更新上线了，大家可以多用用，Heatmap和Chart左右两边的ticker都可以自定义选择，有问题及时提。 @everyone 图片 ❤️ 22 👑 7 👍 3 添加反应 , 21:40" [ref=e1962]:
+                        - generic [ref=e1963]:
+                          - generic:
+                            - generic:
+                              - time:
+                                - generic [aria-hidden]: "["
+                                - text: 21:40
+                                - generic [aria-hidden]: "]"
+                            - generic: 2026年8月13日星期四 21:40
+                          - generic [ref=e1970]:
+                            - text: 另外新的split view视角也已经更新上线了，大家可以多用用，Heatmap和Chart左右两边的ticker都可以自定义选择，有问题及时提。
+                            - button "@everyone" [ref=e1971] [cursor=pointer]
+                        - generic [ref=e1972]:
+                          - generic [ref=e1978] [cursor=pointer]:
+                            - link [aria-hidden] [ref=e1979]:
+                              - /url: https://cdn.discordapp.com/attachments/1489519795954122883/1537440778928791613/image.png?ex=6aaf2b8d&is=6aadda0d&hm=12355a0ad4b23359fbcf25cc5197ee1796667b3df393b1ab4422adadbdec331f&
+                            - button "图片" [ref=e1980]
+                          - group [ref=e1982]:
+                            - generic [ref=e1983] [cursor=pointer]:
+                              - img "❤️" [ref=e1984]
+                              - generic [ref=e1985]: "22"
+                            - generic [ref=e1986] [cursor=pointer]:
+                              - img "👑" [ref=e1987]
+                              - generic [ref=e1988]: "7"
+                            - generic [ref=e1989] [cursor=pointer]:
+                              - img "👍" [ref=e1990]
+                              - generic [ref=e1991]: "3"
+                            - button [ref=e1993] [cursor=pointer]
+                            - generic [ref=e1996]: 添加反应
+                    - separator "2026年8月17日"
+                    - listitem [ref=e1997]:
+                      - article [ref=e1998]:
+                        - generic [ref=e1999]:
+                          - img [aria-hidden] [ref=e2000] [cursor=pointer]
+                          - heading [level=3] [ref=e2001]:
+                            - button "Karrigan" [ref=e2003]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/8/17 20:49
+                              - generic: 2026年8月17日星期一 20:49
+                          - generic [ref=e2009]:
+                            - button "@everyone" [ref=e2010] [cursor=pointer]
+                            - text: 更新公告
+                            - button [ref=e2011] [cursor=pointer]:
+                              - img "📢" [ref=e2012]
+                            - text: Heatmap Replay 功能将于今天正式上线，大家可以更直观地回顾市场走势与交易过程，欢迎体验并向我们反馈使用感受。 另外，本次日内交流频道体验活动将于今天结束，会员内容也将恢复为仅对付费会员开放。 再次感谢每一位朋友对社区的关注与支持。我们会继续打磨产品、完善内容，为大家带来更好的使用体验！
+                            - button [ref=e2013] [cursor=pointer]:
+                              - img "🚀" [ref=e2014]
+                            - text: 祝大家交易顺利！
+                            - button [ref=e2015] [cursor=pointer]:
+                              - img "❤️" [ref=e2016]
+                        - group [ref=e2018]:
+                          - generic [ref=e2019] [cursor=pointer]:
+                            - img "❤️" [ref=e2020]
+                            - generic [ref=e2021]: "32"
+                          - button [ref=e2023] [cursor=pointer]
+                          - generic [ref=e2026]: 添加反应
+                    - separator "2026年8月23日"
+                    - listitem [ref=e2027]:
+                      - article [ref=e2028]:
+                        - generic [ref=e2029]:
+                          - img [aria-hidden] [ref=e2030] [cursor=pointer]
+                          - heading [level=3] [ref=e2031]:
+                            - generic [ref=e2032]:
+                              - button "时间的狱友(不会主动私聊你)" [ref=e2033]
+                              - button "服务器标签：夜航社" [ref=e2035] [cursor=pointer]:
+                                - generic [ref=e2036]:
+                                  - generic [ref=e2037]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/8/23 01:21
+                              - generic: 2026年8月23日星期日 01:21
+                          - generic [ref=e2043]:
+                            - button "@everyone" [ref=e2044] [cursor=pointer]
+                            - text: 这次更新优化了许多前端体验和细节，并且整体网站速度会更快。 并且大家反馈的Chart和replay lab的优化也基本都安排上去了。 策略复盘也加入了蝴蝶策略，大家可以继续多投品鉴复盘Heatmap
+                            - button [ref=e2045] [cursor=pointer]:
+                              - img ":emoji_25:" [ref=e2046]
+                            - text: 祝大家的交易更上一层楼
+                        - group [ref=e2048]:
+                          - generic [ref=e2049] [cursor=pointer]:
+                            - img "👍" [ref=e2050]
+                            - generic [ref=e2051]: "31"
+                          - generic [ref=e2052] [cursor=pointer]:
+                            - img "🔥" [ref=e2053]
+                            - generic [ref=e2054]: "6"
+                          - button [ref=e2056] [cursor=pointer]
+                          - generic [ref=e2059]: 添加反应
+                    - separator "2026年8月27日"
+                    - listitem [ref=e2060]:
+                      - article "时间的狱友(不会主动私聊你) 服务器标签：夜航社 , @everyone VWAP已经上线，刷新之后就可以看到这个按钮，支持所有的股票，指数不支持 图片 🔥 21 添加反应 , 2026/8/27 21:12" [ref=e2061]:
+                        - generic [ref=e2062]:
+                          - img [aria-hidden] [ref=e2063] [cursor=pointer]
+                          - heading [level=3] [ref=e2064]:
+                            - generic [ref=e2065]:
+                              - button "时间的狱友(不会主动私聊你)" [ref=e2066]
+                              - button "服务器标签：夜航社" [ref=e2068] [cursor=pointer]:
+                                - generic [ref=e2069]:
+                                  - generic [ref=e2070]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/8/27 21:12
+                              - generic: 2026年8月27日星期四 21:12
+                          - generic [ref=e2076]:
+                            - button "@everyone" [ref=e2077] [cursor=pointer]
+                            - text: VWAP已经上线，刷新之后就可以看到这个按钮，支持所有的股票，指数不支持
+                        - generic [ref=e2078]:
+                          - generic [ref=e2084] [cursor=pointer]:
+                            - link [aria-hidden] [ref=e2085]:
+                              - /url: https://cdn.discordapp.com/attachments/1489519795954122883/1542506973155827752/image.png?ex=6aaf24d0&is=6aadd350&hm=1a63cfd80d4c868797c14015549abeea7301b31d7ebdd7d9ec357eca4e31b77d&
+                            - button "图片" [ref=e2086]
+                          - group [ref=e2088]:
+                            - generic [ref=e2089] [cursor=pointer]:
+                              - img "🔥" [ref=e2090]
+                              - generic [ref=e2091]: "21"
+                            - button [ref=e2093] [cursor=pointer]
+                            - generic [ref=e2096]: 添加反应
+                    - separator "2026年9月9日"
+                    - listitem [ref=e2097]:
+                      - article "时间的狱友(不会主动私聊你) 服务器标签：夜航社 , @everyone Flow相关的功能已经上线测试了，如果没看到就刷新下，目前的已知问题是NCP和NPP计算不太准确，或者性能方面会卡一下，这个之后会修复，然后可能还有一些体验类的小Bug，大家要是遇到的话可以在论坛频道⁠产品需求和bug反馈 反馈，如果有交互和数据方面的问题也可以一并提出，不多说别的，在看Flow这块基本上可以平替unusual whale了。 图片 👍 18 🚀 3 添加反应 , 2026/9/9 01:40" [ref=e2098]:
+                        - generic [ref=e2099]:
+                          - img [aria-hidden] [ref=e2100] [cursor=pointer]
+                          - heading [level=3] [ref=e2101]:
+                            - generic [ref=e2102]:
+                              - button "时间的狱友(不会主动私聊你)" [ref=e2103]
+                              - button "服务器标签：夜航社" [ref=e2105] [cursor=pointer]:
+                                - generic [ref=e2106]:
+                                  - generic [ref=e2107]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/9 01:40
+                              - generic: 2026年9月9日星期三 01:40
+                          - generic [ref=e2113]:
+                            - button "@everyone" [ref=e2114] [cursor=pointer]
+                            - text: Flow相关的功能已经上线测试了，如果没看到就刷新下，目前的已知问题是NCP和NPP计算不太准确，或者性能方面会卡一下，这个之后会修复，然后可能还有一些体验类的小Bug，大家要是遇到的话可以在
+                            - link "论坛频道⁠产品需求和bug反馈" [ref=e2115] [cursor=pointer]:
+                              - generic [ref=e2116]:
+                                - generic [ref=e2117]:
+                                  - img "论坛频道" [ref=e2118]
+                                  - text: ⁠
+                                - generic [ref=e2121]: 产品需求和bug反馈
+                            - text: 反馈，如果有交互和数据方面的问题也可以一并提出，不多说别的，在看Flow这块基本上可以平替unusual whale了。
+                        - generic [ref=e2122]:
+                          - generic [ref=e2128] [cursor=pointer]:
+                            - link [aria-hidden] [ref=e2129]:
+                              - /url: https://cdn.discordapp.com/attachments/1489519795954122883/1546923270677463101/image.png?ex=6aaebb10&is=6aad6990&hm=5f20ae27e7762fafe3c222d4c509b2f903a7035bc04b3e13c5e19d5672c3ed23&
+                            - button "图片" [ref=e2130]
+                          - group [ref=e2132]:
+                            - generic [ref=e2133] [cursor=pointer]:
+                              - img "👍" [ref=e2134]
+                              - generic [ref=e2135]: "18"
+                            - generic [ref=e2136] [cursor=pointer]:
+                              - img "🚀" [ref=e2137]
+                              - generic [ref=e2138]: "3"
+                            - button [ref=e2140] [cursor=pointer]
+                            - generic [ref=e2143]: 添加反应
+                    - separator "2026年9月14日"
+                    - listitem [ref=e2144]:
+                      - article [ref=e2145]:
+                        - generic [ref=e2146]:
+                          - img [aria-hidden] [ref=e2147] [cursor=pointer]
+                          - heading [level=3] [ref=e2148]:
+                            - generic [ref=e2149]:
+                              - button "时间的狱友(不会主动私聊你)" [ref=e2150]
+                              - button "服务器标签：夜航社" [ref=e2152] [cursor=pointer]:
+                                - generic [ref=e2153]:
+                                  - generic [ref=e2154]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/14 15:54
+                              - generic: 2026年9月14日星期一 15:54
+                          - generic [ref=e2160]:
+                            - text: 本周更新公告： Dealer Vex正式上线，相关文档已经更新完毕。 • GEX 告诉你价格动多少会触发对冲流，VEX 告诉你波动率动多少会触发对冲流。IV 每变化 1 个百分点，做市商在哪个行权价、哪个到期日被迫买入或卖出多少美元——全部实时展示在你熟悉的热图上，GEX / VEX 一键切换。波动率交易者的第二张地图。（API和历史回放之后会上线） Ask APEX 升级： • 看得到所有股票：新增全市场不同ticker的对比，可以直接让Apex对好几个股票的结构进行比较。 • 看得懂"变化"：新增的结构对比能力，可以告诉你"现在和一小时前相比，市场结构发生了什么变化"——墙移了没？射程扩了没？ • 更懂波动率：接入 VEX 情景描述与 IV 条件判读，回答的维度再上一层。 • 更可靠：长回答不再莫名消失，异常提示清晰可见，一键快捷问句"解读一下当前结构"随点随答。 Heatmap 全面提速 • 首屏加载更快、稳定性大幅提升，多开几个标签页也不会再被误伤限流、连接更稳。背后的管道刚刚经历了一轮彻底的性能重构。 开发者体验 • Data API 与 MCP 服务完成一轮可靠性加固：历史回填更稳、错误语义更清晰、降低了大家的额度消耗， 预告：模拟交易（Paper Trading） 多腿价差、保证金账户、实时盯市，AI分析交易记录都已经在最后测试阶段，即将开放敬请期待。
+                            - button "@everyone" [ref=e2161] [cursor=pointer]
+                        - group [ref=e2163]:
+                          - generic [ref=e2164] [cursor=pointer]:
+                            - img "🔥" [ref=e2165]
+                            - generic [ref=e2166]: "36"
+                          - generic [ref=e2167] [cursor=pointer]:
+                            - img "🤣" [ref=e2168]
+                            - generic [ref=e2169]: "1"
+                          - generic [ref=e2170] [cursor=pointer]:
+                            - img "❤️" [ref=e2171]
+                            - generic [ref=e2172]: "2"
+                          - button [ref=e2174] [cursor=pointer]
+                          - generic [ref=e2177]: 添加反应
+                    - separator "新的, 2026年9月17日":
+                      - generic: 2026年9月17日
+                      - generic: 新的
+                    - listitem [ref=e2178]:
+                      - article "时间的狱友(不会主动私聊你) 服务器标签：夜航社 , 更新了Heatmap的聚焦模式和变化速率在格子上直接显示的功能，鼠标悬停在开关上可以看到具体说明，赶在FOMC之前给大家安排上了 @everyone 图片 saluting face, 17 个反应，按下以反应 添加反应 , 2026/9/17 01:40" [ref=e2179]:
+                        - generic [ref=e2180]:
+                          - img [aria-hidden] [ref=e2181] [cursor=pointer]
+                          - heading [level=3] [ref=e2182]:
+                            - generic [ref=e2183]:
+                              - button "时间的狱友(不会主动私聊你)" [ref=e2184]
+                              - button "服务器标签：夜航社" [ref=e2186] [cursor=pointer]:
+                                - generic [ref=e2187]:
+                                  - generic [ref=e2188]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/17 01:40
+                              - generic: 2026年9月17日星期四 01:40
+                          - generic [ref=e2194]:
+                            - text: 更新了Heatmap的聚焦模式和变化速率在格子上直接显示的功能，鼠标悬停在开关上可以看到具体说明，赶在FOMC之前给大家安排上了
+                            - button "@everyone" [ref=e2195] [cursor=pointer]
+                        - generic [ref=e2196]:
+                          - generic [ref=e2202] [cursor=pointer]:
+                            - link [aria-hidden] [ref=e2203]:
+                              - /url: https://cdn.discordapp.com/attachments/1489519795954122883/1549822215447519322/image.png?ex=6aaebaea&is=6aad696a&hm=e964c84ae4f5bb04aeebc592fec7e68daaa1677309be9fec7dcf21df0ec6d9c6&
+                            - button "图片" [ref=e2204]:
+                              - img "图片" [ref=e2206]
+                          - group [ref=e2207]:
+                            - button "saluting face, 17 个反应，按下以反应" [ref=e2210] [cursor=pointer]:
+                              - img "🫡" [ref=e2212]
+                              - generic [ref=e2213]: "17"
+                            - button [ref=e2215] [cursor=pointer]
+                            - generic [ref=e2218]: 添加反应
+                    - separator "2026年9月18日"
+                    - listitem [ref=e2219]:
+                      - article "时间的狱友(不会主动私聊你) 服务器标签：夜航社 , 期权模拟盘上线了，支持所有的Heatmap ticker，支持0DTE，支持多腿期权组合，支持纯卖期权，保证金风控和手续费基本和实盘的是差不多的，初始资金10万U，大家先玩玩有什么问题及时反馈，交易比赛晚点再上 @everyone 图片 🫡 13 🔥 5 添加反应 , 昨天18:06" [ref=e2220]:
+                        - generic [ref=e2221]:
+                          - img [aria-hidden] [ref=e2222] [cursor=pointer]
+                          - heading [level=3] [ref=e2223]:
+                            - generic [ref=e2224]:
+                              - button "时间的狱友(不会主动私聊你)" [ref=e2225]
+                              - button "服务器标签：夜航社" [ref=e2227] [cursor=pointer]:
+                                - generic [ref=e2228]:
+                                  - generic [ref=e2229]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 昨天18:06
+                              - generic: 2026年9月18日星期五 18:06
+                          - generic [ref=e2235]:
+                            - text: 期权模拟盘上线了，支持所有的Heatmap ticker，支持0DTE，支持多腿期权组合，支持纯卖期权，保证金风控和手续费基本和实盘的是差不多的，初始资金10万U，大家先玩玩有什么问题及时反馈，交易比赛晚点再上
+                            - button "@everyone" [ref=e2236] [cursor=pointer]
+                        - generic [ref=e2237]:
+                          - generic [ref=e2243] [cursor=pointer]:
+                            - link [aria-hidden] [ref=e2244]:
+                              - /url: https://cdn.discordapp.com/attachments/1489519795954122883/1550432774777737277/image.png?ex=6aaef94b&is=6aada7cb&hm=afdfe158f9519320cf062e8936a7a0967e51ea7c9f6795afaf6d423b82496f7d&
+                            - button "图片" [ref=e2245]
+                          - group [ref=e2247]:
+                            - generic [ref=e2248] [cursor=pointer]:
+                              - img "🫡" [ref=e2249]
+                              - generic [ref=e2250]: "13"
+                            - generic [ref=e2251] [cursor=pointer]:
+                              - img "🔥" [ref=e2252]
+                              - generic [ref=e2253]: "5"
+                            - button [ref=e2255] [cursor=pointer]
+                            - generic [ref=e2258]: 添加反应
+              - generic [ref=e2264]:
+                - generic:
+                  - generic:
+                    - generic [aria-hidden]: 您没有权限在此频道中发送消息。
+                    - generic "您没有权限在此频道中发送消息。"
+            - region "搜索结果" [ref=e2322]:
+              - generic [ref=e2323]:
+                - status [ref=e2324]:
+                  - generic [ref=e2616]: 146个结果
+                - generic [ref=e2326]:
+                  - button "筛选" [ref=e2327] [cursor=pointer]
+                  - button "排序" [ref=e2333] [cursor=pointer]
+              - list [ref=e2617]:
+                - group "🎲｜日内交易专区, 星河会客厅" [ref=e2618]:
+                  - button "🎲 ｜日内交易专区 🎲｜日内交易专区 星河会客厅" [ref=e2619]:
+                    - generic [ref=e2620] [cursor=pointer]:
+                      - generic [ref=e2624]:
+                        - generic [ref=e2626]:
+                          - button [ref=e2627]:
+                            - img "🎲" [ref=e2628]
+                          - text: ｜日内交易专区
+                        - generic [ref=e2629]: 🎲｜日内交易专区
+                      - generic [ref=e2630]: 星河会客厅
+                  - listitem [ref=e2634]:
+                    - button [ref=e2635] [cursor=pointer]:
+                      - article "踢爆这个世界 , 什么时候维护结束 , 2026/9/13 11:15" [ref=e2637]:
+                        - generic [ref=e2638]:
+                          - heading [level=2] [ref=e2639]:
+                            - button "踢爆这个世界" [ref=e2641]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/13 11:15
+                              - generic: 2026年9月13日星期日 11:15
+                          - generic [ref=e2642]: 什么时候维护结束
+                  - listitem [ref=e2643]:
+                    - button [ref=e2644] [cursor=pointer]:
+                      - article "时间的狱友(不会主动私聊你) 服务器标签：夜航社 , 哪个维护 , 2026/9/9 12:49" [ref=e2646]:
+                        - generic [ref=e2647]:
+                          - heading [level=2] [ref=e2648]:
+                            - generic [ref=e2649]:
+                              - button "时间的狱友(不会主动私聊你)" [ref=e2650]
+                              - button "服务器标签：夜航社" [ref=e2652]:
+                                - generic [ref=e2653]:
+                                  - generic [ref=e2654]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/9 12:49
+                              - generic: 2026年9月9日星期三 12:49
+                          - generic [ref=e2655]: 哪个维护
+                  - listitem [ref=e2656]:
+                    - button [ref=e2657] [cursor=pointer]:
+                      - article "woodscountry 服务器标签：夜航社 , 老板维护啦 , 2026/9/9 12:48" [ref=e2659]:
+                        - generic [ref=e2660]:
+                          - heading [level=2] [ref=e2661]:
+                            - generic [ref=e2662]:
+                              - button "woodscountry" [ref=e2663]
+                              - button "服务器标签：夜航社" [ref=e2665]:
+                                - generic [ref=e2666]:
+                                  - generic [ref=e2667]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/9 12:48
+                              - generic: 2026年9月9日星期三 12:48
+                          - generic [ref=e2668]: 老板维护啦
+                - group "期权深度研报, 星河会客厅" [ref=e2669]:
+                  - button "期权深度研报 期权深度研报 星河会客厅" [ref=e2670]:
+                    - generic [ref=e2671] [cursor=pointer]:
+                      - generic [ref=e2675]:
+                        - generic [ref=e2676]: 期权深度研报
+                        - generic [ref=e2678]: 期权深度研报
+                      - generic [ref=e2679]: 星河会客厅
+                  - listitem [ref=e2683]:
+                    - button [ref=e2684] [cursor=pointer]:
+                      - article [ref=e2686]:
+                        - button "消息无法加载" [ref=e2691]
+                        - generic [ref=e2693]:
+                          - heading [level=2] [ref=e2694]:
+                            - generic [ref=e2695]:
+                              - button "Nightwatch" [ref=e2696]
+                              - img "APP" [ref=e2697]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/9 08:59
+                              - generic: 2026年9月9日星期三 08:59
+                          - generic [ref=e2699]:
+                            - button [ref=e2700]:
+                              - img "🌙" [ref=e2701]
+                            - text: 研报服务正在维护中，请稍后再试。
+                - group "heatmap讨论区, 星河会客厅" [ref=e2702]:
+                  - button "heatmap讨论区 heatmap讨论区 星河会客厅" [ref=e2703]:
+                    - generic [ref=e2704] [cursor=pointer]:
+                      - generic [ref=e2708]:
+                        - generic [ref=e2709]: heatmap讨论区
+                        - generic [ref=e2711]: heatmap讨论区
+                      - generic [ref=e2712]: 星河会客厅
+                  - listitem [ref=e2716]:
+                    - button [ref=e2717] [cursor=pointer]:
+                      - article [ref=e2719]:
+                        - generic [ref=e2720]:
+                          - heading [level=2] [ref=e2721]:
+                            - button "lailailaile" [ref=e2723]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/4 03:14
+                              - generic: 2026年9月4日星期五 03:14
+                          - generic [ref=e2724]: ◆ APEX CRWV 当前读数（盘中，session 2026-09-03 14:09 ET）是跳板结构，判定不贴线：现价 83.76 坐在一层强正承接上。下方最近且最重的达标位是 82——它同时是近月 King（09-04 到期内量级最大，约 151 万），而全图口径的 King Strike 在 110 @ 09-18（约 288 万，z 14.09，已 45 分钟未跳位）。两个口径不是同一个节点：肉眼对齐单格颜色盯的是近月口径 82，全图分量最重的是 110。整体环境为正 GEX（净敞口约 +410 万），82 这类强正节点在这种环境下是逆势承接——价格下探时对冲倾向把它摁回，这是跳板的底锚（约合合计口径 King 的 55%，分量充足）。 关键的脆弱点在 82 脚下：下墙 80 @ 09-18 是负节点（全图量级第二，约 167 万），负地板不接价格。翻转排列注记标的就是这对 82/80——现价在 82 上方约 1.76 格，一旦收盘有效跌破 82、落入 80 一带，同一位会从承接切成放大。但注意这只是注记、不是已成立的塌落：本帧穿越确认不可用（当日无分钟价格），不能当作翻转已发生。 上方近场是跳板的另一侧：头顶最近达标的是 84，跨到期合计为负（约 -83 万）且几乎贴着现价——负节点不是天花板而是助推性质；带内没有够分量的正节点，第一道像样的正门远在 100 @ 09-18（structural，约 King 的三分之一，距现价约 16 格），再上去才是 110 的 King 本体。近 15 分钟演化全部在衰减、且都标为证据而非顺价机械：89@09-04 掉了 67.6%，87@09-04 -17%、80@09-11 -14.4%、84@09-04 -10.2%——现价上方的负值簇正在消退，近场结构在变薄，King 110 分量不动。可读性上这一带正负交错密集（翻转率 0.43，显著节点多挤在 79–95），按节点逐个盯比按形态整体概括更可靠；市场态为「无」——King 距现价 26 格，不构成贴身判定。 失效参考：82 是这层承接的沿，有效跌破它则跳板描述失效、翻转进入可确认窗口；上行若 84 继续衰减而 82 仍被维护，近场会更趋真空化。以上是教育用途的结构解读，不是投资建议。
+                - group "🎲｜日内交易专区, 星河会客厅" [ref=e2725]:
+                  - button "🎲 ｜日内交易专区 🎲｜日内交易专区 星河会客厅" [ref=e2726]:
+                    - generic [ref=e2727] [cursor=pointer]:
+                      - generic [ref=e2731]:
+                        - generic [ref=e2733]:
+                          - button [ref=e2734]:
+                            - img "🎲" [ref=e2735]
+                          - text: ｜日内交易专区
+                        - generic [ref=e2736]: 🎲｜日内交易专区
+                      - generic [ref=e2737]: 星河会客厅
+                  - listitem [ref=e2741]:
+                    - button [ref=e2742] [cursor=pointer]:
+                      - article "抓住闪光 服务器标签：夜航社 , 老板说了没维护了 , 2026/9/3 23:49" [ref=e2744]:
+                        - generic [ref=e2745]:
+                          - heading [level=2] [ref=e2746]:
+                            - generic [ref=e2747]:
+                              - button "抓住闪光" [ref=e2748]
+                              - button "服务器标签：夜航社" [ref=e2750]:
+                                - generic [ref=e2751]:
+                                  - generic [ref=e2752]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/9/3 23:49
+                              - generic: 2026年9月3日星期四 23:49
+                          - generic [ref=e2753]: 老板说了没维护了
+                  - listitem [ref=e2754]:
+                    - button [ref=e2755] [cursor=pointer]:
+                      - article "抓住闪光 服务器标签：夜航社 , 一号机一直都没维护 , 2026/8/14 01:15" [ref=e2757]:
+                        - generic [ref=e2758]:
+                          - heading [level=2] [ref=e2759]:
+                            - generic [ref=e2760]:
+                              - button "抓住闪光" [ref=e2761]
+                              - button "服务器标签：夜航社" [ref=e2763]:
+                                - generic [ref=e2764]:
+                                  - generic [ref=e2765]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/8/14 01:15
+                              - generic: 2026年8月14日星期五 01:15
+                          - generic [ref=e2766]: 一号机一直都没维护
+                - group "api-mcp相关讨论, 星河会客厅" [ref=e2767]:
+                  - button "api-mcp相关讨论 api-mcp相关讨论 星河会客厅" [ref=e2768]:
+                    - generic [ref=e2769] [cursor=pointer]:
+                      - generic [ref=e2773]:
+                        - generic [ref=e2774]: api-mcp相关讨论
+                        - generic [ref=e2776]: api-mcp相关讨论
+                      - generic [ref=e2777]: 星河会客厅
+                  - listitem [ref=e2781]:
+                    - button [ref=e2782] [cursor=pointer]:
+                      - article [ref=e2784]:
+                        - generic [ref=e2785]:
+                          - heading [level=2] [ref=e2786]:
+                            - button "KNT-GoodOldDays" [ref=e2788]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/8/8 02:36
+                              - generic: 2026年8月8日星期六 02:36
+                          - generic [ref=e2789]:
+                            - text: 夜航社不能啥都做 维护起来要命 个人意见
+                            - button [ref=e2790]:
+                              - img "😂" [ref=e2791]
+                - group "每日期权结构研报, 星河会客厅" [ref=e2792]:
+                  - button "每日期权结构研报 每日期权结构研报 星河会客厅" [ref=e2793]:
+                    - generic [ref=e2794] [cursor=pointer]:
+                      - generic [ref=e2798]:
+                        - generic [ref=e2799]: 每日期权结构研报
+                        - generic [ref=e2801]: 每日期权结构研报
+                      - generic [ref=e2802]: 星河会客厅
+                  - listitem [ref=e2806]:
+                    - button [ref=e2807] [cursor=pointer]:
+                      - article [ref=e2809]:
+                        - button "消息无法加载" [ref=e2814]
+                        - generic [ref=e2816]:
+                          - heading [level=2] [ref=e2817]:
+                            - generic [ref=e2818]:
+                              - button "Nightwatch" [ref=e2819]
+                              - img "APP" [ref=e2820]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/8/6 21:23
+                              - generic: 2026年8月6日星期四 21:23
+                          - generic [ref=e2822]:
+                            - button [ref=e2823]:
+                              - img "🌙" [ref=e2824]
+                            - text: 研报服务正在维护中，请稍后再试。
+                - group "期权深度研报, 星河会客厅" [ref=e2825]:
+                  - button "期权深度研报 期权深度研报 星河会客厅" [ref=e2826]:
+                    - generic [ref=e2827] [cursor=pointer]:
+                      - generic [ref=e2831]:
+                        - generic [ref=e2832]: 期权深度研报
+                        - generic [ref=e2834]: 期权深度研报
+                      - generic [ref=e2835]: 星河会客厅
+                  - listitem [ref=e2839]:
+                    - button [ref=e2840] [cursor=pointer]:
+                      - article [ref=e2842]:
+                        - button "消息无法加载" [ref=e2847]
+                        - generic [ref=e2849]:
+                          - heading [level=2] [ref=e2850]:
+                            - generic [ref=e2851]:
+                              - button "Nightwatch" [ref=e2852]
+                              - img "APP" [ref=e2853]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/8/6 20:25
+                              - generic: 2026年8月6日星期四 20:25
+                          - generic [ref=e2855]:
+                            - button [ref=e2856]:
+                              - img "🌙" [ref=e2857]
+                            - text: 研报服务正在维护中，请稍后再试。
+                - group "🎲｜日内交易专区, 星河会客厅" [ref=e2858]:
+                  - button "🎲 ｜日内交易专区 🎲｜日内交易专区 星河会客厅" [ref=e2859]:
+                    - generic [ref=e2860] [cursor=pointer]:
+                      - generic [ref=e2864]:
+                        - generic [ref=e2866]:
+                          - button [ref=e2867]:
+                            - img "🎲" [ref=e2868]
+                          - text: ｜日内交易专区
+                        - generic [ref=e2869]: 🎲｜日内交易专区
+                      - generic [ref=e2870]: 星河会客厅
+                  - listitem [ref=e2874]:
+                    - button [ref=e2875] [cursor=pointer]:
+                      - article "KKAFA 服务器标签：夜航社 , 维护了？ , 2026/8/6 00:43" [ref=e2877]:
+                        - generic [ref=e2878]:
+                          - heading [level=2] [ref=e2879]:
+                            - generic [ref=e2880]:
+                              - button "KKAFA" [ref=e2881]
+                              - button "服务器标签：夜航社" [ref=e2883]:
+                                - generic [ref=e2884]:
+                                  - generic [ref=e2885]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/8/6 00:43
+                              - generic: 2026年8月6日星期四 00:43
+                          - generic [ref=e2886]: 维护了？
+                - group "闲聊区, 讨论区" [ref=e2887]:
+                  - button "闲聊区 闲聊区 讨论区" [ref=e2888]:
+                    - generic [ref=e2889] [cursor=pointer]:
+                      - generic [ref=e2893]:
+                        - generic [ref=e2894]: 闲聊区
+                        - generic [ref=e2896]: 闲聊区
+                      - generic [ref=e2897]: 讨论区
+                  - listitem [ref=e2901]:
+                    - button [ref=e2902] [cursor=pointer]:
+                      - article "时间的狱友(不会主动私聊你) 服务器标签：夜航社 , 等会就维护好了 , 2026/8/1 21:00" [ref=e2904]:
+                        - generic [ref=e2905]:
+                          - heading [level=2] [ref=e2906]:
+                            - generic [ref=e2907]:
+                              - button "时间的狱友(不会主动私聊你)" [ref=e2908]
+                              - button "服务器标签：夜航社" [ref=e2910]:
+                                - generic [ref=e2911]:
+                                  - generic [ref=e2912]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/8/1 21:00
+                              - generic: 2026年8月1日星期六 21:00
+                          - generic [ref=e2913]: 等会就维护好了
+                - group "星河会客厅交流区, 星河会客厅" [ref=e2914]:
+                  - button "星河会客厅交流区 星河会客厅交流区 星河会客厅" [ref=e2915]:
+                    - generic [ref=e2916] [cursor=pointer]:
+                      - generic [ref=e2919]:
+                        - generic [ref=e2920]: 星河会客厅交流区
+                        - generic [ref=e2922]: 星河会客厅交流区
+                      - generic [ref=e2923]: 星河会客厅
+                  - listitem [ref=e2927]:
+                    - button [ref=e2928] [cursor=pointer]:
+                      - article "时间的狱友(不会主动私聊你) 服务器标签：夜航社 , 家人们周末愉快 网站开始维护了 , 2026/8/1 05:09" [ref=e2930]:
+                        - generic [ref=e2931]:
+                          - heading [level=2] [ref=e2932]:
+                            - generic [ref=e2933]:
+                              - button "时间的狱友(不会主动私聊你)" [ref=e2934]
+                              - button "服务器标签：夜航社" [ref=e2936]:
+                                - generic [ref=e2937]:
+                                  - generic [ref=e2938]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/8/1 05:09
+                              - generic: 2026年8月1日星期六 05:09
+                          - generic [ref=e2939]: 家人们周末愉快 网站开始维护了
+                  - listitem [ref=e2940]:
+                    - button [ref=e2941] [cursor=pointer]:
+                      - article "时间的狱友(不会主动私聊你) 服务器标签：夜航社 , 英文版只能靠你们维护了啊，我的英语no good , 2026/7/31 18:11" [ref=e2943]:
+                        - generic [ref=e2944]:
+                          - heading [level=2] [ref=e2945]:
+                            - generic [ref=e2946]:
+                              - button "时间的狱友(不会主动私聊你)" [ref=e2947]
+                              - button "服务器标签：夜航社" [ref=e2949]:
+                                - generic [ref=e2950]:
+                                  - generic [ref=e2951]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/7/31 18:11
+                              - generic: 2026年7月31日星期五 18:11
+                          - generic [ref=e2952]: 英文版只能靠你们维护了啊，我的英语no good
+                - group "🎲｜日内交易专区, 星河会客厅" [ref=e2953]:
+                  - button "🎲 ｜日内交易专区 🎲｜日内交易专区 星河会客厅" [ref=e2954]:
+                    - generic [ref=e2955] [cursor=pointer]:
+                      - generic [ref=e2959]:
+                        - generic [ref=e2961]:
+                          - button [ref=e2962]:
+                            - img "🎲" [ref=e2963]
+                          - text: ｜日内交易专区
+                        - generic [ref=e2964]: 🎲｜日内交易专区
+                      - generic [ref=e2965]: 星河会客厅
+                  - listitem [ref=e2969]:
+                    - button [ref=e2970] [cursor=pointer]:
+                      - article "抓住闪光 服务器标签：夜航社 , 1号机没维护还是不能跟吧 , 2026/7/30 23:58" [ref=e2972]:
+                        - generic [ref=e2973]:
+                          - heading [level=2] [ref=e2974]:
+                            - generic [ref=e2975]:
+                              - button "抓住闪光" [ref=e2976]
+                              - button "服务器标签：夜航社" [ref=e2978]:
+                                - generic [ref=e2979]:
+                                  - generic [ref=e2980]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/7/30 23:58
+                              - generic: 2026年7月30日星期四 23:58
+                          - generic [ref=e2981]: 1号机没维护还是不能跟吧
+                - group "期权深度研报, 星河会客厅" [ref=e2982]:
+                  - button "期权深度研报 期权深度研报 星河会客厅" [ref=e2983]:
+                    - generic [ref=e2984] [cursor=pointer]:
+                      - generic [ref=e2988]:
+                        - generic [ref=e2989]: 期权深度研报
+                        - generic [ref=e2991]: 期权深度研报
+                      - generic [ref=e2992]: 星河会客厅
+                  - listitem [ref=e2996]:
+                    - button [ref=e2997] [cursor=pointer]:
+                      - article [ref=e2999]:
+                        - button "消息无法加载" [ref=e3004]
+                        - generic [ref=e3006]:
+                          - heading [level=2] [ref=e3007]:
+                            - generic [ref=e3008]:
+                              - button "Nightwatch" [ref=e3009]
+                              - img "APP" [ref=e3010]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/7/24 09:49
+                              - generic: 2026年7月24日星期五 09:49
+                          - generic [ref=e3012]:
+                            - button [ref=e3013]:
+                              - img "🌙" [ref=e3014]
+                            - text: 研报服务正在维护中，请稍后再试。
+                - group "闲聊区, 讨论区" [ref=e3015]:
+                  - button "闲聊区 闲聊区 讨论区" [ref=e3016]:
+                    - generic [ref=e3017] [cursor=pointer]:
+                      - generic [ref=e3021]:
+                        - generic [ref=e3022]: 闲聊区
+                        - generic [ref=e3024]: 闲聊区
+                      - generic [ref=e3025]: 讨论区
+                  - listitem [ref=e3029]:
+                    - button [ref=e3030] [cursor=pointer]:
+                      - article [ref=e3032]:
+                        - generic "峤香 正在回复 CH" [ref=e3033]:
+                          - button "@CH" [ref=e3034]
+                          - button "你用过么？好用么，主要是维护起来方便么" [ref=e3035]
+                        - generic [ref=e3036]:
+                          - heading [level=2] [ref=e3037]:
+                            - button "峤香" [ref=e3039]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/7/24 05:24
+                              - generic: 2026年7月24日星期五 05:24
+                          - generic [ref=e3040]:
+                            - text: 一般 不太好维护
+                            - button [ref=e3041]:
+                              - img "🤣" [ref=e3042]
+                  - listitem "消息无法加载 CH 2026/7/24 02:52 2026年7月24日星期五 02:52 你用过么？好用么，主要是维护起来方便么" [ref=e3043]:
+                    - button [ref=e3044] [cursor=pointer]:
+                      - article [ref=e3046]:
+                        - button "消息无法加载" [ref=e3051]
+                        - generic [ref=e3053]:
+                          - heading [level=2] [ref=e3054]:
+                            - button "CH" [ref=e3056]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/7/24 02:52
+                              - generic: 2026年7月24日星期五 02:52
+                          - generic [ref=e3057]: 你用过么？好用么，主要是维护起来方便么
+                - group "🎲｜日内交易专区, 星河会客厅" [ref=e3058]:
+                  - button "🎲 ｜日内交易专区 🎲｜日内交易专区 星河会客厅" [ref=e3059]:
+                    - generic [ref=e3060] [cursor=pointer]:
+                      - generic [ref=e3064]:
+                        - generic [ref=e3066]:
+                          - button [ref=e3067]:
+                            - img "🎲" [ref=e3068]
+                          - text: ｜日内交易专区
+                        - generic [ref=e3069]: 🎲｜日内交易专区
+                      - generic [ref=e3070]: 星河会客厅
+                  - listitem [ref=e3074]:
+                    - button [ref=e3075] [cursor=pointer]:
+                      - article "抓住闪光 服务器标签：夜航社 , 一号机没维护吧 , 2026/7/22 23:58" [ref=e3077]:
+                        - generic [ref=e3078]:
+                          - heading [level=2] [ref=e3079]:
+                            - generic [ref=e3080]:
+                              - button "抓住闪光" [ref=e3081]
+                              - button "服务器标签：夜航社" [ref=e3083]:
+                                - generic [ref=e3084]:
+                                  - generic [ref=e3085]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/7/22 23:58
+                              - generic: 2026年7月22日星期三 23:58
+                          - generic [ref=e3086]: 一号机没维护吧
+                  - listitem [ref=e3087]:
+                    - button [ref=e3088] [cursor=pointer]:
+                      - article [ref=e3090]:
+                        - generic [ref=e3091]:
+                          - heading [level=2] [ref=e3092]:
+                            - button "kanji" [ref=e3094]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/7/22 23:44
+                              - generic: 2026年7月22日星期三 23:44
+                          - generic [ref=e3095]:
+                            - button [ref=e3096]:
+                              - img "🥹" [ref=e3097]
+                            - text: HEATMAP维护去了？
+                  - listitem [ref=e3098]:
+                    - button [ref=e3099] [cursor=pointer]:
+                      - article [ref=e3101]:
+                        - generic [ref=e3102]:
+                          - heading [level=2] [ref=e3103]:
+                            - button "shawn_spx" [ref=e3105]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/7/22 05:03
+                              - generic: 2026年7月22日星期三 05:03
+                          - generic [ref=e3106]:
+                            - button [ref=e3107]:
+                              - img "🤣" [ref=e3108]
+                            - text: 别疲劳维护 回头bug更多了
+                  - listitem [ref=e3109]:
+                    - button [ref=e3110] [cursor=pointer]:
+                      - article "KKAFA 服务器标签：夜航社 , 怎么维护了 , 2026/7/22 02:08" [ref=e3112]:
+                        - generic [ref=e3113]:
+                          - heading [level=2] [ref=e3114]:
+                            - generic [ref=e3115]:
+                              - button "KKAFA" [ref=e3116]
+                              - button "服务器标签：夜航社" [ref=e3118]:
+                                - generic [ref=e3119]:
+                                  - generic [ref=e3120]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/7/22 02:08
+                              - generic: 2026年7月22日星期三 02:08
+                          - generic [ref=e3121]: 怎么维护了
+                - group "更新公告, 订阅与公告" [ref=e3122]:
+                  - button "更新公告 更新公告 订阅与公告" [ref=e3123]:
+                    - generic [ref=e3124] [cursor=pointer]:
+                      - generic [ref=e3128]:
+                        - generic [ref=e3129]: 更新公告
+                        - generic [ref=e3131]: 更新公告
+                      - generic [ref=e3132]: 订阅与公告
+                  - listitem [ref=e3136]:
+                    - button [ref=e3137] [cursor=pointer]:
+                      - article [ref=e3139]:
+                        - generic [ref=e3140]:
+                          - heading [level=2] [ref=e3141]:
+                            - generic [ref=e3142]:
+                              - button "时间的狱友(不会主动私聊你)" [ref=e3143]
+                              - button "服务器标签：夜航社" [ref=e3145]:
+                                - generic [ref=e3146]:
+                                  - generic [ref=e3147]: 服务器标签：夜航社
+                                  - text: 夜航社
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/7/21 23:07
+                              - generic: 2026年7月21日星期二 23:07
+                          - generic [ref=e3148]:
+                            - text: 网站维护已经结束，本次Heatmap ticker更新到213个；打开chart的速度应该会更快一些；另外在网站右上角个人账号页面还更新了一个大部分人都用不上的功能
+                            - button [ref=e3149]:
+                              - img "🤣" [ref=e3150]
+                            - button "@everyone" [ref=e3151]
+                - group "🎲｜日内交易专区, 星河会客厅" [ref=e3152]:
+                  - button "🎲 ｜日内交易专区 🎲｜日内交易专区 星河会客厅" [ref=e3153]:
+                    - generic [ref=e3154] [cursor=pointer]:
+                      - generic [ref=e3158]:
+                        - generic [ref=e3160]:
+                          - button [ref=e3161]:
+                            - img "🎲" [ref=e3162]
+                          - text: ｜日内交易专区
+                        - generic [ref=e3163]: 🎲｜日内交易专区
+                      - generic [ref=e3164]: 星河会客厅
+                  - listitem [ref=e3168]:
+                    - button [ref=e3169] [cursor=pointer]:
+                      - article "shawn_spx , 群主还没维护好啊 , 2026/7/21 23:04" [ref=e3171]:
+                        - generic [ref=e3172]:
+                          - heading [level=2] [ref=e3173]:
+                            - button "shawn_spx" [ref=e3175]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/7/21 23:04
+                              - generic: 2026年7月21日星期二 23:04
+                          - generic [ref=e3176]: 群主还没维护好啊
+                  - listitem [ref=e3177]:
+                    - button [ref=e3178] [cursor=pointer]:
+                      - article "Gone As Wind , 我这也显示维护 , 2026/7/21 22:31" [ref=e3180]:
+                        - generic [ref=e3181]:
+                          - heading [level=2] [ref=e3182]:
+                            - button "Gone As Wind" [ref=e3184]
+                            - generic:
+                              - generic:
+                                - time:
+                                  - generic [aria-hidden]: —
+                                  - text: 2026/7/21 22:31
+                              - generic: 2026年7月21日星期二 22:31
+                          - generic [ref=e3185]: 我这也显示维护
+              - navigation [ref=e3188]:
+                - button "上一页" [disabled] [ref=e3189]
+                - button "第 1 页" [ref=e3194] [cursor=pointer]:
+                  - generic [ref=e3195]: "1"
+                - button "第 2 页" [ref=e3196] [cursor=pointer]:
+                  - generic [ref=e3197]: "2"
+                - button "第 3 页" [ref=e3198] [cursor=pointer]:
+                  - generic [ref=e3199]: "3"
+                - button [ref=e3200]:
+                  - heading [level=2] [aria-hidden] [ref=e3201] [cursor=pointer]: …
+                - button "第 6 页" [ref=e3202] [cursor=pointer]:
+                  - generic [ref=e3203]: "6"
+                - button "下一页" [ref=e3204] [cursor=pointer]
+    - generic:
+      - generic [ref=e2267]:
+        - generic [ref=e2268]: 更多活跃帖子
+        - generic [ref=e2269]:
+          - button "timingprisoner Heatmap Ticker需求发这 • 10 小时前" [ref=e2270]:
+            - img "timingprisoner" [ref=e2272]
+            - generic [ref=e2273]:
+              - generic [ref=e2274]: Heatmap Ticker需求发这
+              - generic [ref=e2275]: •
+              - generic [ref=e2276]: 10 小时前
+          - button "rouen00007 yehangshe api 相关 • 22 小时前" [ref=e2277]:
+            - img "rouen00007" [ref=e2279]
+            - generic [ref=e2280]:
+              - generic [ref=e2281]: yehangshe api 相关
+              - generic [ref=e2282]: •
+              - generic [ref=e2283]: 22 小时前
+          - button "aalex_1207 显示bug • 1 天前" [ref=e2284]:
+            - img "aalex_1207" [ref=e2286]
+            - generic [ref=e2287]:
+              - generic [ref=e2288]: 显示bug
+              - generic [ref=e2289]: •
+              - generic [ref=e2290]: 1 天前
+          - button "junk_man mcp 增加新接口和盘前standard gex开放。 • 2 天前" [ref=e2291]:
+            - img "junk_man" [ref=e2293]
+            - generic [ref=e2294]:
+              - generic [ref=e2295]: mcp 增加新接口和盘前standard gex开放。
+              - generic [ref=e2296]: •
+              - generic [ref=e2297]: 2 天前
+          - button "haleymew 可以把新的功能更新到帮助文档嘛？ • 3 天前" [ref=e2298]:
+            - img "haleymew" [ref=e2300]
+            - generic [ref=e2301]:
+              - generic [ref=e2302]: 可以把新的功能更新到帮助文档嘛？
+              - generic [ref=e2303]: •
+              - generic [ref=e2304]: 3 天前
+          - button "查看所有" [ref=e2305]
+      - generic: 产品需求和bug反馈

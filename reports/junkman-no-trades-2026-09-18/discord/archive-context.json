@@ -1,0 +1,3224 @@
+{
+  "coverage": {
+    "2026-09-14": {
+      "count": 3183,
+      "first": "2026-09-14T01:19:19.002000+00:00",
+      "last": "2026-09-14T23:51:22.716000+00:00",
+      "channels": {
+        "1462012342396260466": 123,
+        "1434960638559523002": 1953,
+        "1508483908155740211": 31,
+        "1534900873107341413": 15,
+        "1519605317091196969": 194,
+        "1526140022229565531": 5,
+        "1525493029329309766": 68,
+        "1489519795954122883": 1,
+        "1520737975472754849": 2,
+        "1493499907909353584": 2,
+        "1509085172488736819": 9,
+        "1514332090978799677": 16,
+        "1468665944824877171": 189,
+        "1515786763417813094": 22,
+        "1434960638559523000": 91,
+        "1467498779497201716": 90,
+        "1467498808488235122": 90,
+        "1469972672514625749": 90,
+        "1467498823265026188": 90,
+        "1513450634148577350": 85,
+        "1548004629554401411": 2,
+        "1476555018206449674": 8,
+        "1492437553171660921": 1,
+        "1462338293663531090": 6
+      }
+    },
+    "2026-09-15": {
+      "count": 2014,
+      "first": "2026-09-15T00:05:59.622000+00:00",
+      "last": "2026-09-15T17:51:17.892000+00:00",
+      "channels": {
+        "1462012342396260466": 129,
+        "1434960638559523002": 1268,
+        "1525493029329309766": 51,
+        "1514332090978799677": 30,
+        "1468665944824877171": 56,
+        "1526140022229565531": 1,
+        "1434968764411150386": 2,
+        "1519605317091196969": 98,
+        "1515786763417813094": 23,
+        "1513450634148577350": 54,
+        "1434960638559523000": 54,
+        "1467498779497201716": 54,
+        "1467498808488235122": 54,
+        "1469972672514625749": 54,
+        "1467498823265026188": 54,
+        "1476555018206449674": 6,
+        "1520737975472754849": 6,
+        "1508483908155740211": 6,
+        "1509085172488736819": 2,
+        "1503846806835040286": 2,
+        "1549465782340030507": 2,
+        "1549469941458014321": 1,
+        "1492437553171660921": 1,
+        "1462338293663531090": 6
+      }
+    },
+    "2026-09-16": {
+      "count": 3190,
+      "first": "2026-09-16T00:01:40.352000+00:00",
+      "last": "2026-09-16T23:57:24.164000+00:00",
+      "channels": {
+        "1434960638559523002": 2363,
+        "1462012342396260466": 114,
+        "1525493029329309766": 43,
+        "1514332090978799677": 21,
+        "1549740646678405200": 2,
+        "1519605317091196969": 157,
+        "1515786763417813094": 21,
+        "1513450634148577350": 73,
+        "1434960638559523000": 66,
+        "1467498779497201716": 66,
+        "1467498808488235122": 66,
+        "1469972672514625749": 65,
+        "1467498823265026188": 66,
+        "1468665944824877171": 53,
+        "1489519795954122883": 1,
+        "1503846806835040286": 1,
+        "1526140022229565531": 2,
+        "1493499907909353584": 2,
+        "1476555018206449674": 1,
+        "1492437553171660921": 1,
+        "1462338293663531090": 6
+      }
+    },
+    "2026-09-17": {
+      "count": 2779,
+      "first": "2026-09-17T00:05:57.201000+00:00",
+      "last": "2026-09-17T21:40:45.488000+00:00",
+      "channels": {
+        "1462012342396260466": 91,
+        "1434960638559523002": 1891,
+        "1526140022229565531": 1,
+        "1519605317091196969": 69,
+        "1534900873107341413": 3,
+        "1525493029329309766": 82,
+        "1468665944824877171": 69,
+        "1515786763417813094": 19,
+        "1535897932799156265": 5,
+        "1513450634148577350": 43,
+        "1434960638559523000": 93,
+        "1467498779497201716": 92,
+        "1467498808488235122": 92,
+        "1469972672514625749": 92,
+        "1467498823265026188": 92,
+        "1492437553171660921": 4,
+        "1508483908155740211": 18,
+        "1520737975472754849": 9,
+        "1503846806835040286": 1,
+        "1478800599389569065": 3,
+        "1434968764411150386": 1,
+        "1514332090978799677": 2,
+        "1476555018206449674": 1,
+        "1462338293663531090": 6
+      }
+    },
+    "2026-09-19": {
+      "count": 3,
+      "first": "2026-09-19T00:55:04.612000+00:00",
+      "last": "2026-09-19T01:04:47.934000+00:00",
+      "channels": {
+        "1434960638559523002": 2,
+        "1462012342396260466": 1
+      }
+    }
+  },
+  "windows": [
+    {
+      "label": "9月14日管理员bug上下文",
+      "channel": "1434960638559523002",
+      "start": "2026-09-14T19:00:00Z",
+      "end": "2026-09-14T19:16:00Z",
+      "rows": [
+        {
+          "line": 238224,
+          "id": "1549132644191567994",
+          "time": "2026-09-14T19:00:03.868000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "看着就行",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238225,
+          "id": "1549132656267239495",
+          "time": "2026-09-14T19:00:06.747000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "反正也不参与",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238226,
+          "id": "1549132689540513923",
+          "time": "2026-09-14T19:00:14.680000+00:00",
+          "author": "Patrick",
+          "username": "patrick_26634",
+          "content": "好的",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238227,
+          "id": "1549132748856365089",
+          "time": "2026-09-14T19:00:28.822000+00:00",
+          "author": "kanji",
+          "username": "kanji688",
+          "content": "😂 看着拍断大腿   不是一天两天了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238228,
+          "id": "1549132793391484942",
+          "time": "2026-09-14T19:00:39.440000+00:00",
+          "author": "Patrick",
+          "username": "patrick_26634",
+          "content": "把手捆住",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238229,
+          "id": "1549132817084977225",
+          "time": "2026-09-14T19:00:45.089000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "",
+          "attachments": [
+            {
+              "filename": "image.png",
+              "url": "https://cdn.discordapp.com/attachments/1434960638559523002/1549132816489382058/image.png?ex=6aa995dc&is=6aa8445c&hm=c01d7d218b154bf4cbe21a1ec72f48578b8d7d7be9cf2a5cf879b752b269564d&"
+            }
+          ],
+          "embeds": []
+        },
+        {
+          "line": 238230,
+          "id": "1549132874928754740",
+          "time": "2026-09-14T19:00:58.880000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "25厘米的吃满要舒服死",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238231,
+          "id": "1549132915235885186",
+          "time": "2026-09-14T19:01:08.490000+00:00",
+          "author": "kanji",
+          "username": "kanji688",
+          "content": "我最后2小时是不参与的 放心",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238232,
+          "id": "1549133021435797637",
+          "time": "2026-09-14T19:01:33.810000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "我给系统模拟设定的平仓时间是3点半到50之前",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238233,
+          "id": "1549133049944346706",
+          "time": "2026-09-14T19:01:40.607000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "怎么管住手不买彩票的",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238234,
+          "id": "1549133150687592519",
+          "time": "2026-09-14T19:02:04.626000+00:00",
+          "author": "kanji",
+          "username": "kanji688",
+          "content": "当你盘中赚到该有的钱  就不会买彩票了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238235,
+          "id": "1549133154831433900",
+          "time": "2026-09-14T19:02:05.614000+00:00",
+          "author": "Patrick",
+          "username": "patrick_26634",
+          "content": "看不懂就不买",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238236,
+          "id": "1549133230786089002",
+          "time": "2026-09-14T19:02:23.723000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "这不是没赚到",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238237,
+          "id": "1549133240504156212",
+          "time": "2026-09-14T19:02:26.040000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "<:emoji_7:1503438847483187311>",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238238,
+          "id": "1549133334339256340",
+          "time": "2026-09-14T19:02:48.412000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "",
+          "attachments": [
+            {
+              "filename": "image.png",
+              "url": "https://cdn.discordapp.com/attachments/1434960638559523002/1549133334020497468/image.png?ex=6aa99658&is=6aa844d8&hm=12b5a31f099bd13da2ff0eeda44d00ff5e5ef43b3406d288304160306fbfa58e&"
+            }
+          ],
+          "embeds": []
+        },
+        {
+          "line": 238239,
+          "id": "1549133346389500005",
+          "time": "2026-09-14T19:02:51.285000+00:00",
+          "author": "H.",
+          "username": "exquisite_swan_60879",
+          "content": "刚才要买25蝴蝶这会已经赚了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238240,
+          "id": "1549133353574334465",
+          "time": "2026-09-14T19:02:52.998000+00:00",
+          "author": "kanji",
+          "username": "kanji688",
+          "content": "而且我买的彩票就是junk哥的蝴蝶",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238241,
+          "id": "1549133425150267484",
+          "time": "2026-09-14T19:03:10.063000+00:00",
+          "author": "kanji",
+          "username": "kanji688",
+          "content": "12-15   半小时",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238242,
+          "id": "1549133497694683388",
+          "time": "2026-09-14T19:03:27.359000+00:00",
+          "author": "H.",
+          "username": "exquisite_swan_60879",
+          "content": "15点蝴蝶也有100+了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238243,
+          "id": "1549133644986191985",
+          "time": "2026-09-14T19:04:02.476000+00:00",
+          "author": "Patrick",
+          "username": "patrick_26634",
+          "content": "诶？我大腿呢",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238244,
+          "id": "1549133665064329267",
+          "time": "2026-09-14T19:04:07.263000+00:00",
+          "author": "Patrick",
+          "username": "patrick_26634",
+          "content": "原来拍断了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238245,
+          "id": "1549133835655188493",
+          "time": "2026-09-14T19:04:47.935000+00:00",
+          "author": "时间的狱友(不会主动私聊你)",
+          "username": "timingprisoner",
+          "content": "<:emoji_27:1539671473944268934>",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238247,
+          "id": "1549134303437262971",
+          "time": "2026-09-14T19:06:39.463000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "",
+          "attachments": [
+            {
+              "filename": "image.png",
+              "url": "https://cdn.discordapp.com/attachments/1434960638559523002/1549134303269625986/image.png?ex=6aa9973f&is=6aa845bf&hm=a12e7944fc928b3aa969c631101f4c5148a8178a6f3459eac7aec66425b21331&"
+            }
+          ],
+          "embeds": []
+        },
+        {
+          "line": 238248,
+          "id": "1549134549425070251",
+          "time": "2026-09-14T19:07:38.111000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "现在这下午买otm到位了可能会亏钱，有点搞笑",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238249,
+          "id": "1549134756980064407",
+          "time": "2026-09-14T19:08:27.596000+00:00",
+          "author": "1号呆子OvO",
+          "username": "urmyartemis",
+          "content": "",
+          "attachments": [
+            {
+              "filename": "image.png",
+              "url": "https://cdn.discordapp.com/attachments/1434960638559523002/1549134756317368360/image.png?ex=6aa997ab&is=6aa8462b&hm=674a0861944e938991fdbcd6cb9ff29bb8fc37fb126d75d5f24a2bce29d63a62&"
+            },
+            {
+              "filename": "image.png",
+              "url": "https://cdn.discordapp.com/attachments/1434960638559523002/1549134756644389034/image.png?ex=6aa997ab&is=6aa8462b&hm=a4515fd3489b5801c7e5f1e2823a3bc65586394d2b30278ed5404d721c53c595&"
+            }
+          ],
+          "embeds": []
+        },
+        {
+          "line": 238250,
+          "id": "1549134803805274245",
+          "time": "2026-09-14T19:08:38.760000+00:00",
+          "author": "1号呆子OvO",
+          "username": "urmyartemis",
+          "content": "狗哥这gex是被狗啃了?",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238251,
+          "id": "1549134804702990438",
+          "time": "2026-09-14T19:08:38.974000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "25应该是底",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238252,
+          "id": "1549134818707771423",
+          "time": "2026-09-14T19:08:42.313000+00:00",
+          "author": "yuan",
+          "username": "yuan1124.",
+          "content": "很抓马",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238253,
+          "id": "1549134846708682825",
+          "time": "2026-09-14T19:08:48.989000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "不然要大泄",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238254,
+          "id": "1549134965558616125",
+          "time": "2026-09-14T19:09:17.325000+00:00",
+          "author": "时间的狱友(不会主动私聊你)",
+          "username": "timingprisoner",
+          "content": "可能是bug了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238255,
+          "id": "1549134986261831711",
+          "time": "2026-09-14T19:09:22.261000+00:00",
+          "author": "H.",
+          "username": "exquisite_swan_60879",
+          "content": "35 p刚才最低价没进 又他妈犹豫了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238256,
+          "id": "1549135132336853033",
+          "time": "2026-09-14T19:09:57.088000+00:00",
+          "author": "H.",
+          "username": "exquisite_swan_60879",
+          "content": "早盘大刀阔斧 尾盘畏畏缩缩",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238257,
+          "id": "1549135296371626046",
+          "time": "2026-09-14T19:10:36.197000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "",
+          "attachments": [
+            {
+              "filename": "image.png",
+              "url": "https://cdn.discordapp.com/attachments/1434960638559523002/1549135296023765012/image.png?ex=6aa9982c&is=6aa846ac&hm=fcdb6e1936be378749c1f003d9a87b892eac20ae93bd7be583c55cc5271b1a14&"
+            }
+          ],
+          "embeds": []
+        },
+        {
+          "line": 238258,
+          "id": "1549135568921698517",
+          "time": "2026-09-14T19:11:41.178000+00:00",
+          "author": "1号呆子OvO",
+          "username": "urmyartemis",
+          "content": "老板看看googl的gex",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238259,
+          "id": "1549135593571876954",
+          "time": "2026-09-14T19:11:47.055000+00:00",
+          "author": "1号呆子OvO",
+          "username": "urmyartemis",
+          "content": "真的几秒钟一个样子",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238260,
+          "id": "1549135607043719229",
+          "time": "2026-09-14T19:11:50.267000+00:00",
+          "author": "1号呆子OvO",
+          "username": "urmyartemis",
+          "content": "反复拉锯",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238262,
+          "id": "1549135726166409276",
+          "time": "2026-09-14T19:12:18.668000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "",
+          "attachments": [
+            {
+              "filename": "image.png",
+              "url": "https://cdn.discordapp.com/attachments/1434960638559523002/1549135725763498064/image.png?ex=6aa99892&is=6aa84712&hm=ff1b75186d6a52daf9212af2d9a0f0b9f2c16a33a714128b215206d4d1c11c32&"
+            }
+          ],
+          "embeds": []
+        },
+        {
+          "line": 238263,
+          "id": "1549135775755403364",
+          "time": "2026-09-14T19:12:30.491000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "",
+          "attachments": [
+            {
+              "filename": "image.png",
+              "url": "https://cdn.discordapp.com/attachments/1434960638559523002/1549135775445033090/image.png?ex=6aa9989e&is=6aa8471e&hm=8f0d6870659890faf63bd673925e07eaeb167ee210503824a0ff8cbd585439b0&"
+            }
+          ],
+          "embeds": []
+        },
+        {
+          "line": 238264,
+          "id": "1549135882705961031",
+          "time": "2026-09-14T19:12:55.990000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "小苹果丰收了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238265,
+          "id": "1549136030844719205",
+          "time": "2026-09-14T19:13:31.309000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "可惜熬太久，atm也就4毛多",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238266,
+          "id": "1549136245173657661",
+          "time": "2026-09-14T19:14:22.409000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "6毛了吼吼",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238267,
+          "id": "1549136351578955887",
+          "time": "2026-09-14T19:14:47.778000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "1毛8买的",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238268,
+          "id": "1549136391856717855",
+          "time": "2026-09-14T19:14:57.381000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "<a:PepeHi:1518644517366927391>",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238269,
+          "id": "1549136536128323725",
+          "time": "2026-09-14T19:15:31.778000+00:00",
+          "author": "Morii",
+          "username": "morii_24849",
+          "content": "这些蓝色和绿色的圈圈是什么意思",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238270,
+          "id": "1549136595192647683",
+          "time": "2026-09-14T19:15:45.860000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "指标里有设置，自己看下",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 238271,
+          "id": "1549136653358989424",
+          "time": "2026-09-14T19:15:59.728000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "rsi到超买超卖值了",
+          "attachments": [],
+          "embeds": []
+        }
+      ]
+    },
+    {
+      "label": "9月16日盘前快照讨论",
+      "channel": "1525493029329309766",
+      "start": "2026-09-16T11:00:00Z",
+      "end": "2026-09-16T13:15:00Z",
+      "rows": [
+        {
+          "line": 241044,
+          "id": "1549737484261527623",
+          "time": "2026-09-16T11:03:28.978000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "对了，你们mcp拉oi数据，在6点半之后再进行，不然都是没更新的",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 241047,
+          "id": "1549739743250747433",
+          "time": "2026-09-16T11:12:27.563000+00:00",
+          "author": "Umami",
+          "username": "xxxpureblack",
+          "content": "heatmap是不是盘前都不更新的",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 241050,
+          "id": "1549740683340812379",
+          "time": "2026-09-16T11:16:11.698000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "不是",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 241051,
+          "id": "1549740843898773546",
+          "time": "2026-09-16T11:16:49.978000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "你随便找两个盘前时间刷一下就知道了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 241052,
+          "id": "1549740859459633233",
+          "time": "2026-09-16T11:16:53.688000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "数值一直在变的",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 241063,
+          "id": "1549749258167521283",
+          "time": "2026-09-16T11:50:16.096000+00:00",
+          "author": "上海老皮条",
+          "username": "shanghailaopitiao1080",
+          "content": "junk哥这个oi change在哪里可以看呢 我看discord只有异常期权",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 241067,
+          "id": "1549749582735614134",
+          "time": "2026-09-16T11:51:33.479000+00:00",
+          "author": "Umami",
+          "username": "xxxpureblack",
+          "content": "heatmap是不是盘前不能用data api拉",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 241069,
+          "id": "1549751229612298393",
+          "time": "2026-09-16T11:58:06.125000+00:00",
+          "author": "baonannan",
+          "username": "baonannan",
+          "content": "mcp是什么",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 241070,
+          "id": "1549751825597603892",
+          "time": "2026-09-16T12:00:28.219000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "heatmap随时可以拉取",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 241092,
+          "id": "1549762109162655785",
+          "time": "2026-09-16T12:41:20.012000+00:00",
+          "author": "Umami",
+          "username": "xxxpureblack",
+          "content": "我的ai怎么告诉我现在拉到的是前一个交易日的最后一帧快照<:emoji_46:1539671601576943686>",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 241094,
+          "id": "1549763804168978533",
+          "time": "2026-09-16T12:48:04.133000+00:00",
+          "author": "时间的狱友(不会主动私聊你)",
+          "username": "timingprisoner",
+          "content": "是的",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 241096,
+          "id": "1549763883533738035",
+          "time": "2026-09-16T12:48:23.055000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "不然你以为呢？",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 241098,
+          "id": "1549763945164841051",
+          "time": "2026-09-16T12:48:37.749000+00:00",
+          "author": "DarcyCharcy",
+          "username": "darcycharcy",
+          "content": "<:emoji_26:1539671466310770841>",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 241099,
+          "id": "1549763996910100511",
+          "time": "2026-09-16T12:48:50.086000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "<:cringe:799117643516870658>",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 241102,
+          "id": "1549764048009171057",
+          "time": "2026-09-16T12:49:02.269000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "这算是某种【常识】",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 241106,
+          "id": "1549764484858384485",
+          "time": "2026-09-16T12:50:46.422000+00:00",
+          "author": "Umami",
+          "username": "xxxpureblack",
+          "content": "<:emoji_17:1529557873070313562>",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 241108,
+          "id": "1549764512259903629",
+          "time": "2026-09-16T12:50:52.955000+00:00",
+          "author": "Umami",
+          "username": "xxxpureblack",
+          "content": "我以为盘后也能拉到最新的",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 241109,
+          "id": "1549764686709522454",
+          "time": "2026-09-16T12:51:34.547000+00:00",
+          "author": "junk_man",
+          "username": "junk_man",
+          "content": "你就算去买cme的数据他也得6点之后才更新",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 241110,
+          "id": "1549765426970497177",
+          "time": "2026-09-16T12:54:31.039000+00:00",
+          "author": "Umami",
+          "username": "xxxpureblack",
+          "content": "<:emoji_7:1503438847483187311>",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 241111,
+          "id": "1549765437925892230",
+          "time": "2026-09-16T12:54:33.651000+00:00",
+          "author": "Umami",
+          "username": "xxxpureblack",
+          "content": "受教了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 241116,
+          "id": "1549767284485128255",
+          "time": "2026-09-16T13:01:53.905000+00:00",
+          "author": "fackones",
+          "username": "fackones_55470",
+          "content": "都给你规划好了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 241117,
+          "id": "1549767321592012831",
+          "time": "2026-09-16T13:02:02.752000+00:00",
+          "author": "fackones",
+          "username": "fackones_55470",
+          "content": "6点后拉",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 241119,
+          "id": "1549767492853956649",
+          "time": "2026-09-16T13:02:43.584000+00:00",
+          "author": "fackones",
+          "username": "fackones_55470",
+          "content": "这apex6点后再问",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 241121,
+          "id": "1549768147203133511",
+          "time": "2026-09-16T13:05:19.593000+00:00",
+          "author": "时间的狱友(不会主动私聊你)",
+          "username": "timingprisoner",
+          "content": "😵‍💫",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 241122,
+          "id": "1549768173178589225",
+          "time": "2026-09-16T13:05:25.786000+00:00",
+          "author": "时间的狱友(不会主动私聊你)",
+          "username": "timingprisoner",
+          "content": "<:emoji_31:1539671500297080857>",
+          "attachments": [],
+          "embeds": []
+        }
+      ]
+    },
+    {
+      "label": "9月16日不更新讨论",
+      "channel": "1434960638559523002",
+      "start": "2026-09-16T16:22:00Z",
+      "end": "2026-09-16T16:35:00Z",
+      "rows": [
+        {
+          "line": 242271,
+          "id": "1549817726166499339",
+          "time": "2026-09-16T16:22:20.139000+00:00",
+          "author": "kanji",
+          "username": "kanji688",
+          "content": "两边区间买   加起来不到300块  <:emoji_28:1539671480869327039> 压中了起码900  毕竟20cm的蝴蝶",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 242273,
+          "id": "1549817786484658267",
+          "time": "2026-09-16T16:22:34.520000+00:00",
+          "author": "kanji",
+          "username": "kanji688",
+          "content": "不怕波动大 就怕没波动",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 242274,
+          "id": "1549817838439501865",
+          "time": "2026-09-16T16:22:46.907000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "这种蝴蝶是不是可以抵消一部分iv",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 242275,
+          "id": "1549817860233232477",
+          "time": "2026-09-16T16:22:52.103000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "从来没想过这种操作哈哈哈",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 242276,
+          "id": "1549818071714234541",
+          "time": "2026-09-16T16:23:42.524000+00:00",
+          "author": "lailailaile",
+          "username": "lailailaile.",
+          "content": "一整个期待住",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 242278,
+          "id": "1549818718203412637",
+          "time": "2026-09-16T16:26:16.659000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 242279,
+          "id": "1549818723463073833",
+          "time": "2026-09-16T16:26:17.913000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "❓",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 242280,
+          "id": "1549818740038959177",
+          "time": "2026-09-16T16:26:21.865000+00:00",
+          "author": "时间的狱友(不会主动私聊你)",
+          "username": "timingprisoner",
+          "content": "🫡",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 242281,
+          "id": "1549818787749167228",
+          "time": "2026-09-16T16:26:33.240000+00:00",
+          "author": "时间的狱友(不会主动私聊你)",
+          "username": "timingprisoner",
+          "content": "",
+          "attachments": [
+            {
+              "filename": "60c41feb94906034ffbeb656795cde59.png",
+              "url": "https://cdn.discordapp.com/attachments/1434960638559523002/1549818787715621035/60c41feb94906034ffbeb656795cde59.png?ex=6aac14b9&is=6aaac339&hm=6675add589c7265788c5bf13bda6bdda13c7a2c8215f88e09ea05b24b6d4d0e5&"
+            }
+          ],
+          "embeds": []
+        },
+        {
+          "line": 242284,
+          "id": "1549819295767330859",
+          "time": "2026-09-16T16:28:34.361000+00:00",
+          "author": "fackones",
+          "username": "fackones_55470",
+          "content": "每次期待都有你",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 242289,
+          "id": "1549819728422248579",
+          "time": "2026-09-16T16:30:17.514000+00:00",
+          "author": "lailailaile",
+          "username": "lailailaile.",
+          "content": "必须滴 更新了就用一下",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 242291,
+          "id": "1549819779303604286",
+          "time": "2026-09-16T16:30:29.645000+00:00",
+          "author": "时间的狱友(不会主动私聊你)",
+          "username": "timingprisoner",
+          "content": "不更新就不用了吗？",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 242293,
+          "id": "1549819955086626971",
+          "time": "2026-09-16T16:31:11.555000+00:00",
+          "author": "SW",
+          "username": "lucky_seahorse_08569",
+          "content": "想要这个！",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 242294,
+          "id": "1549820045784387626",
+          "time": "2026-09-16T16:31:33.179000+00:00",
+          "author": "lailailaile",
+          "username": "lailailaile.",
+          "content": "更新了赶快试用下新功能啊  \n平时一直在用 🥹",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 242297,
+          "id": "1549820450312298693",
+          "time": "2026-09-16T16:33:09.626000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "已经用不过来了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 242298,
+          "id": "1549820481752793241",
+          "time": "2026-09-16T16:33:17.122000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "最期待下个星期的模拟盘",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 242299,
+          "id": "1549820535582498867",
+          "time": "2026-09-16T16:33:29.956000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "治手痒",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 242300,
+          "id": "1549820549390409799",
+          "time": "2026-09-16T16:33:33.248000+00:00",
+          "author": "KKAFA",
+          "username": "kkafa__28910",
+          "content": "用模拟盘买尾盘彩票",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 242301,
+          "id": "1549820570537828446",
+          "time": "2026-09-16T16:33:38.290000+00:00",
+          "author": "KKAFA",
+          "username": "kkafa__28910",
+          "content": "100张起步",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 242302,
+          "id": "1549820577265754216",
+          "time": "2026-09-16T16:33:39.894000+00:00",
+          "author": "KKAFA",
+          "username": "kkafa__28910",
+          "content": "🤣",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 242303,
+          "id": "1549820618487365633",
+          "time": "2026-09-16T16:33:49.722000+00:00",
+          "author": "Patrick",
+          "username": "patrick_26634",
+          "content": "卧槽同意",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 242304,
+          "id": "1549820644206575628",
+          "time": "2026-09-16T16:33:55.854000+00:00",
+          "author": "Patrick",
+          "username": "patrick_26634",
+          "content": "我直接一单十万买进去",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 242305,
+          "id": "1549820645926244403",
+          "time": "2026-09-16T16:33:56.264000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "可以把想买的票都买 这样长期跟踪也很爽啊",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 242306,
+          "id": "1549820653236916260",
+          "time": "2026-09-16T16:33:58.007000+00:00",
+          "author": "Patrick",
+          "username": "patrick_26634",
+          "content": "起飞",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 242307,
+          "id": "1549820772086980679",
+          "time": "2026-09-16T16:34:26.343000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "老板说亏完了不补🤣",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 242308,
+          "id": "1549820789069451377",
+          "time": "2026-09-16T16:34:30.392000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "到时候没得玩了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 242309,
+          "id": "1549820826054824019",
+          "time": "2026-09-16T16:34:39.210000+00:00",
+          "author": "时间的狱友(不会主动私聊你)",
+          "username": "timingprisoner",
+          "content": "亏完可以重置",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 242310,
+          "id": "1549820888151625879",
+          "time": "2026-09-16T16:34:54.015000+00:00",
+          "author": "fackones",
+          "username": "fackones_55470",
+          "content": "亏完老板给你补个电动车的钱",
+          "attachments": [],
+          "embeds": []
+        }
+      ]
+    },
+    {
+      "label": "9月17日指数延迟讨论",
+      "channel": "1434960638559523002",
+      "start": "2026-09-17T14:15:00Z",
+      "end": "2026-09-17T14:35:00Z",
+      "rows": [
+        {
+          "line": 245074,
+          "id": "1550148180799131710",
+          "time": "2026-09-17T14:15:26.663000+00:00",
+          "author": "bass",
+          "username": "bass7330",
+          "content": "replay看了下地板一直在上移。。。",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245075,
+          "id": "1550148186675486862",
+          "time": "2026-09-17T14:15:28.064000+00:00",
+          "author": "Nik",
+          "username": "nik024604",
+          "content": "Tem 不可以了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245076,
+          "id": "1550148222855684128",
+          "time": "2026-09-17T14:15:36.690000+00:00",
+          "author": "bass",
+          "username": "bass7330",
+          "content": "85就有点过分了吧",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245077,
+          "id": "1550148286160052255",
+          "time": "2026-09-17T14:15:51.783000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "mrna也不可以了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245078,
+          "id": "1550148294666096691",
+          "time": "2026-09-17T14:15:53.811000+00:00",
+          "author": "Xiaoshushu",
+          "username": "rouen00007",
+          "content": "",
+          "attachments": [
+            {
+              "filename": "image.png",
+              "url": "https://cdn.discordapp.com/attachments/1434960638559523002/1550148294372757515/image.png?ex=6aad4799&is=6aabf619&hm=359973ad75f387513d782a17feca00991569168212a7e509e570f96b4f03f92f&"
+            }
+          ],
+          "embeds": []
+        },
+        {
+          "line": 245079,
+          "id": "1550148298059423765",
+          "time": "2026-09-17T14:15:54.620000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "别再涨了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245080,
+          "id": "1550148313448316991",
+          "time": "2026-09-17T14:15:58.289000+00:00",
+          "author": "KKAFA",
+          "username": "kkafa__28910",
+          "content": "85？",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245081,
+          "id": "1550148329441198141",
+          "time": "2026-09-17T14:16:02.102000+00:00",
+          "author": "KKAFA",
+          "username": "kkafa__28910",
+          "content": "难道说",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245082,
+          "id": "1550148408017162341",
+          "time": "2026-09-17T14:16:20.836000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "以后看见好票请严肃发出",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245083,
+          "id": "1550148422903013429",
+          "time": "2026-09-17T14:16:24.385000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "你有点准啊",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245084,
+          "id": "1550148463155613840",
+          "time": "2026-09-17T14:16:33.982000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "两个都是飞天大票",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245085,
+          "id": "1550148593824825436",
+          "time": "2026-09-17T14:17:05.136000+00:00",
+          "author": "KKAFA",
+          "username": "kkafa__28910",
+          "content": "确实",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245086,
+          "id": "1550148616835047505",
+          "time": "2026-09-17T14:17:10.622000+00:00",
+          "author": "KKAFA",
+          "username": "kkafa__28910",
+          "content": "J哥",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245087,
+          "id": "1550148631007596578",
+          "time": "2026-09-17T14:17:14.001000+00:00",
+          "author": "CoreyJ",
+          "username": "corehaha",
+          "content": "亏两天了，终于回来了 😭",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245088,
+          "id": "1550148651160961168",
+          "time": "2026-09-17T14:17:18.806000+00:00",
+          "author": "fackones",
+          "username": "fackones_55470",
+          "content": "j哥",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245089,
+          "id": "1550148691250380873",
+          "time": "2026-09-17T14:17:28.364000+00:00",
+          "author": "fackones",
+          "username": "fackones_55470",
+          "content": "彩票区认你了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245090,
+          "id": "1550148742269767794",
+          "time": "2026-09-17T14:17:40.528000+00:00",
+          "author": "1号呆子OvO",
+          "username": "urmyartemis",
+          "content": "J哥，彩票区认你了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245091,
+          "id": "1550148760724709519",
+          "time": "2026-09-17T14:17:44.928000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "mrna我卖了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245092,
+          "id": "1550148771780763740",
+          "time": "2026-09-17T14:17:47.564000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "不想拿了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245093,
+          "id": "1550148821143650315",
+          "time": "2026-09-17T14:17:59.333000+00:00",
+          "author": "oxluffy",
+          "username": "luffygan.",
+          "content": "好狠",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245094,
+          "id": "1550148859815133265",
+          "time": "2026-09-17T14:18:08.553000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "看着心烦",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245095,
+          "id": "1550148869055058021",
+          "time": "2026-09-17T14:18:10.756000+00:00",
+          "author": "时间的狱友(不会主动私聊你)",
+          "username": "timingprisoner",
+          "content": "赚几倍了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245097,
+          "id": "1550148929734185131",
+          "time": "2026-09-17T14:18:25.223000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "",
+          "attachments": [
+            {
+              "filename": "IMG_3724.jpg",
+              "url": "https://cdn.discordapp.com/attachments/1434960638559523002/1550148929394311339/IMG_3724.jpg?ex=6aad4831&is=6aabf6b1&hm=0978fd0451681aa288c454f4ca774f4b518edd6860af68e923058f2c8c1582a4&"
+            }
+          ],
+          "embeds": []
+        },
+        {
+          "line": 245099,
+          "id": "1550149007429341184",
+          "time": "2026-09-17T14:18:43.747000+00:00",
+          "author": "yuan",
+          "username": "yuan1124.",
+          "content": "靠北",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245100,
+          "id": "1550149013221679115",
+          "time": "2026-09-17T14:18:45.128000+00:00",
+          "author": "汐汐擾擾",
+          "username": "xixiraorao",
+          "content": "牛啊",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245101,
+          "id": "1550149053873000550",
+          "time": "2026-09-17T14:18:54.820000+00:00",
+          "author": "1号呆子OvO",
+          "username": "urmyartemis",
+          "content": "只有我在亏损哈哈哈",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245102,
+          "id": "1550149085481275544",
+          "time": "2026-09-17T14:19:02.356000+00:00",
+          "author": "Wxp",
+          "username": "wxp0330",
+          "content": "流批",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245104,
+          "id": "1550149149943529583",
+          "time": "2026-09-17T14:19:17.725000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "就一张",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245105,
+          "id": "1550149157694476330",
+          "time": "2026-09-17T14:19:19.573000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "效果不大",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245106,
+          "id": "1550149215999758357",
+          "time": "2026-09-17T14:19:33.474000+00:00",
+          "author": "KKAFA",
+          "username": "kkafa__28910",
+          "content": "🤣",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245107,
+          "id": "1550149240645357639",
+          "time": "2026-09-17T14:19:39.350000+00:00",
+          "author": "oxluffy",
+          "username": "luffygan.",
+          "content": "",
+          "attachments": [
+            {
+              "filename": "image.png",
+              "url": "https://cdn.discordapp.com/attachments/1434960638559523002/1550149240112549908/image.png?ex=6aad487b&is=6aabf6fb&hm=9b6d1cf837884da3f320b16d7566dbabf8395e936365c295930c69af5155d623&"
+            }
+          ],
+          "embeds": []
+        },
+        {
+          "line": 245109,
+          "id": "1550149274082222221",
+          "time": "2026-09-17T14:19:47.322000+00:00",
+          "author": "oxluffy",
+          "username": "luffygan.",
+          "content": "tsla这个回踩确认天花板",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245110,
+          "id": "1550149303073374315",
+          "time": "2026-09-17T14:19:54.234000+00:00",
+          "author": "oxluffy",
+          "username": "luffygan.",
+          "content": "我p进去了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245111,
+          "id": "1550149319414390817",
+          "time": "2026-09-17T14:19:58.130000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "快晒单了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245112,
+          "id": "1550149465518772345",
+          "time": "2026-09-17T14:20:32.964000+00:00",
+          "author": "KKAFA",
+          "username": "kkafa__28910",
+          "content": "研究研究彩票",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245113,
+          "id": "1550149476893593621",
+          "time": "2026-09-17T14:20:35.676000+00:00",
+          "author": "KKAFA",
+          "username": "kkafa__28910",
+          "content": "看看买什么",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245114,
+          "id": "1550149507432448131",
+          "time": "2026-09-17T14:20:42.957000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "googl什么时候发动一下",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245115,
+          "id": "1550149560557502585",
+          "time": "2026-09-17T14:20:55.623000+00:00",
+          "author": "KKAFA",
+          "username": "kkafa__28910",
+          "content": "等新德里爆炸",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245116,
+          "id": "1550149561350225952",
+          "time": "2026-09-17T14:20:55.812000+00:00",
+          "author": "1号呆子OvO",
+          "username": "urmyartemis",
+          "content": "Googl再不发动我要死了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245117,
+          "id": "1550149641343868980",
+          "time": "2026-09-17T14:21:14.884000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "说实话googl这heatmap看着有点坏事",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245118,
+          "id": "1550149647996031038",
+          "time": "2026-09-17T14:21:16.470000+00:00",
+          "author": "Wxp",
+          "username": "wxp0330",
+          "content": "目标位vwap？",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245119,
+          "id": "1550149792649314425",
+          "time": "2026-09-17T14:21:50.958000+00:00",
+          "author": "Xiaoshushu",
+          "username": "rouen00007",
+          "content": "朋友说 用布林带做拉子挺准的",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245120,
+          "id": "1550149850408951849",
+          "time": "2026-09-17T14:22:04.729000+00:00",
+          "author": "oxluffy",
+          "username": "luffygan.",
+          "content": "正常讲，目标是黄色king",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245121,
+          "id": "1550149902351466608",
+          "time": "2026-09-17T14:22:17.113000+00:00",
+          "author": "1号呆子OvO",
+          "username": "urmyartemis",
+          "content": "是的，看着有点坏",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245122,
+          "id": "1550149913931686019",
+          "time": "2026-09-17T14:22:19.874000+00:00",
+          "author": "JAD",
+          "username": "nikki_03",
+          "content": "话说是不是延迟了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245123,
+          "id": "1550149919728214110",
+          "time": "2026-09-17T14:22:21.256000+00:00",
+          "author": "oxluffy",
+          "username": "luffygan.",
+          "content": "360",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245124,
+          "id": "1550149926019924010",
+          "time": "2026-09-17T14:22:22.756000+00:00",
+          "author": "JAD",
+          "username": "nikki_03",
+          "content": "spx",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245125,
+          "id": "1550149933909282927",
+          "time": "2026-09-17T14:22:24.637000+00:00",
+          "author": "JAD",
+          "username": "nikki_03",
+          "content": "堆不上",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245126,
+          "id": "1550149942553874573",
+          "time": "2026-09-17T14:22:26.698000+00:00",
+          "author": "JAD",
+          "username": "nikki_03",
+          "content": "对",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245127,
+          "id": "1550149959918166209",
+          "time": "2026-09-17T14:22:30.838000+00:00",
+          "author": "Wxp",
+          "username": "wxp0330",
+          "content": "有点太远<:emoji_7:1503438847483187311>",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245128,
+          "id": "1550150011914821695",
+          "time": "2026-09-17T14:22:43.235000+00:00",
+          "author": "汐汐擾擾",
+          "username": "xixiraorao",
+          "content": "INTC磨死我了，受不了平了出来先看看",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245129,
+          "id": "1550150083033436373",
+          "time": "2026-09-17T14:23:00.191000+00:00",
+          "author": "mikex",
+          "username": "mikex9891",
+          "content": "是看googl还是goog？两map不一样",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245131,
+          "id": "1550150089291604070",
+          "time": "2026-09-17T14:23:01.683000+00:00",
+          "author": "Karrigan",
+          "username": "karrigan0927",
+          "content": "这咋磨的",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245132,
+          "id": "1550150094903320668",
+          "time": "2026-09-17T14:23:03.021000+00:00",
+          "author": "今天吃饱了吗",
+          "username": "wanmiao527",
+          "content": "只能说他目前没有跌到20日均线下面过",
+          "attachments": [
+            {
+              "filename": "image.png",
+              "url": "https://cdn.discordapp.com/attachments/1434960638559523002/1550150093678710815/image.png?ex=6aad4946&is=6aabf7c6&hm=95a52e703c300fe558d1206a49ef10af6dc76d301cba5ab12172e620434d52e1&"
+            }
+          ],
+          "embeds": []
+        },
+        {
+          "line": 245133,
+          "id": "1550150104038645871",
+          "time": "2026-09-17T14:23:05.199000+00:00",
+          "author": "woodscountry",
+          "username": "woodscountry",
+          "content": "那个call wall",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245134,
+          "id": "1550150132933333094",
+          "time": "2026-09-17T14:23:12.088000+00:00",
+          "author": "Sinyo",
+          "username": "sinyo_26729",
+          "content": "spcx这个诈骗卧槽",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245135,
+          "id": "1550150146334138409",
+          "time": "2026-09-17T14:23:15.283000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "intc今天很舒服阿 追的都能爽吃",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245136,
+          "id": "1550150160141520966",
+          "time": "2026-09-17T14:23:18.575000+00:00",
+          "author": "ST*大霄",
+          "username": "harsamker",
+          "content": "mu975站稳会不会有2波？",
+          "attachments": [
+            {
+              "filename": "image.png",
+              "url": "https://cdn.discordapp.com/attachments/1434960638559523002/1550150159843729538/image.png?ex=6aad4956&is=6aabf7d6&hm=30367d88a14b72d9dfc3859c7d416882d24beeb1bce5fae8d73c600ac97ce664&"
+            }
+          ],
+          "embeds": []
+        },
+        {
+          "line": 245137,
+          "id": "1550150193976975492",
+          "time": "2026-09-17T14:23:26.642000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "itnc确实",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245138,
+          "id": "1550150201589899370",
+          "time": "2026-09-17T14:23:28.457000+00:00",
+          "author": "Karrigan",
+          "username": "karrigan0927",
+          "content": "intc今天很标准了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245139,
+          "id": "1550150212553543762",
+          "time": "2026-09-17T14:23:31.071000+00:00",
+          "author": "我的波比锤子大",
+          "username": "kirbyas89_93071",
+          "content": "amzn",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245140,
+          "id": "1550150260834172989",
+          "time": "2026-09-17T14:23:42.582000+00:00",
+          "author": "今天吃饱了吗",
+          "username": "wanmiao527",
+          "content": "大盘今天也是大V啊",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245141,
+          "id": "1550150322779848736",
+          "time": "2026-09-17T14:23:57.351000+00:00",
+          "author": "KKAFA",
+          "username": "kkafa__28910",
+          "content": "WOC",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245142,
+          "id": "1550150338512953366",
+          "time": "2026-09-17T14:24:01.102000+00:00",
+          "author": "KKAFA",
+          "username": "kkafa__28910",
+          "content": "AMZN",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245143,
+          "id": "1550150344720392304",
+          "time": "2026-09-17T14:24:02.582000+00:00",
+          "author": "汐汐擾擾",
+          "username": "xixiraorao",
+          "content": "我进早了，1.05没补进去...",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245144,
+          "id": "1550150400035004469",
+          "time": "2026-09-17T14:24:15.770000+00:00",
+          "author": "oxluffy",
+          "username": "luffygan.",
+          "content": "剩下的就观察heatmap呀",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245145,
+          "id": "1550150431609585675",
+          "time": "2026-09-17T14:24:23.298000+00:00",
+          "author": "Seigi",
+          "username": "crossroadzzz",
+          "content": "dell飞飞飞",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245146,
+          "id": "1550150472978145281",
+          "time": "2026-09-17T14:24:33.161000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "我chovy",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245147,
+          "id": "1550150473858687069",
+          "time": "2026-09-17T14:24:33.371000+00:00",
+          "author": "KKAFA",
+          "username": "kkafa__28910",
+          "content": "DELL",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245148,
+          "id": "1550150483799318599",
+          "time": "2026-09-17T14:24:35.741000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "dell卖大飞了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245149,
+          "id": "1550150491005124619",
+          "time": "2026-09-17T14:24:37.459000+00:00",
+          "author": "Seigi",
+          "username": "crossroadzzz",
+          "content": "aim 600<:emoji_30:1539671494047830066>",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245150,
+          "id": "1550150522831376396",
+          "time": "2026-09-17T14:24:45.047000+00:00",
+          "author": "KKAFA",
+          "username": "kkafa__28910",
+          "content": "冲600喽",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245151,
+          "id": "1550150547137634396",
+          "time": "2026-09-17T14:24:50.842000+00:00",
+          "author": "爪爪",
+          "username": "jackzzh",
+          "content": "和你一样哥做了个p，就怕磨损",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245152,
+          "id": "1550150598261739561",
+          "time": "2026-09-17T14:25:03.031000+00:00",
+          "author": "今天吃饱了吗",
+          "username": "wanmiao527",
+          "content": "谷歌启动了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245153,
+          "id": "1550150641375252631",
+          "time": "2026-09-17T14:25:13.310000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "googl冲350吧",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245154,
+          "id": "1550150670810878073",
+          "time": "2026-09-17T14:25:20.328000+00:00",
+          "author": "时间的狱友(不会主动私聊你)",
+          "username": "timingprisoner",
+          "content": "我在看",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245157,
+          "id": "1550150778570670211",
+          "time": "2026-09-17T14:25:46.020000+00:00",
+          "author": "JAD",
+          "username": "nikki_03",
+          "content": "好像个股正常",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245158,
+          "id": "1550150791833198653",
+          "time": "2026-09-17T14:25:49.182000+00:00",
+          "author": "JAD",
+          "username": "nikki_03",
+          "content": "spx是不正常得",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245159,
+          "id": "1550150862544834672",
+          "time": "2026-09-17T14:26:06.041000+00:00",
+          "author": "oxluffy",
+          "username": "luffygan.",
+          "content": "先相信",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245160,
+          "id": "1550150887878430741",
+          "time": "2026-09-17T14:26:12.081000+00:00",
+          "author": "woodscountry",
+          "username": "woodscountry",
+          "content": "不大会",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245161,
+          "id": "1550150893997920277",
+          "time": "2026-09-17T14:26:13.540000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "好像是",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245162,
+          "id": "1550150903716122867",
+          "time": "2026-09-17T14:26:15.857000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "spx延迟了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245163,
+          "id": "1550150907918946406",
+          "time": "2026-09-17T14:26:16.859000+00:00",
+          "author": "Matthew",
+          "username": "matthewye_",
+          "content": "老板 指数好像延迟有点高",
+          "attachments": [
+            {
+              "filename": "image.png",
+              "url": "https://cdn.discordapp.com/attachments/1434960638559523002/1550150907675545660/image.png?ex=6aad4a08&is=6aabf888&hm=4cfdd6f8ce915368040884db4438f92f060198645d47a7fbb1cd318c9be6ba69&"
+            }
+          ],
+          "embeds": []
+        },
+        {
+          "line": 245164,
+          "id": "1550150951522795682",
+          "time": "2026-09-17T14:26:27.255000+00:00",
+          "author": "时间的狱友(不会主动私聊你)",
+          "username": "timingprisoner",
+          "content": "在看",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245165,
+          "id": "1550150962252095589",
+          "time": "2026-09-17T14:26:29.813000+00:00",
+          "author": "oxluffy",
+          "username": "luffygan.",
+          "content": "操作的话，看看价格回到开盘价什么反应",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245166,
+          "id": "1550150978836373617",
+          "time": "2026-09-17T14:26:33.767000+00:00",
+          "author": "Matthew",
+          "username": "matthewye_",
+          "content": "o哦哦OK",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245167,
+          "id": "1550151055180959866",
+          "time": "2026-09-17T14:26:51.969000+00:00",
+          "author": "CoreyJ",
+          "username": "corehaha",
+          "content": "中间的时候截的😁",
+          "attachments": [
+            {
+              "filename": "1789653087813.jpg",
+              "url": "https://cdn.discordapp.com/attachments/1434960638559523002/1550151054878834728/1789653087813.jpg?ex=6aad4a2b&is=6aabf8ab&hm=745c960daaaea88a0fdb123aa73f55df17c4c72403075d50418126077f7c5a4b&"
+            }
+          ],
+          "embeds": []
+        },
+        {
+          "line": 245168,
+          "id": "1550151165570715669",
+          "time": "2026-09-17T14:27:18.288000+00:00",
+          "author": "CoreyJ",
+          "username": "corehaha",
+          "content": "我也出完了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245169,
+          "id": "1550151180863283201",
+          "time": "2026-09-17T14:27:21.934000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "？你成本这么低",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245170,
+          "id": "1550151228233875588",
+          "time": "2026-09-17T14:27:33.228000+00:00",
+          "author": "oxluffy",
+          "username": "luffygan.",
+          "content": "J神",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245171,
+          "id": "1550151313268940941",
+          "time": "2026-09-17T14:27:53.502000+00:00",
+          "author": "CoreyJ",
+          "username": "corehaha",
+          "content": "这是 T 了后的，本应该在 2 块",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245172,
+          "id": "1550151323582865459",
+          "time": "2026-09-17T14:27:55.961000+00:00",
+          "author": "1号呆子OvO",
+          "username": "urmyartemis",
+          "content": "老板不是发了两个",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245173,
+          "id": "1550151332260876370",
+          "time": "2026-09-17T14:27:58.030000+00:00",
+          "author": "1号呆子OvO",
+          "username": "urmyartemis",
+          "content": "目标吗",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245175,
+          "id": "1550151349268647937",
+          "time": "2026-09-17T14:28:02.085000+00:00",
+          "author": "1号呆子OvO",
+          "username": "urmyartemis",
+          "content": "Mrna和rkt",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245177,
+          "id": "1550151386279186616",
+          "time": "2026-09-17T14:28:10.909000+00:00",
+          "author": "1号呆子OvO",
+          "username": "urmyartemis",
+          "content": "你们都买了mrna没买rkt？",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245178,
+          "id": "1550151417736462357",
+          "time": "2026-09-17T14:28:18.409000+00:00",
+          "author": "1号呆子OvO",
+          "username": "urmyartemis",
+          "content": "只有我没买mrna买了rkt？",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245179,
+          "id": "1550151442265014363",
+          "time": "2026-09-17T14:28:24.257000+00:00",
+          "author": "1号呆子OvO",
+          "username": "urmyartemis",
+          "content": "<:emoji_49:1539671622733266964>",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245181,
+          "id": "1550151496614678620",
+          "time": "2026-09-17T14:28:37.215000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "另外一个没听过",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245183,
+          "id": "1550151507197034559",
+          "time": "2026-09-17T14:28:39.738000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "就没买",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245184,
+          "id": "1550151510216937624",
+          "time": "2026-09-17T14:28:40.458000+00:00",
+          "author": "CoreyJ",
+          "username": "corehaha",
+          "content": "RKT 不是我发的",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245186,
+          "id": "1550151546975813633",
+          "time": "2026-09-17T14:28:49.222000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "老板发的",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245187,
+          "id": "1550151554374570065",
+          "time": "2026-09-17T14:28:50.986000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "只有我什么都没买？",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245188,
+          "id": "1550151556135911587",
+          "time": "2026-09-17T14:28:51.406000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "彩票",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245189,
+          "id": "1550151569759146078",
+          "time": "2026-09-17T14:28:54.654000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "<:emoji_30:1539671494047830066>",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245190,
+          "id": "1550151589380227174",
+          "time": "2026-09-17T14:28:59.332000+00:00",
+          "author": "oxluffy",
+          "username": "luffygan.",
+          "content": "好久没买彩票了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245191,
+          "id": "1550151616508727297",
+          "time": "2026-09-17T14:29:05.800000+00:00",
+          "author": "oxluffy",
+          "username": "luffygan.",
+          "content": "后悔！",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245192,
+          "id": "1550151636469682308",
+          "time": "2026-09-17T14:29:10.559000+00:00",
+          "author": "woodscountry",
+          "username": "woodscountry",
+          "content": "在哪发的啊",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245193,
+          "id": "1550151684469039227",
+          "time": "2026-09-17T14:29:22.003000+00:00",
+          "author": "Sinyo",
+          "username": "sinyo_26729",
+          "content": "卧槽 才看到",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245194,
+          "id": "1550151700160053339",
+          "time": "2026-09-17T14:29:25.744000+00:00",
+          "author": "Sinyo",
+          "username": "sinyo_26729",
+          "content": "彩票频道",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245195,
+          "id": "1550151703121362966",
+          "time": "2026-09-17T14:29:26.450000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "我操 还有个彩票频道？",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245196,
+          "id": "1550151722779803819",
+          "time": "2026-09-17T14:29:31.137000+00:00",
+          "author": "KKAFA",
+          "username": "kkafa__28910",
+          "content": "？",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245197,
+          "id": "1550151724646535271",
+          "time": "2026-09-17T14:29:31.582000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "<:emoji_17:1529557873070313562>",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245198,
+          "id": "1550151734717063304",
+          "time": "2026-09-17T14:29:33.983000+00:00",
+          "author": "1号呆子OvO",
+          "username": "urmyartemis",
+          "content": "那我点儿是有点背了最近",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245199,
+          "id": "1550151740899201076",
+          "time": "2026-09-17T14:29:35.457000+00:00",
+          "author": "KKAFA",
+          "username": "kkafa__28910",
+          "content": "你们不堪的？",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245200,
+          "id": "1550151803478474902",
+          "time": "2026-09-17T14:29:50.377000+00:00",
+          "author": "wasyuu",
+          "username": "wasyuu",
+          "content": "",
+          "attachments": [
+            {
+              "filename": "image.png",
+              "url": "https://cdn.discordapp.com/attachments/1434960638559523002/1550151802932957326/image.png?ex=6aad4ade&is=6aabf95e&hm=9d2869c6b6474793445d524a3b7be8fa26baeb758edfb9ba7518044d6d3aa5cd&"
+            }
+          ],
+          "embeds": []
+        },
+        {
+          "line": 245201,
+          "id": "1550151824906911808",
+          "time": "2026-09-17T14:29:55.486000+00:00",
+          "author": "meison",
+          "username": "meison0726",
+          "content": "我也啥都沒買",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245202,
+          "id": "1550151844347641899",
+          "time": "2026-09-17T14:30:00.121000+00:00",
+          "author": "wasyuu",
+          "username": "wasyuu",
+          "content": "可恶  我的彩票频道是静音",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245203,
+          "id": "1550151856221720717",
+          "time": "2026-09-17T14:30:02.952000+00:00",
+          "author": "wasyuu",
+          "username": "wasyuu",
+          "content": "我没看到",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245204,
+          "id": "1550151893505015830",
+          "time": "2026-09-17T14:30:11.841000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "所以只有我现在才知道还有这个频道马？",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245205,
+          "id": "1550151917676797983",
+          "time": "2026-09-17T14:30:17.604000+00:00",
+          "author": "wasyuu",
+          "username": "wasyuu",
+          "content": "<:emoji_32:1539671507343638588> 我现在改成全通知",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245206,
+          "id": "1550151920230998138",
+          "time": "2026-09-17T14:30:18.213000+00:00",
+          "author": "Shirozzzzzzz",
+          "username": "shirozzzzzzz",
+          "content": "我也是静音没听到",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245207,
+          "id": "1550151926274981889",
+          "time": "2026-09-17T14:30:19.654000+00:00",
+          "author": "Shirozzzzzzz",
+          "username": "shirozzzzzzz",
+          "content": "可恶",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245208,
+          "id": "1550151934072070186",
+          "time": "2026-09-17T14:30:21.513000+00:00",
+          "author": "CoreyJ",
+          "username": "corehaha",
+          "content": "立即置顶！",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245209,
+          "id": "1550151950056685633",
+          "time": "2026-09-17T14:30:25.324000+00:00",
+          "author": "Sinyo",
+          "username": "sinyo_26729",
+          "content": "我也静音了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245210,
+          "id": "1550151954422833163",
+          "time": "2026-09-17T14:30:26.365000+00:00",
+          "author": "Sinyo",
+          "username": "sinyo_26729",
+          "content": "可恶啊",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245211,
+          "id": "1550151978309521570",
+          "time": "2026-09-17T14:30:32.060000+00:00",
+          "author": "1号呆子OvO",
+          "username": "urmyartemis",
+          "content": "一个大赚一个亏，哎，我偏偏选到亏的",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245212,
+          "id": "1550152008818757815",
+          "time": "2026-09-17T14:30:39.334000+00:00",
+          "author": "wasyuu",
+          "username": "wasyuu",
+          "content": "以后都买",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245213,
+          "id": "1550152011490656269",
+          "time": "2026-09-17T14:30:39.971000+00:00",
+          "author": "Sinyo",
+          "username": "sinyo_26729",
+          "content": "严肃置顶",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245214,
+          "id": "1550152112183447683",
+          "time": "2026-09-17T14:31:03.978000+00:00",
+          "author": "爪爪",
+          "username": "jackzzh",
+          "content": "呆子哥你在想的话要不要来黄大仙求一下哈哈",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245215,
+          "id": "1550152112183447683",
+          "time": "2026-09-17T14:31:03.978000+00:00",
+          "author": "爪爪",
+          "username": "jackzzh",
+          "content": "呆子哥你在香港的话要不要来黄大仙求一下哈哈",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245216,
+          "id": "1550152141761421343",
+          "time": "2026-09-17T14:31:11.030000+00:00",
+          "author": "Karrigan",
+          "username": "karrigan0927",
+          "content": "呆哥最近好像有点水逆",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245217,
+          "id": "1550152197600313468",
+          "time": "2026-09-17T14:31:24.343000+00:00",
+          "author": "1号呆子OvO",
+          "username": "urmyartemis",
+          "content": "最近是有点逆哈哈",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245218,
+          "id": "1550152206588837921",
+          "time": "2026-09-17T14:31:26.486000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "被狗子影响了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245219,
+          "id": "1550152213458985021",
+          "time": "2026-09-17T14:31:28.124000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "这不是农历8月了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245221,
+          "id": "1550152222460084245",
+          "time": "2026-09-17T14:31:30.270000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "我之前做mu也是",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245223,
+          "id": "1550152256693735445",
+          "time": "2026-09-17T14:31:38.432000+00:00",
+          "author": "woodscountry",
+          "username": "woodscountry",
+          "content": "全通知也没用的，不知道哪个区统治哦",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245224,
+          "id": "1550152274758733886",
+          "time": "2026-09-17T14:31:42.739000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "只要拿了mu就会有不好的事发生",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245225,
+          "id": "1550152297043206177",
+          "time": "2026-09-17T14:31:48.052000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "你们置顶啊",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245226,
+          "id": "1550152341582520403",
+          "time": "2026-09-17T14:31:58.671000+00:00",
+          "author": "1号呆子OvO",
+          "username": "urmyartemis",
+          "content": "被狗子影响了气运",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245228,
+          "id": "1550152393449152746",
+          "time": "2026-09-17T14:32:11.037000+00:00",
+          "author": "ST*大霄",
+          "username": "harsamker",
+          "content": "mu选择了向下",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245229,
+          "id": "1550152406782967860",
+          "time": "2026-09-17T14:32:14.216000+00:00",
+          "author": "1号呆子OvO",
+          "username": "urmyartemis",
+          "content": "而且钱还都在狗子这",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245231,
+          "id": "1550152428144562328",
+          "time": "2026-09-17T14:32:19.309000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "mu真的是我的好朋友 275的本1200跑路 然后期权亏回去了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245232,
+          "id": "1550152442929356831",
+          "time": "2026-09-17T14:32:22.834000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "<:emoji_17:1529557873070313562>",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245233,
+          "id": "1550152452324589569",
+          "time": "2026-09-17T14:32:25.074000+00:00",
+          "author": "1号呆子OvO",
+          "username": "urmyartemis",
+          "content": "账户里就剩几百了，已经什么都买不起了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245234,
+          "id": "1550152498860527737",
+          "time": "2026-09-17T14:32:36.169000+00:00",
+          "author": "爪爪",
+          "username": "jackzzh",
+          "content": "说到这个mu",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245235,
+          "id": "1550152511476998305",
+          "time": "2026-09-17T14:32:39.177000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "我mu 200的本多到600",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245236,
+          "id": "1550152533216071832",
+          "time": "2026-09-17T14:32:44.360000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "600空到1100",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245237,
+          "id": "1550152533882699777",
+          "time": "2026-09-17T14:32:44.519000+00:00",
+          "author": "爪爪",
+          "username": "jackzzh",
+          "content": "之前跟个扑街的跟单王",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245239,
+          "id": "1550152545111122076",
+          "time": "2026-09-17T14:32:47.196000+00:00",
+          "author": "爪爪",
+          "username": "jackzzh",
+          "content": "坑了我600",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245240,
+          "id": "1550152555210735739",
+          "time": "2026-09-17T14:32:49.604000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "把我的裤衩子都亏没了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245242,
+          "id": "1550152586538123376",
+          "time": "2026-09-17T14:32:57.073000+00:00",
+          "author": "Astra",
+          "username": "hguohe",
+          "content": "买一张",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245245,
+          "id": "1550152639990341765",
+          "time": "2026-09-17T14:33:09.817000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "当时300多那次财报 forward pe5 我就知道该动手了 怎么估都是1200",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245246,
+          "id": "1550152647707729981",
+          "time": "2026-09-17T14:33:11.657000+00:00",
+          "author": "1号呆子OvO",
+          "username": "urmyartemis",
+          "content": "要非常非常谨慎了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245247,
+          "id": "1550152647989010453",
+          "time": "2026-09-17T14:33:11.724000+00:00",
+          "author": "Sinyo",
+          "username": "sinyo_26729",
+          "content": "mu又骗炮了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245248,
+          "id": "1550152653768622182",
+          "time": "2026-09-17T14:33:13.102000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "然后就拿到1200了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245250,
+          "id": "1550152681652486336",
+          "time": "2026-09-17T14:33:19.750000+00:00",
+          "author": "汐汐擾擾",
+          "username": "xixiraorao",
+          "content": "谁啊",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245251,
+          "id": "1550152726673887283",
+          "time": "2026-09-17T14:33:30.484000+00:00",
+          "author": "1号呆子OvO",
+          "username": "urmyartemis",
+          "content": "最后剩的这些进去，那就是满仓干了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245253,
+          "id": "1550152781875249174",
+          "time": "2026-09-17T14:33:43.645000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "mu",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245254,
+          "id": "1550152851211423937",
+          "time": "2026-09-17T14:34:00.176000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "大盘30上不去了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245255,
+          "id": "1550152905493971067",
+          "time": "2026-09-17T14:34:13.118000+00:00",
+          "author": "Taco Hynaut",
+          "username": "bureauc",
+          "content": "mu踩在地板上了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245256,
+          "id": "1550152906458533910",
+          "time": "2026-09-17T14:34:13.348000+00:00",
+          "author": "Nik",
+          "username": "nik024604",
+          "content": "spcx可以c",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245257,
+          "id": "1550152928604721177",
+          "time": "2026-09-17T14:34:18.628000+00:00",
+          "author": "Matthew",
+          "username": "matthewye_",
+          "content": "老板 求求速速搞下spx 还有不少持仓",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245258,
+          "id": "1550152934715687083",
+          "time": "2026-09-17T14:34:20.085000+00:00",
+          "author": "Taco Hynaut",
+          "username": "bureauc",
+          "content": "scalp了一下call",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 245259,
+          "id": "1550153041544478811",
+          "time": "2026-09-17T14:34:45.555000+00:00",
+          "author": "抓住闪光",
+          "username": "ly658",
+          "content": "刚说完就上了<:emoji_17:1529557873070313562>",
+          "attachments": [],
+          "embeds": []
+        }
+      ]
+    },
+    {
+      "label": "9月17日OI讨论",
+      "channel": "1434960638559523002",
+      "start": "2026-09-17T19:02:00Z",
+      "end": "2026-09-17T19:20:00Z",
+      "rows": [
+        {
+          "line": 246471,
+          "id": "1550220682145701959",
+          "time": "2026-09-17T19:03:32.331000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "chovy 我的蝴蝶还在战斗",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246473,
+          "id": "1550220936584634401",
+          "time": "2026-09-17T19:04:32.994000+00:00",
+          "author": "Leomessi2017（破地版）",
+          "username": ".leomessi2017",
+          "content": "牛逼！你应该赚了吧！",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246474,
+          "id": "1550221113894633544",
+          "time": "2026-09-17T19:05:15.268000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "小赚",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246475,
+          "id": "1550221151597232200",
+          "time": "2026-09-17T19:05:24.257000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "很少阿",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246476,
+          "id": "1550221159461822627",
+          "time": "2026-09-17T19:05:26.132000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "就开了一组",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246477,
+          "id": "1550221273265602671",
+          "time": "2026-09-17T19:05:53.265000+00:00",
+          "author": "Leomessi2017（破地版）",
+          "username": ".leomessi2017",
+          "content": "可以 能赚就行",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246478,
+          "id": "1550221324515942544",
+          "time": "2026-09-17T19:06:05.484000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "ib的收益跳的好怪",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246479,
+          "id": "1550221347416707093",
+          "time": "2026-09-17T19:06:10.944000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "有时候我还是负收益",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246480,
+          "id": "1550221351850221690",
+          "time": "2026-09-17T19:06:12.001000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "为啥阿",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246482,
+          "id": "1550221712292053053",
+          "time": "2026-09-17T19:07:37.937000+00:00",
+          "author": "Leomessi2017（破地版）",
+          "username": ".leomessi2017",
+          "content": "蝴蝶是这样",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246483,
+          "id": "1550221753144320062",
+          "time": "2026-09-17T19:07:47.677000+00:00",
+          "author": "H.",
+          "username": "exquisite_swan_60879",
+          "content": "50 蝴蝶这一会就5快多了",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246484,
+          "id": "1550221792612843561",
+          "time": "2026-09-17T19:07:57.087000+00:00",
+          "author": "Leomessi2017（破地版）",
+          "username": ".leomessi2017",
+          "content": "你看买价就行",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246485,
+          "id": "1550221845150695447",
+          "time": "2026-09-17T19:08:09.613000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "看着烦 阿哈哈哈",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246494,
+          "id": "1550222344197242881",
+          "time": "2026-09-17T19:10:08.595000+00:00",
+          "author": "H.",
+          "username": "exquisite_swan_60879",
+          "content": "多头没力啊",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246507,
+          "id": "1550222742786146367",
+          "time": "2026-09-17T19:11:43.626000+00:00",
+          "author": "baonannan",
+          "username": "baonannan",
+          "content": "好像是因为oi还没更新，futu上是有这个成交。大部分是买put",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246508,
+          "id": "1550222786364968992",
+          "time": "2026-09-17T19:11:54.016000+00:00",
+          "author": "mikex",
+          "username": "mikex9891",
+          "content": "果子是准备明天首发日冲史高吗",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246510,
+          "id": "1550223111276994654",
+          "time": "2026-09-17T19:13:11.481000+00:00",
+          "author": "1号呆子OvO",
+          "username": "urmyartemis",
+          "content": "哦？富途上看soxx的是新开仓的买单腿吗？",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246511,
+          "id": "1550223169963434097",
+          "time": "2026-09-17T19:13:25.473000+00:00",
+          "author": "baonannan",
+          "username": "baonannan",
+          "content": "上周异常期权有aapl375.5call",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246513,
+          "id": "1550223393536745505",
+          "time": "2026-09-17T19:14:18.777000+00:00",
+          "author": "时间的狱友(不会主动私聊你)",
+          "username": "timingprisoner",
+          "content": "不是 你们看红绿条不就知道是开仓还是平仓了吗",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246514,
+          "id": "1550223907997483090",
+          "time": "2026-09-17T19:16:21.434000+00:00",
+          "author": "baonannan",
+          "username": "baonannan",
+          "content": "futu有异常期权的成交。",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246515,
+          "id": "1550224071135072358",
+          "time": "2026-09-17T19:17:00.329000+00:00",
+          "author": "baonannan",
+          "username": "baonannan",
+          "content": "今天是有人买了500 put 又买了580 call",
+          "attachments": [
+            {
+              "filename": "IMG_2498.png",
+              "url": "https://cdn.discordapp.com/attachments/1434960638559523002/1550224069696159775/IMG_2498.png?ex=6aad8e2b&is=6aac3cab&hm=f4d350581d98062c2499e08a4c2478f408cecc824cec879a3338ea65add13c3f&"
+            },
+            {
+              "filename": "IMG_2499.png",
+              "url": "https://cdn.discordapp.com/attachments/1434960638559523002/1550224070962847824/IMG_2499.png?ex=6aad8e2c&is=6aac3cac&hm=6438e88953311acf253647ffab35636fdbd4d9d0d87d534436c24ec38fd2c733&"
+            }
+          ],
+          "embeds": []
+        },
+        {
+          "line": 246516,
+          "id": "1550224317092990988",
+          "time": "2026-09-17T19:17:58.970000+00:00",
+          "author": "时间的狱友(不会主动私聊你)",
+          "username": "timingprisoner",
+          "content": "直接看flow就行了啊",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246517,
+          "id": "1550224325087330305",
+          "time": "2026-09-17T19:18:00.876000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "strangle阿",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246518,
+          "id": "1550224356515385518",
+          "time": "2026-09-17T19:18:08.369000+00:00",
+          "author": "时间的狱友(不会主动私聊你)",
+          "username": "timingprisoner",
+          "content": "为什么还去信息量更少的地方看。。",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246519,
+          "id": "1550224371115761786",
+          "time": "2026-09-17T19:18:11.850000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "<:emoji_17:1529557873070313562>",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246520,
+          "id": "1550224380628439223",
+          "time": "2026-09-17T19:18:14.118000+00:00",
+          "author": "baonannan",
+          "username": "baonannan",
+          "content": "嗯，在看手机",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246521,
+          "id": "1550224388949942303",
+          "time": "2026-09-17T19:18:16.102000+00:00",
+          "author": "baonannan",
+          "username": "baonannan",
+          "content": "哈哈哈",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246522,
+          "id": "1550224445501874311",
+          "time": "2026-09-17T19:18:29.585000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "在思考要不要搞一手mu1000",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246523,
+          "id": "1550224466447962245",
+          "time": "2026-09-17T19:18:34.579000+00:00",
+          "author": "时间的狱友(不会主动私聊你)",
+          "username": "timingprisoner",
+          "content": "<:emoji_30:1539671494047830066>",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246524,
+          "id": "1550224499083841677",
+          "time": "2026-09-17T19:18:42.360000+00:00",
+          "author": "1号呆子OvO",
+          "username": "urmyartemis",
+          "content": "",
+          "attachments": [
+            {
+              "filename": "image.png",
+              "url": "https://cdn.discordapp.com/attachments/1434960638559523002/1550224498551431408/image.png?ex=6aad8e92&is=6aac3d12&hm=409243cec27034fe3d8ef484887901800e586254a7b4b4dff8d22dfcf6e4a602&"
+            }
+          ],
+          "embeds": []
+        },
+        {
+          "line": 246525,
+          "id": "1550224509540376800",
+          "time": "2026-09-17T19:18:44.853000+00:00",
+          "author": "ActuallyXXX",
+          "username": "actuallyx.",
+          "content": "继续周五赌博局",
+          "attachments": [],
+          "embeds": []
+        },
+        {
+          "line": 246526,
+          "id": "1550224523499143259",
+          "time": "2026-09-17T19:18:48.181000+00:00",
+          "author": "1号呆子OvO",
+          "username": "urmyartemis",
+          "content": "大量sweep call QQQ",
+          "attachments": [],
+          "embeds": []
+        }
+      ]
+    }
+  ]
+}

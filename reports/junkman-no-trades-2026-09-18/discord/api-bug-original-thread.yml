@@ -1,0 +1,453 @@
+- generic [ref=e11]:
+  - generic [ref=e12]:
+    - generic [ref=e13]: Alpha夜航社
+    - generic [ref=e17]:
+      - button "收件箱" [ref=e20] [cursor=pointer]
+      - link [ref=e24] [cursor=pointer]:
+        - /url: https://support.discord.com
+        - button "帮助" [ref=e25]
+  - generic [ref=e29]:
+    - generic [ref=e30]:
+      - navigation "服务器侧边栏" [ref=e31]:
+        - tree [ref=e32]:
+          - generic [ref=e33]:
+            - treeitem "私信" [level=1] [ref=e42] [cursor=pointer]
+            - group "服务器" [ref=e49]:
+              - generic [ref=e50]:
+                - generic [ref=e55]:
+                  - treeitem "8 个提及，Alpha夜航社" [level=1] [selected] [ref=e60] [cursor=pointer]
+                  - generic: "8"
+                - generic [ref=e62]:
+                  - generic:
+                    - generic:
+                      - img "社区服务器"
+                      - generic:
+                        - generic:
+                          - generic: 社区服务器
+                          - generic: 有邀请链接的人可以加入。
+                        - generic:
+                          - generic: 等级 3
+                          - generic: 22 个助力
+                      - generic: Alpha夜航社
+              - generic [ref=e63]:
+                - treeitem "急急如律令" [level=1] [ref=e73] [cursor=pointer]
+                - generic [ref=e75]: 急急如律令
+              - generic [ref=e76]:
+                - treeitem "粉红大兵的服务器" [level=1] [ref=e86] [cursor=pointer]:
+                  - generic [aria-hidden] [ref=e88]: 粉红大兵的服务器
+                - generic [ref=e89]: 粉红大兵的服务器
+            - treeitem "添加服务器" [level=1] [ref=e96] [cursor=pointer]
+            - treeitem "发现" [level=1] [ref=e107] [cursor=pointer]
+            - treeitem "下载APP" [level=1] [ref=e118] [cursor=pointer]
+      - navigation "Alpha夜航社 (服务器)" [ref=e122]:
+        - generic [ref=e125]:
+          - button "Alpha夜航社，服务器操作" [ref=e126] [cursor=pointer]:
+            - generic [ref=e127]:
+              - generic [ref=e128]:
+                - button "社区服务器" [ref=e129]
+                - generic [ref=e133]:
+                  - generic [ref=e134]:
+                    - generic: 社区服务器
+                    - generic: 有邀请链接的人可以加入。
+                  - generic [ref=e135]:
+                    - generic [ref=e136]: 等级 3
+                    - generic [ref=e143]: 22 个助力
+              - heading "Alpha夜航社" [level=2] [ref=e145]
+          - button "邀请至服务器" [ref=e150] [cursor=pointer]
+        - heading "频道" [level=2] [ref=e155]
+        - generic [ref=e157] [cursor=pointer]
+        - list "频道" [ref=e159]:
+          - listitem [ref=e161]:
+            - generic [ref=e162]:
+              - button "浏览频道"
+              - generic [aria-hidden] [ref=e167] [cursor=pointer]: 浏览频道
+          - listitem [ref=e170]:
+            - link "欢迎-和-规则（文字频道）" [ref=e173] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1434960638559522999
+              - generic [ref=e174]:
+                - img "规则 icon" [ref=e175]
+                - generic [ref=e178]: 规则
+                - generic [aria-hidden] [ref=e179]: 欢迎-和-规则
+          - listitem [ref=e180]:
+            - button "星河会客厅 （类别）" [expanded] [ref=e182] [cursor=pointer]:
+              - heading "星河会客厅" [level=3] [ref=e183]
+          - listitem [ref=e187]:
+            - link "未读，🎲｜日内交易专区（文字频道）, 私密频道（已锁）" [ref=e191] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1434960638559523002
+              - generic [ref=e192]:
+                - img "文字信息（受限） icon" [ref=e193]
+                - generic [ref=e197]: 文字信息（受限）
+                - generic [aria-hidden] [ref=e198]: 🎲｜日内交易专区
+          - listitem [ref=e199]:
+            - link "未读，heatmap讨论区（文字频道）, 私密频道（已锁）" [ref=e203] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1525493029329309766
+              - generic [ref=e204]:
+                - img "文字信息（受限） icon" [ref=e205]
+                - generic [ref=e209]: 文字信息（受限）
+                - generic [aria-hidden] [ref=e210]: heatmap讨论区
+          - listitem [ref=e211]:
+            - link "未读，星河会客厅交流区（文字频道）" [ref=e215] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1478800599389569065
+              - generic [ref=e216]:
+                - img "文字信息 icon" [ref=e217]
+                - generic [ref=e220]: 文字信息
+                - generic [aria-hidden] [ref=e221]: 星河会客厅交流区
+                - generic: 邀请到频道
+          - listitem [ref=e223]:
+            - link "api-mcp相关讨论（文字频道）, 私密频道（已锁）" [ref=e1461] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1534900873107341413
+              - generic [ref=e228]:
+                - img "文字信息（受限） icon" [ref=e229]
+                - generic [ref=e233]: 文字信息（受限）
+                - generic [aria-hidden] [ref=e234]: api-mcp相关讨论
+          - listitem [ref=e235]:
+            - link "未读，junkman-analysis（文字频道）, 私密频道（已锁）" [ref=e239] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1515786763417813094
+              - generic [ref=e240]:
+                - img "文字信息（受限） icon" [ref=e241]
+                - generic [ref=e245]: 文字信息（受限）
+                - generic [aria-hidden] [ref=e246]: junkman-analysis
+          - listitem [ref=e247]:
+            - link "未读，leomessi-note（文字频道）, 私密频道（已锁）" [ref=e251] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1520737975472754849
+              - generic [ref=e252]:
+                - img "文字信息（受限） icon" [ref=e253]
+                - generic [ref=e257]: 文字信息（受限）
+                - generic [aria-hidden] [ref=e258]: leomessi-note
+          - listitem [ref=e259]:
+            - link "未读，volume-profile-analysis（文字频道）, 私密频道（已锁）" [ref=e263] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1535897932799156265
+              - generic [ref=e264]:
+                - img "文字信息（受限） icon" [ref=e265]
+                - generic [ref=e269]: 文字信息（受限）
+                - generic [aria-hidden] [ref=e270]: volume-profile-analysis
+          - listitem [ref=e271]:
+            - link "未读，期权深度研报（文字频道）, 私密频道（已锁）" [ref=e275] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1508483908155740211
+              - generic [ref=e276]:
+                - img "文字信息（受限） icon" [ref=e277]
+                - generic [ref=e281]: 文字信息（受限）
+                - generic [aria-hidden] [ref=e282]: 期权深度研报
+          - listitem [ref=e283]:
+            - link "未读，每日期权结构研报（文字频道）, 私密频道（已锁）" [ref=e287] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1509085172488736819
+              - generic [ref=e288]:
+                - img "文字信息（受限） icon" [ref=e289]
+                - generic [ref=e293]: 文字信息（受限）
+                - generic [aria-hidden] [ref=e294]: 每日期权结构研报
+          - listitem [ref=e295]:
+            - link "个股讨论（论坛频道）, 私密频道（已锁）" [ref=e298] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1533876389709611189
+              - generic [ref=e299]:
+                - img "论坛（受限） icon" [ref=e300]
+                - generic [ref=e304]: 论坛（受限）
+                - generic [aria-hidden] [ref=e305]: 个股讨论
+          - listitem [ref=e306]:
+            - link "学习资料（论坛频道）, 私密频道（已锁）" [ref=e309] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1533877640069517332
+              - generic [ref=e310]:
+                - img "论坛（受限） icon" [ref=e311]
+                - generic [ref=e315]: 论坛（受限）
+                - generic [aria-hidden] [ref=e316]: 学习资料
+          - listitem [ref=e317]:
+            - link "未读，产品需求和bug反馈（论坛频道）" [ref=e321] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1505094711675981825
+              - generic [ref=e322]:
+                - img "论坛 icon" [ref=e323]
+                - generic [ref=e327]: 论坛
+                - generic [aria-hidden] [ref=e328]: 产品需求和bug反馈
+                - generic [ref=e329]:
+                  - generic [ref=e330]: 9 个新帖
+                  - generic [ref=e332]: 邀请到频道
+          - listitem [ref=e1462]:
+            - group "产品需求和bug反馈 子区" [ref=e1463]:
+              - listitem [ref=e1465]:
+                - button "yehangshe api 相关（子区）" [ref=e1470] [cursor=pointer]:
+                  - generic [aria-hidden] [ref=e1473]: yehangshe api 相关
+          - listitem [ref=e333]:
+            - button "讨论区 （类别）" [expanded] [ref=e335] [cursor=pointer]:
+              - heading "讨论区" [level=3] [ref=e336]
+          - listitem [ref=e340]:
+            - link "未读，💴｜异常期权专区（文字频道）, 私密频道（已锁）" [ref=e344] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1519605317091196969
+              - generic [ref=e345]:
+                - img "文字信息（受限） icon" [ref=e346]
+                - generic [ref=e350]: 文字信息（受限）
+                - generic [aria-hidden] [ref=e351]: 💴｜异常期权专区
+                - generic: 邀请到频道
+          - listitem [ref=e353]:
+            - link "未读，闲聊区（文字频道）, 私密频道（已锁）" [ref=e357] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1514332090978799677
+              - generic [ref=e358]:
+                - img "文字信息（受限） icon" [ref=e359]
+                - generic [ref=e363]: 文字信息（受限）
+                - generic [aria-hidden] [ref=e364]: 闲聊区
+                - generic: 邀请到频道
+          - listitem [ref=e366]:
+            - link "未读，晒单区（文字频道）, 私密频道（已锁）" [ref=e370] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1468665944824877171
+              - generic [ref=e371]:
+                - img "文字信息（受限） icon" [ref=e372]
+                - generic [ref=e376]: 文字信息（受限）
+                - generic [aria-hidden] [ref=e377]: 晒单区
+                - generic: 邀请到频道
+          - listitem [ref=e379]:
+            - link "未读，诈骗举报（文字频道）, 私密频道（已锁）" [ref=e383] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1493499907909353584
+              - generic [ref=e384]:
+                - img "文字信息（受限） icon" [ref=e385]
+                - generic [ref=e389]: 文字信息（受限）
+                - generic [aria-hidden] [ref=e390]: 诈骗举报
+                - generic: 邀请到频道
+          - listitem [ref=e392]:
+            - button "NightWatch Alert （类别）" [expanded] [ref=e394] [cursor=pointer]:
+              - heading "NightWatch Alert" [level=3] [ref=e395]
+          - listitem [ref=e399]:
+            - link "日内期权ai信号必读（文字频道）" [ref=e402] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1487738029102596236
+              - generic [ref=e403]:
+                - img "文字信息 icon" [ref=e404]
+                - generic [ref=e407]: 文字信息
+                - generic [aria-hidden] [ref=e408]: 日内期权ai信号必读
+                - generic: 邀请到频道
+          - listitem [ref=e410]:
+            - link "未读，spy日内期权1号机（文字频道）" [ref=e414] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1476555018206449674
+              - generic [ref=e415]:
+                - img "文字信息 icon" [ref=e416]
+                - generic [ref=e419]: 文字信息
+                - generic [aria-hidden] [ref=e420]: spy日内期权1号机
+                - generic [ref=e421]:
+                  - generic [ref=e422]:
+                    - generic [aria-hidden]:
+                      - generic: "2"
+                  - generic [ref=e423]: 邀请到频道
+          - listitem [ref=e424]:
+            - link "0dte-flow-alert（文字频道）" [ref=e427] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1513450634148577350
+              - generic [ref=e428]:
+                - img "文字信息 icon" [ref=e429]
+                - generic [ref=e432]: 文字信息
+                - generic [aria-hidden] [ref=e433]: 0dte-flow-alert
+                - generic: 邀请到频道
+          - listitem [ref=e441]:
+            - link "未读，彩票频道（文字频道）" [ref=e445] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1503846806835040286
+              - generic [ref=e446]:
+                - img "文字信息 icon" [ref=e447]
+                - generic [ref=e450]: 文字信息
+                - generic [aria-hidden] [ref=e451]: 彩票频道
+                - generic: 邀请到频道
+          - listitem [ref=e453]:
+            - link "未读，dennis-tape（文字频道）" [ref=e457] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1492437553171660921
+              - generic [ref=e458]:
+                - img "文字信息 icon" [ref=e459]
+                - generic [ref=e462]: 文字信息
+                - generic [aria-hidden] [ref=e463]: dennis-tape
+                - generic [ref=e464]:
+                  - generic [ref=e465]:
+                    - generic [aria-hidden]:
+                      - generic: "1"
+                  - generic [ref=e466]: 邀请到频道
+          - listitem [ref=e467]:
+            - button "订阅与公告 （类别）" [expanded] [ref=e469] [cursor=pointer]:
+              - heading "订阅与公告" [level=3] [ref=e470]
+          - listitem [ref=e474]:
+            - link "新人必读（文字频道）, 私密频道（已锁）" [ref=e477] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1510222695382646844
+              - generic [ref=e478]:
+                - img "文字信息（受限） icon" [ref=e479]
+                - generic [ref=e483]: 文字信息（受限）
+                - generic [aria-hidden] [ref=e484]: 新人必读
+                - generic: 邀请到频道
+          - listitem [ref=e486]:
+            - link "付费会员权益（文字频道）, 私密频道（已锁）" [ref=e489] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1510233673390227547
+              - generic [ref=e490]:
+                - img "文字信息（受限） icon" [ref=e491]
+                - generic [ref=e495]: 文字信息（受限）
+                - generic [aria-hidden] [ref=e496]: 付费会员权益
+                - generic: 邀请到频道
+          - listitem [ref=e498]:
+            - link "未读，更新公告（文字频道）, 私密频道（已锁）" [ref=e502] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1489519795954122883
+              - generic [ref=e503]:
+                - img "文字信息（受限） icon" [ref=e504]
+                - generic [ref=e508]: 文字信息（受限）
+                - generic [aria-hidden] [ref=e509]: 更新公告
+                - generic [ref=e511]:
+                  - generic [aria-hidden]:
+                    - generic: "2"
+          - listitem [ref=e512]:
+            - button "异常期权分析 （类别）" [expanded] [ref=e514] [cursor=pointer]:
+              - heading "异常期权分析" [level=3] [ref=e515]
+          - listitem [ref=e519]:
+            - link "分析师订阅面板（文字频道）, 私密频道（已锁）" [ref=e522] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1467503844006166588
+              - generic [ref=e523]:
+                - img "文字信息（受限） icon" [ref=e524]
+                - generic [ref=e528]: 文字信息（受限）
+                - generic [aria-hidden] [ref=e529]: 分析师订阅面板
+                - generic: 邀请到频道
+          - listitem [ref=e531]:
+            - link "未读，异常期权（文字频道）, 私密频道（已锁）" [ref=e535] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1434960638559523000
+              - generic [ref=e536]:
+                - img "文字信息（受限） icon" [ref=e537]
+                - generic [ref=e541]: 文字信息（受限）
+                - generic [aria-hidden] [ref=e542]: 异常期权
+          - listitem [ref=e543]:
+            - link "未读，pa分析师（文字频道）, 私密频道（已锁）" [ref=e546] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1467498779497201716
+              - generic [ref=e547]:
+                - img "文字信息（受限） icon" [ref=e548]
+                - generic [ref=e552]: 文字信息（受限）
+                - generic [aria-hidden] [ref=e553]: pa分析师
+                - generic: 邀请到频道
+          - listitem [ref=e555]:
+            - link "未读，mr分析师（文字频道）, 私密频道（已锁）" [ref=e559] [cursor=pointer]:
+              - /url: /channels/1434960637561409689/1467498808488235122
+              - generic [ref=e560]:
+                - img "文字信息（受限） icon" [ref=e561]
+                - generic [ref=e565]: 文字信息（受限）
+                - generic [aria-hidden] [ref=e566]: mr分析师
+                - generic: 邀请到频道
+        - button "8 个新提及" [ref=e994] [cursor=pointer]
+      - separator "Resize Sidebar" [ref=e583]
+      - region "用户状态和设置" [ref=e584]:
+        - generic [aria-hidden] [ref=e589]:
+          - generic:
+            - generic:
+              - button:
+                - generic:
+                  - paragraph: 了解
+                  - paragraph: 更多
+            - generic:
+              - generic:
+                - button
+              - generic: 获取奖励！
+            - generic:
+              - button:
+                - generic: 推广
+              - generic:
+                - button
+          - generic [ref=e592]:
+            - generic [ref=e593]:
+              - heading [level=2] [ref=e594]: ROBLOX 任务
+              - generic [ref=e596]:
+                - text: 用您的 Discord 客户端打开并游玩 15 分钟
+                - link [ref=e597] [cursor=pointer]: "The Hunt: Roblox 20"
+                - text: ，即可赢得 Blurple 8-Bit Wings。
+            - button [ref=e600] [cursor=pointer]:
+              - generic [ref=e601]: 接受任务
+        - generic [ref=e608]:
+          - generic [ref=e609] [cursor=pointer]:
+            - button "管理个人资料和状态"
+            - generic [ref=e612]:
+              - generic [ref=e613]: 粉红大兵
+              - generic [ref=e617]:
+                - generic: fenhongdabing
+                - generic: 在线
+          - generic [ref=e618]:
+            - generic [ref=e619]:
+              - switch "静音" [checked] [ref=e620] [cursor=pointer]
+              - generic [ref=e641]: 取消静音
+              - button "输入选项" [ref=e642] [cursor=pointer]
+            - generic [ref=e646]:
+              - switch "耳机静音" [ref=e647] [cursor=pointer]
+              - button "输出选项" [ref=e659] [cursor=pointer]
+            - button "用户设置" [ref=e663] [cursor=pointer]
+    - generic [ref=e674]:
+      - region "频道标题" [ref=e1474]:
+        - generic [ref=e1475]:
+          - generic [ref=e1476]:
+            - generic [ref=e1481]: 文字频道
+            - button [ref=e1482]:
+              - heading "产品需求和bug反馈" [level=2] [ref=e1483] [cursor=pointer]
+            - generic [ref=e1486]: 子区
+            - 'heading "子区: yehangshe api 相关" [level=2] [ref=e1488]':
+              - generic [ref=e1489]: "子区:"
+              - text: yehangshe api 相关
+          - generic [ref=e1490]:
+            - button "通知设定" [ref=e1491] [cursor=pointer]
+            - button "已标注消息" [ref=e1494] [cursor=pointer]
+            - button "显示成员名单" [ref=e1497] [cursor=pointer]
+            - button "更多" [ref=e1500] [cursor=pointer]
+            - generic [ref=e1505]:
+              - combobox "搜索 Alpha夜航社" [ref=e1506]
+              - button [aria-hidden] [ref=e1508]
+      - main "yehangshe api 相关（子区）" [ref=e1514]:
+        - heading "yehangshe api 相关 聊天" [level=2] [ref=e1516]
+        - group [ref=e1518]:
+          - list "yehangshe api 相关中的消息" [ref=e1520]:
+            - generic [ref=e1521]:
+              - heading [level=3] [aria-hidden] [ref=e1525]: yehangshe api 相关
+              - generic [ref=e1526]:
+                - generic [ref=e1527]: 产品需求
+                - generic [ref=e1529]: bug反馈
+            - separator "新的, 2026年9月18日":
+              - generic: 2026年9月18日
+              - generic: 新的
+            - listitem [ref=e1532]:
+              - article [ref=e1533]:
+                - generic [ref=e1534]:
+                  - img [aria-hidden] [ref=e1535] [cursor=pointer]
+                  - heading "Xiaoshushu 服务器标签：莫菇负 LZ 楼主 昨天11:48" [level=3] [ref=e1536]:
+                    - generic [ref=e1537]:
+                      - button "Xiaoshushu" [ref=e1538]
+                      - button "服务器标签：莫菇负" [ref=e1540] [cursor=pointer]:
+                        - generic [ref=e1541]:
+                          - generic [ref=e1542]: 服务器标签：莫菇负
+                          - text: 莫菇负
+                      - img "LZ" [ref=e1544]
+                      - generic [ref=e1546]: 楼主
+                    - generic [ref=e1547]:
+                      - time [ref=e1549]:
+                        - generic [aria-hidden] [ref=e1550]: —
+                        - text: 昨天11:48
+                      - generic [ref=e1551]: 2026年9月18日星期五 11:48
+                  - generic [ref=e1552]:
+                    - list [ref=e1553]:
+                      - listitem [ref=e1554]:
+                        - generic [ref=e1555]: 盘前 greeks / IV 是错的
+                        - generic [ref=e1556]: ","
+                    - text: NVDA exp=2026-09-18，盘前 08:43 取：snapshot_at 是前一日 09:30， underlying_price_usd 却是当日的 218.61，而 put-call parity 反解报价对应的现价是 213.93， 差 4.68。结果：K=210/215/217.5 的 Call 全是 gamma=0, iv=0, delta=1， K=220 的 C/P gamma 是 0.1362 / 0.0272（同一行权价两侧 gamma 相差 5 倍，理论上必须相等）。 同一条链收盘后再取就全部正常。 看起来是用当前标的价配快照时点（前一日）的报价算的 greeks。 最小解法：补一个 underlying_at_snapshot_usd 字段（快照时点的标的价）， 我自己就能算，不用改你们的计算逻辑。
+                    - list [ref=e1557]:
+                      - listitem [ref=e1558]:
+                        - generic [ref=e1559]: 期权报价一天只刷新一次
+                        - generic [ref=e1560]: ","
+                    - text: 个股 snapshot_at 固定每日 09:30 ET，ETF 固定 16:1x ET，盘中都不刷新。 盘前拿到的永远是前一日报价；做 0DTE 全天用的是昨收价。能否盘中定期刷新？
+                    - list [ref=e1561]:
+                      - listitem [ref=e1562]:
+                        - generic [ref=e1563]: 历史链没有 OI / IV
+                        - generic [ref=e1564]: ","
+                    - text: chain-snapshot 传历史日期 404；chain-history 只有 NBBO，没有 open_interest 和 IV。 导致任何方法都无法做历史验证。希望 chain-history 能补上 per-strike 的 OI 与 IV。 其他 dealer-gex 只返回 5 个行权价且高度聚集（SPY 实测 king/call_wall/put_wall = 763/763/763）， 无法判断结构；ASTS/CRCL 404、SNDK 503；昨日快照也标 state=fresh。 chain-snapshot 400 条上限无分页（total_contracts 报 504/650/714），希望加 strike 范围参数。 expiry-breakdown 不列 SPX 的 SPXW 日到期，照它选"最近到期"会把 0DTE 静默换成月度。 若以后加 DEX/Vanna/Charm，恳请文档写清 dealer 符号约定（约定反了方向就整个翻）。 /v1/stocks/quote 的 ts 疑似是 ET 却标 Z（22:36 ET 返回 19:49:47Z），麻烦确认。 第 1 条最关键，补个字段应该改动很小。感谢！
+            - generic [ref=e1565]:
+              - generic [ref=e1566]:
+                - button "对帖子添加反应" [ref=e1568] [cursor=pointer]
+                - generic [ref=e1571]: 添加反应
+              - generic [ref=e1572]:
+                - button "关注" [ref=e1573] [cursor=pointer]
+                - generic [ref=e1579]: 将该帖子添加至您的频道列表并接收相关通知。
+                - button "复制链接" [ref=e1580] [cursor=pointer]
+                - generic [ref=e1586]: 复制链接
+                - button "跳转至顶部" [ref=e1587] [cursor=pointer]
+                - generic [ref=e1592]: 跳转至顶部
+            - generic [ref=e1637]:
+              - heading "开始对话！" [level=3] [ref=e1638]
+              - generic [ref=e1639]: 做第一个分享自己感受的勇士吧！
+        - generic [ref=e1645]:
+          - button "更多消息选项" [ref=e1647] [cursor=pointer]
+          - generic [ref=e1652]:
+            - generic [aria-hidden]: 在 "yehangshe api 相关" 中发送一则消息
+            - textbox "在 \"yehangshe api 相关\" 中发送一则消息" [active] [ref=e1653]
+          - generic [ref=e1655]:
+            - generic [ref=e1656]:
+              - button "发送礼物" [ref=e1657] [cursor=pointer]
+              - generic [ref=e1673]: 升级您的好友！赠送Nitro，让他们享用炫酷聊天特权。
+            - button "打开 GIF 选取器" [ref=e1675] [cursor=pointer]
+            - generic [ref=e1685]: 发送 GIF
+            - button "打开贴纸选取器" [ref=e1687] [cursor=pointer]
+            - button "添加表情符号" [ref=e1697] [cursor=pointer]
+            - button "APP" [ref=e1702] [cursor=pointer]

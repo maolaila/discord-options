@@ -338,6 +338,10 @@ export function create_nightwatch_rest_client({
     get_options_chain_history: (ticker, options) => get_json(
       `/v1/options/chain-history/${encodeURIComponent(normalized_ticker(ticker))}`, options,
     ),
+    get_options_chain_greeks_history: (ticker, options) => get_json(
+      `/v1/options/chain-greeks-history/${encodeURIComponent(normalized_ticker(ticker))}`, options,
+    ),
+    get_options_volume_rank: (options) => get_json('/v1/market/options-volume-rank', options),
     get_dealer_gex_snapshot: (ticker, options) => get_json(
       `/v1/derived/dealer-gex/${encodeURIComponent(normalized_derived_ticker(ticker))}/snapshot`,
       options,

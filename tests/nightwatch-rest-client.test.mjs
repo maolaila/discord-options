@@ -35,12 +35,19 @@ test('research methods use documented read-only endpoints and preserve requested
   await client.get_options_chain_history('SPX', { query: {
     expiration: '2026-09-16', right: 'C', from: '2026-09-16', to: '2026-09-17', interval: '1m',
   } });
+  await client.get_options_chain_greeks_history('SPX', { query: {
+    expiration: '2026-09-18', right: 'P', from: '2026-09-18', to: '2026-09-18', interval: '5m',
+  } });
+  await client.get_options_volume_rank();
   assert.deepEqual(requests.map((r) => new URL(r.url).pathname), [
     '/v1/volatility/stats/SPX', '/v1/volatility/term-structure/SPX',
     '/v1/market/economic-calendar', '/v1/options/chain-history/SPX',
+    '/v1/options/chain-greeks-history/SPX', '/v1/market/options-volume-rank',
   ]);
   assert.ok(requests.every((r) => r.method === 'GET' && !r.url.includes('research_test_secret')));
   assert.equal(new URL(requests[3].url).searchParams.get('expiration'), '2026-09-16');
+  assert.equal(new URL(requests[4].url).searchParams.get('expiration'), '2026-09-18');
+  assert.equal(new URL(requests[4].url).searchParams.get('right'), 'P');
 });
 
 test('discover uses bearer authentication without placing a key in the URL', async () => {

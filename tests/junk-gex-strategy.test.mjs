@@ -305,6 +305,33 @@ test('directional option reference rejects wrong identity, incomplete provenance
   assert.equal(directional_option_gex_reference({ ...input, option_chain_snapshot: invalid_gamma }), null);
 });
 
+test('directional ranking rejects an undisclosed partial chain even when truncated is false', () => {
+  const response = option_chain({ total_contracts: 494 });
+  assert.equal(directional_option_gex_reference({
+    option_chain_snapshot: response, direction: 'bullish', expiration: '2026-08-10',
+    ticker: 'SPX', now_ms: Date.parse(now_iso), max_age_ms: 600_000,
+  }), null);
+});
+
+test('component and per-contract quote watermarks cannot hide behind a fresh aggregate timestamp', () => {
+  const response = option_chain({ quote_as_of: now_iso, underlying_as_of: now_iso });
+  response.data.contracts.forEach(row => { row.quoted_at = now_iso; });
+  const input = { direction: 'bullish', expiration: '2026-08-10', ticker: 'SPX',
+    now_ms: Date.parse(now_iso), max_age_ms: 600_000 };
+  assert.equal(directional_option_gex_reference({ ...input, option_chain_snapshot: response }).strike_usd, 5010);
+  for (const field of ['quote_as_of', 'underlying_as_of']) {
+    const stale = structuredClone(response);
+    stale.data[field] = '2026-08-07T20:00:00.000Z';
+    assert.equal(directional_option_gex_reference({ ...input, option_chain_snapshot: stale }), null, field);
+  }
+  const staleRow = structuredClone(response);
+  staleRow.data.contracts[1].quoted_at = '2026-08-07T20:00:00.000Z';
+  assert.equal(directional_option_gex_reference({ ...input, option_chain_snapshot: staleRow }), null);
+  const missingRow = structuredClone(response);
+  delete missingRow.data.contracts[1].quoted_at;
+  assert.equal(directional_option_gex_reference({ ...input, option_chain_snapshot: missingRow }), null);
+});
+
 test('Dealer GEX summary walls cannot substitute for a missing directional option chain', () => {
   const result = evaluate_bullish({ option_chain_snapshot: null });
 

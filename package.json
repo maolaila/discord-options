@@ -11,6 +11,7 @@
   "scripts": {
     "capture": "powershell -NoProfile -ExecutionPolicy Bypass -File ./run-capture.ps1",
     "moomoo:check": "node ./apps/opend-check/moomoo-check.mjs",
+    "junk:preflight": "node ./ops/junk-preflight.mjs",
     "nightwatch:discover": "node ./apps/zero-dte-options/zero-dte-line.mjs --discover",
     "junk:gex:status": "node ./apps/zero-dte-options/zero-dte-line.mjs --status",
     "junk:gex:plan": "node ./apps/zero-dte-options/zero-dte-line.mjs --dry-run",

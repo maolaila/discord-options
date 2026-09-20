@@ -89,6 +89,96 @@ function canonical_contract_root(value) {
   return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
 
+// Share the exact provenance checks between entry selection and operations.
+// A provider's aggregate "fresh"/"not truncated" flags are not sufficient.
+export function assess_directional_chain_provenance({
+  option_chain_snapshot, ticker, expiration, direction,
+  now_ms = null, max_age_ms = null,
+} = {}) {
+  const source = source_payload(option_chain_snapshot);
+  const contracts = Array.isArray(source.contracts) ? source.contracts : [];
+  const expected_ticker = String(ticker || source.ticker || '').toUpperCase();
+  const expected_expiration = String(expiration || '').slice(0, 10);
+  const option_right = direction === 'bullish' ? 'C' : direction === 'bearish' ? 'P' : null;
+  const reasons = new Set();
+  const reject = reason => reasons.add(reason);
+  if (!expected_ticker || String(source.ticker || '').toUpperCase() !== expected_ticker) reject('chain_ticker_mismatch');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(expected_expiration)
+    || String(source.expiration || '').slice(0, 10) !== expected_expiration) reject('chain_expiration_mismatch');
+  if (!option_right) reject('chain_direction_invalid');
+  if (!contracts.length) reject('chain_empty');
+  if (option_chain_snapshot?._meta?.truncated !== false) reject('chain_truncated_or_unknown');
+  const total_contracts = finite_number(source.total_contracts);
+  if (source.total_contracts !== undefined && (total_contracts === null
+    || !Number.isInteger(total_contracts) || total_contracts !== contracts.length)) {
+    reject('chain_contract_count_mismatch');
+  }
+  const check_age = now_ms !== null && max_age_ms !== null
+    && Number.isFinite(Number(now_ms)) && Number.isFinite(Number(max_age_ms));
+  function check_timestamp(value, name) {
+    const ms = timestamp_ms(value);
+    if (ms === null) reject(`${name}_missing_or_invalid`);
+    else if (check_age) {
+      const age = Number(now_ms) - ms;
+      if (age < -5_000) reject(`${name}_future`);
+      if (age > Number(max_age_ms)) reject(`${name}_stale`);
+    }
+    return ms;
+  }
+  const snapshot_ms = check_timestamp(source.snapshot_at, 'chain_snapshot');
+  check_timestamp(source.greeks_as_of, 'chain_greeks');
+  const oi_ms = timestamp_ms(source.open_interest_as_of);
+  if (oi_ms === null) reject('chain_oi_timestamp_missing');
+  if (oi_ms !== null && snapshot_ms !== null && oi_ms > snapshot_ms + 5_000) reject('chain_oi_after_snapshot');
+  const freshness = finite_number(option_chain_snapshot?._meta?.data_freshness_seconds);
+  if (check_age && freshness !== null && freshness * 1_000 > Number(max_age_ms)) reject('chain_provider_age_stale');
+  const component_schema = Object.hasOwn(source, 'quote_as_of') || Object.hasOwn(source, 'underlying_as_of');
+  if (component_schema) {
+    check_timestamp(source.quote_as_of, 'chain_quote');
+    check_timestamp(source.underlying_as_of, 'chain_underlying');
+  }
+  const seen = new Set();
+  let relevant_contract_count = 0;
+  let invalid_quote_count = 0;
+  for (const row of contracts) {
+    const identity = parse_osi_contract_symbol(row?.contract_symbol);
+    if (!identity || identity.right !== option_right || identity.expiration !== expected_expiration
+      || (expected_ticker === 'SPX' ? identity.contract_root !== 'SPXW'
+        : canonical_contract_root(identity.contract_root) !== canonical_contract_root(expected_ticker))
+      || canonical_option_right(row.right) !== option_right
+      || String(row.expiration || '').slice(0, 10) !== expected_expiration
+      || finite_number(row.strike_usd) === null
+      || Math.abs(identity.strike_usd - Number(row.strike_usd)) > 0.0001) continue;
+    if (seen.has(identity.contract_symbol)) reject('chain_duplicate_contract');
+    seen.add(identity.contract_symbol);
+    if (!(finite_number(row.gamma) > 0) || !(finite_number(row.open_interest) > 0)) continue;
+    relevant_contract_count += 1;
+    // Do not silently drop a stale competing strike and call another strike
+    // the maximum. The entire directional ranking is then untrustworthy.
+    if (component_schema || Object.hasOwn(row, 'quoted_at')) {
+      const quoted_ms = timestamp_ms(row.quoted_at);
+      if (quoted_ms === null || (check_age && (Number(now_ms) - quoted_ms > Number(max_age_ms)
+        || quoted_ms - Number(now_ms) > 5_000))) invalid_quote_count += 1;
+    }
+  }
+  if (invalid_quote_count) reject('chain_contract_quotes_stale_or_missing');
+  if (!relevant_contract_count) reject('chain_no_valid_directional_contracts');
+  return {
+    ready: reasons.size === 0,
+    reason_codes: [...reasons],
+    contract_count: contracts.length,
+    total_contracts,
+    relevant_contract_count,
+    invalid_quote_count,
+    timestamp_schema: component_schema ? 'component_watermarks' : 'legacy_aggregate',
+    snapshot_at: source.snapshot_at || null,
+    quote_as_of: source.quote_as_of || null,
+    greeks_as_of: source.greeks_as_of || null,
+    underlying_as_of: source.underlying_as_of || null,
+    open_interest_as_of: source.open_interest_as_of || null,
+  };
+}
+
 /**
  * Rank same-expiry Call or Put strikes from fields observed in Nightwatch's
  * official option-chain response. Dealer GEX nodes expose only net_gex_usd;
@@ -115,29 +205,11 @@ export function directional_option_gex_reference({
   const contracts = Array.isArray(source?.contracts) ? source.contracts : [];
   if (!option_right || !/^\d{4}-\d{2}-\d{2}$/.test(expected_expiration)) return null;
   if (!expected_ticker || source_ticker !== expected_ticker || source_expiration !== expected_expiration) return null;
-  // Live responses from the official endpoint expose this truncation marker
-  // and the timestamps below. Treat missing provenance as incomplete rather
-  // than pretending the public OpenAPI schema documents more than it does.
-  if (option_chain_snapshot?._meta?.truncated !== false) return null;
+  if (!assess_directional_chain_provenance({
+    option_chain_snapshot, direction, expiration: expected_expiration,
+    ticker: expected_ticker, now_ms, max_age_ms,
+  }).ready) return null;
   const freshness_seconds = finite_number(option_chain_snapshot?._meta?.data_freshness_seconds);
-  const source_snapshot_ms = timestamp_ms(source?.snapshot_at);
-  const greeks_as_of_ms = timestamp_ms(source?.greeks_as_of);
-  const open_interest_as_of_ms = timestamp_ms(source?.open_interest_as_of);
-  if (source_snapshot_ms === null || greeks_as_of_ms === null || open_interest_as_of_ms === null) return null;
-  if (open_interest_as_of_ms > source_snapshot_ms + 5_000) return null;
-  if (
-    now_ms !== null
-    && max_age_ms !== null
-    && Number.isFinite(Number(now_ms))
-    && Number.isFinite(Number(max_age_ms))
-  ) {
-    if (source_snapshot_ms === null || greeks_as_of_ms === null) return null;
-    const age_ms = Number(now_ms) - source_snapshot_ms;
-    const greeks_age_ms = Number(now_ms) - greeks_as_of_ms;
-    if (age_ms < -5_000 || age_ms > Number(max_age_ms)) return null;
-    if (greeks_age_ms < -5_000 || greeks_age_ms > Number(max_age_ms)) return null;
-    if (freshness_seconds !== null && freshness_seconds * 1_000 > Number(max_age_ms)) return null;
-  }
 
   const by_strike = new Map();
   for (const contract of contracts) {
@@ -195,6 +267,8 @@ export function directional_option_gex_reference({
     source: 'nightwatch_options_chain_snapshot_gross_gamma_oi_proxy',
     source_field: 'data.contracts[].gamma*open_interest',
     source_snapshot_at: iso_timestamp(source?.snapshot_at),
+    quote_as_of: iso_timestamp(source?.quote_as_of),
+    underlying_as_of: iso_timestamp(source?.underlying_as_of),
     greeks_as_of: iso_timestamp(source?.greeks_as_of),
     data_freshness_seconds: rounded(freshness_seconds),
     open_interest_as_of: iso_timestamp(source?.open_interest_as_of),

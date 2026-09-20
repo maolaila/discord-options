@@ -32,6 +32,7 @@ import {
   create_snapshot_rate_limiter,
 } from '../../packages/nightwatch-api/nightwatch-rest-client.mjs';
 import {
+  assess_directional_chain_provenance,
   evaluate_junk_gex_strategy,
   normalize_gex_snapshot,
 } from './junk-gex-strategy.mjs';
@@ -407,7 +408,7 @@ async function acquire_runtime_lock() {
   throw new Error('Unable to acquire the JUNKMAN GEX runtime lock.');
 }
 
-function ny_context(date = new Date()) {
+export function ny_context(date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/New_York',
     weekday: 'short',
@@ -1918,6 +1919,14 @@ export function directional_chain_retry_key({ ticker, expiration } = {}) {
   const normalized_ticker = String(ticker || '').trim().toUpperCase();
   const normalized_expiration = String(expiration || '').trim().slice(0, 10);
   return `${normalized_ticker}|${normalized_expiration}`;
+}
+
+export function directional_chain_error_retry_ms(error, poll_ms = 15_000) {
+  // An oversized/missing chain cannot be repaired by retrying every broker
+  // poll. Keep exits at their normal cadence and retry this request separately.
+  const fallback = [400, 404, 422].includes(Number(error?.status))
+    ? NIGHTWATCH_FIXED_SAMPLE_INTERVAL_MS : poll_ms;
+  return Math.max(fallback, positive_number(error?.retry_after_ms) || 0);
 }
 
 export function classify_nightwatch_fixed_sample_error(error) {
@@ -4471,10 +4480,16 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
           retry_after_ms: null,
           retry_at: null,
           error: null,
+          validation: assess_directional_chain_provenance({
+            option_chain_snapshot: chain_response, ticker, expiration: state.session_date_et,
+            direction: requested_right === 'call' ? 'bullish' : 'bearish',
+            now_ms: chain_received_at_ms, max_age_ms: JUNK_GEX_MAX_AGE_MS,
+          }),
         };
         if (chain_contracts.length > 0) {
           core_decision = evaluate_junk_gex_strategy({
             ...strategy_input,
+            now_ms: chain_received_at_ms,
             option_chain_snapshot: chain_response,
           });
           const reference_still_missing = (core_decision.reason_codes || [])
@@ -4519,11 +4534,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
         }
       } catch (error) {
         apply_provider_backoff(error, Date.now());
-        const retry_after_ms = directional_chain_retry_delay_ms({
-          retry_after_seconds: positive_number(error?.retry_after_ms) === null
-            ? null
-            : Number(error.retry_after_ms) / 1_000,
-        }, poll_ms);
+        const retry_after_ms = directional_chain_error_retry_ms(error, poll_ms);
         const retry_at_ms = Date.now() + retry_after_ms;
         directional_option_chain_retry = {
           key: directional_chain_request_key,
@@ -4544,6 +4555,8 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
           retry_after_ms,
           retry_at: new Date(retry_at_ms).toISOString(),
           error: sanitized_error(error),
+          http_status: finite_number(error?.status),
+          error_code: String(error?.error_code || error?.code || '').slice(0, 64) || null,
         };
       }
     }
@@ -4796,7 +4809,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
             client: runtime.client,
             config: runtime.config,
             plan,
-            now: new Date(market_context_at),
+            now: new Date(),
           });
         } catch (error) {
           if (error?.submission_outcome === 'not_submitted') {

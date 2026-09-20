@@ -16,6 +16,7 @@ import {
   create_moomoo_runtime,
   classify_nightwatch_fixed_sample_error,
   directional_chain_retry_delay_ms,
+  directional_chain_error_retry_ms,
   directional_chain_retry_key,
   expired_entry_without_broker_evidence,
   expired_settlement_missing,
@@ -765,6 +766,14 @@ test('materializing option chains honor official Retry-After without blocking br
     }),
     'a new GEX bucket must not change the option-chain Retry-After identity',
   );
+});
+
+test('persistent chain errors back off separately without extending broker polling', () => {
+  assert.equal(directional_chain_error_retry_ms({ status: 422 }), 300_000);
+  assert.equal(directional_chain_error_retry_ms({ status: 404 }), 300_000);
+  assert.equal(directional_chain_error_retry_ms({ status: 503 }), 15_000);
+  assert.equal(directional_chain_error_retry_ms({ status: 422, retry_after_ms: 900_000 }), 900_000);
+  assert.equal(provider_backoff_cycle_delay(15_000, directional_chain_error_retry_ms({ status: 422 })), 15_000);
 });
 
 test('fixed-sample errors branch on the official stable machine code', () => {

@@ -5,6 +5,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { deriveCaptureHealth } from './capture-health.mjs';
+import { assess_junk_readiness } from '../zero-dte-options/junk-readiness.mjs';
 import { trade_day_exclusion } from '../../packages/business-lines/trade-day-validity.mjs';
 import {
   build_junk_performance_report,
@@ -387,6 +388,11 @@ function statusPayload() {
   const captureHealth = deriveCaptureHealth(captureStatus, {
     processRunning: isRunning(processes.get('capture')),
   });
+  const externalRuntime = externalJunkRuntime(junkStatus, runtimeLock);
+  const tradingReadiness = assess_junk_readiness({
+    status: junkStatus || {}, watcher: externalRuntime.watcher,
+    broker_check: moomooCheck || {},
+  });
 
   return {
     server: {
@@ -399,7 +405,9 @@ function statusPayload() {
     processes: Object.fromEntries(
       [...processes.entries()].map(([name, entry]) => [name, processSnapshot(entry)]),
     ),
-    external_junk_runtime: externalJunkRuntime(junkStatus, runtimeLock),
+    external_junk_runtime: externalRuntime,
+    trading_readiness: tradingReadiness,
+    preflight_status: readJson(path.join(logsDir, 'junk-preflight.json')),
     capture_status: captureStatus,
     capture_health: captureHealth,
     junk_status: junkStatus,
@@ -685,6 +693,13 @@ function dashboardHtmlPage() {
         ['Market', status.market_schedule?.market_open ? 'open' : 'closed'],
         ['Latest error', status.last_error || '-'],
         ['Broker recovery', status.broker_recovery?.status || '-'],
+        ['Entry evaluation', data.trading_readiness?.ready_for_entry_evaluation ? 'ready (signal and execution gates still apply)' : 'not ready'],
+        ['Runtime / broker blockers', [...(data.trading_readiness?.runtime_reasons || []), ...(data.trading_readiness?.broker_reasons || [])].join(', ') || '-'],
+        ['Entry data blockers', (data.trading_readiness?.data_reasons || []).join(', ') || '-'],
+        ['Direction chain', status.provider?.directional_option_chain?.status || 'not checked'],
+        ['Direction API error', status.provider?.directional_option_chain?.error_code || '-'],
+        ['Latest preflight', data.preflight_status?.checked_at || '-'],
+        ['Preflight chain', data.preflight_status?.chain?.error_code || data.preflight_status?.chain?.status || '-'],
       ];
       el('runtimeRows').innerHTML = rows.map((row) => '<tr><th>' + safe(row[0]) + '</th><td>' + safe(row[1]) + '</td></tr>').join('');
       el('supervisorLog').textContent = (runtime.recent_supervisor_log || []).join('\n') || 'No supervisor log entries';
@@ -749,7 +764,7 @@ function dashboardHtmlPage() {
       );
       el('watcher').innerHTML = state(watcher.running && watcher.heartbeat_fresh, 'running', 'degraded / stopped');
       el('phase').textContent = status.phase || '-';
-      el('opend').innerHTML = state(global.qot_logined && global.trd_logined, 'connected', 'unchecked / disconnected');
+      el('opend').innerHTML = state(data.trading_readiness?.broker_ready, 'authenticated (fresh check)', 'stale / disconnected');
       el('mode').innerHTML = status.execution_environment === 'simulate_only' && status.real_trading_allowed === false ? '<span class="ok">simulate_only</span>' : '<span class="bad">' + safe(status.execution_environment) + '</span>';
       el('positions').textContent = safe(status.risk?.open_position_count || 0) + ' / ' + safe(status.active_orders?.length || 0);
       const pnlValue = Number(status.risk?.daily_realized_pnl_usd || 0);

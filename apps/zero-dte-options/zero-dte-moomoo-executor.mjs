@@ -819,6 +819,8 @@ export async function executeZeroDteSimulatedEntry({
   now = new Date(),
   dependencies = {},
 } = {}) {
+  const startedMonotonic = performance.now();
+  const executionNow = dependencies.now || (() => new Date(now.getTime() + performance.now() - startedMonotonic));
   assertZeroDteSimulationOnly(config);
   if (!client) throw new Error('Moomoo client is required.');
   if (plan?.business_line !== expectedBusinessLine(config) || plan?.strategy !== expectedStrategy(config)) {
@@ -904,6 +906,24 @@ export async function executeZeroDteSimulatedEntry({
     trdEnv: TRD_ENV_SIMULATE,
     accId: String(account.accID || ''),
   };
+  // Network/account waits must consume the same time budgets as quote lookup.
+  // Recheck immediately before PlaceOrder, using elapsed real time.
+  const submitAt = executionNow();
+  const submitAge = ageMs(plan.planned_at, submitAt);
+  const timeReasons = validateSignal(plan.signal || {}, config, {}, submitAt).reasons;
+  if (submitAge === null || submitAge > entryOrderTtlMs || submitAge < -5_000) {
+    timeReasons.push(`entry_plan_expired:${submitAge}`);
+  }
+  const quoteAge = ageMs(plan.quote?.quote_received_at, submitAt);
+  const maxQuoteAgeMs = firstFinite(riskLimit(config, 'max_option_quote_age_seconds', 3), 3) * 1000;
+  if (quoteAge === null) timeReasons.push('invalid_option_quote_received_at');
+  else if (quoteAge > maxQuoteAgeMs) timeReasons.push(`option_quote_stale:${quoteAge}`);
+  else if (quoteAge < -5_000) timeReasons.push(`option_quote_from_future:${quoteAge}`);
+  if (timeReasons.length) return {
+    ...plan, order_status: 'not_submitted',
+    execution: { submitted: false, reason: 'execution_revalidation_failed',
+      reasons: [...new Set(timeReasons)], plan_age_ms: submitAge, entry_order_ttl_ms: entryOrderTtlMs },
+  };
   const response = await runBrokerStage(
     () => submitOrder(client, executionConfig, {
       code: plan.order.code,
@@ -923,7 +943,7 @@ export async function executeZeroDteSimulatedEntry({
     order_status: 'submitted_simulation',
     execution: {
       submitted: true,
-      submitted_at: now.toISOString(),
+      submitted_at: submitAt.toISOString(),
       simulated_account_id: maskId(account.accID),
       ...brokerExecutionSummary(normalizeForJson(response)),
     },

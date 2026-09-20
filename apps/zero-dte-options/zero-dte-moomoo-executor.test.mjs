@@ -644,6 +644,35 @@ test('execute revalidates plan TTL and immutable order fields before broker acce
   assert.ok(result.execution.reasons.includes('order_qty_mismatch'));
 });
 
+test('entry rechecks quote age and cutoff after a delayed account preflight', async () => {
+  for (const scenario of ['quote', 'cutoff']) {
+    const started = scenario === 'quote' ? now : new Date('2026-08-10T19:44:59.000Z');
+    const plan = buildZeroDteSimulatedEntryPlan({
+      signal: strategySignal(),
+      contract: contract(), option_snapshot: optionSnapshot(), config: config(), now,
+    });
+    assert.equal(plan.gate.passed, true);
+    plan.planned_at = started.toISOString();
+    plan.signal.generated_at = started.toISOString();
+    plan.signal.gex_snapshot_at = started.toISOString();
+    plan.quote.quote_received_at = started.toISOString();
+    let submitted = false;
+    const result = await executeZeroDteSimulatedEntry({
+      client: {}, config: config(), plan, now: started,
+      dependencies: {
+        now: () => new Date(started.getTime() + (scenario === 'quote' ? 4_000 : 2_000)),
+        fetch_accounts: async () => ({}),
+        select_simulated_option_account: () => ({ accID: '123', trdEnv: 0 }),
+        place_limit_buy_order: async () => { submitted = true; return {}; },
+      },
+    });
+    assert.equal(submitted, false);
+    assert.equal(result.order_status, 'not_submitted');
+    assert.ok(result.execution.reasons.some(reason => scenario === 'quote'
+      ? reason.startsWith('option_quote_stale:') : reason === 'after_entry_cutoff_time_et'));
+  }
+});
+
 test('entry preflight failures are definitely not submitted while PlaceOrder timeouts stay unknown', async () => {
   const plan = buildZeroDteSimulatedEntryPlan({
     signal: strategySignal(),

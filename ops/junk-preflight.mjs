@@ -39,7 +39,7 @@ function api_error(error) {
 }
 async function probe_chain() {
   try {
-    const response = await api.get_options_chain_snapshot('SPX', { query: { expiration: target } });
+    const response = await api.get_options_chain_snapshot_complete('SPX', { query: { expiration: target } });
     const options = { option_chain_snapshot: response, ticker: 'SPX', expiration: target,
       now_ms: Date.now(), max_age_ms: JUNK_GEX_MAX_AGE_MS };
     const call = assess_directional_chain_provenance({ ...options, direction: 'bullish' });

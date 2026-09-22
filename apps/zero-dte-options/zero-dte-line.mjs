@@ -4454,7 +4454,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
     ) {
       const requested_right = directional_reference_reason.includes('_call_') ? 'call' : 'put';
       try {
-        const chain_response = await nightwatch.get_options_chain_snapshot(ticker, {
+        const chain_response = await nightwatch.get_options_chain_snapshot_complete(ticker, {
           query: { expiration: state.session_date_et },
         });
         const chain_received_at_ms = Date.now();

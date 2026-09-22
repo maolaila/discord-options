@@ -325,6 +325,61 @@ export function create_nightwatch_rest_client({
     }
   }
 
+  function next_cursor_from_page(page) {
+    const cursor = page?._meta?.next_cursor ?? page?.data?.next_cursor ?? null;
+    const text = String(cursor || '').trim();
+    return text || null;
+  }
+
+  async function get_options_chain_snapshot_complete(ticker, { query = {}, signal, max_pages = 10 } = {}) {
+    const page_limit = Number(max_pages);
+    if (!Number.isInteger(page_limit) || page_limit < 1 || page_limit > 25) {
+      throw new Error('max_pages must be an integer between 1 and 25');
+    }
+
+    const path = `/v1/options/chain-snapshot/${encodeURIComponent(normalized_ticker(ticker))}`;
+    const pages = [];
+    let cursor = query?.cursor ? String(query.cursor) : null;
+    for (let page_index = 0; page_index < page_limit; page_index += 1) {
+      const page_query = page_index === 0
+        ? { ...query }
+        : { ...query, cursor };
+      const page = await get_json(path, { query: page_query, signal });
+      pages.push(page);
+      cursor = next_cursor_from_page(page);
+      if (!cursor) break;
+    }
+
+    const first = pages[0];
+    if (!first || pages.length === 1) return first;
+
+    const contracts = pages.flatMap((page) => (Array.isArray(page?.data?.contracts) ? page.data.contracts : []));
+    const page_request_ids = pages.map((page) => page?._meta?.request_id).filter(Boolean);
+    const page_freshness = pages
+      .map((page) => Number(page?._meta?.data_freshness_seconds))
+      .filter((value) => Number.isFinite(value));
+    const final_page = pages[pages.length - 1];
+    const still_truncated = Boolean(next_cursor_from_page(final_page));
+    return {
+      ...first,
+      data: {
+        ...(first.data || {}),
+        contracts,
+      },
+      _meta: {
+        ...(first._meta || {}),
+        truncated: still_truncated,
+        next_cursor: still_truncated ? next_cursor_from_page(final_page) : null,
+        data_freshness_seconds: page_freshness.length > 0
+          ? Math.max(...page_freshness)
+          : first?._meta?.data_freshness_seconds,
+        page_count: pages.length,
+        page_contract_counts: pages.map((page) => (Array.isArray(page?.data?.contracts) ? page.data.contracts.length : 0)),
+        page_request_ids,
+      },
+    };
+  }
+
   return Object.freeze({
     base_url: resolved_base_url,
     discover_datasets: (options) => get_json('/v1/discover', options),
@@ -362,6 +417,7 @@ export function create_nightwatch_rest_client({
       `/v1/options/chain-snapshot/${encodeURIComponent(normalized_ticker(ticker))}`,
       options,
     ),
+    get_options_chain_snapshot_complete,
     get_options_atm_chains: (ticker, options) => get_json(
       `/v1/options/atm-chains/${encodeURIComponent(normalized_ticker(ticker))}`,
       options,

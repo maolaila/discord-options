@@ -4,8 +4,8 @@ import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import { BUSINESS_LINES } from '../packages/business-lines/business-lines.mjs';
 
-test('only JUNK main is enabled; historical line metadata remains resolvable', () => {
-  assert.deepEqual(Object.values(BUSINESS_LINES).filter(line => line.enabled).map(line => line.key), ['zero-dte-options']);
+test('JUNK baseline and dated comparison are enabled; historical line metadata remains resolvable', () => {
+  assert.deepEqual(Object.values(BUSINESS_LINES).filter(line => line.enabled).map(line => line.key), ['zero-dte-options', 'junkman_new_20260925']);
   assert.equal(BUSINESS_LINES['junk-multi-options'].logPrefix, 'junk-multi-options');
 });
 

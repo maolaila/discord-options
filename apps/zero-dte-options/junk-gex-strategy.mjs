@@ -413,8 +413,8 @@ function merged_policy(policy) {
 
 function base_result(snapshot, market_context, policy) {
   return {
-    business_line: 'zero-dte-options',
-    strategy: 'junk_gex_nodes_v3',
+    business_line: policy.business_line || 'zero-dte-options',
+    strategy: policy.id || 'junk_gex_nodes_v3',
     execution_environment: policy.execution_environment,
     real_trading_allowed: false,
     flow_dependency: 'none',
@@ -840,9 +840,26 @@ export function evaluate_junk_gex_strategy({
   for (const node of snapshot.nodes) {
     const breakout = breakout_candidate(node, bar_validation.bars, resolved_policy);
     const rejection = rejection_candidate(node, bar_validation.bars, resolved_policy);
-    for (const candidate of [breakout, rejection].filter(Boolean)) {
+    // A spent breakout cannot be relabelled as a rejection on the same retest candle.
+    const candidates = resolved_policy.reject_target_consumed_before_confirmation && breakout
+      ? [breakout] : [breakout, rejection].filter(Boolean);
+    for (const candidate of candidates) {
       const plan = candidate_plan(candidate, snapshot.nodes);
       if (!plan) continue;
+      if (resolved_policy.reject_target_consumed_before_confirmation) {
+        const setupAt = timestamp_ms(plan.impulse_bar_at || plan.setup_bar_at || plan.confirmation_bar_at);
+        const confirmationAt = timestamp_ms(plan.confirmation_bar_at);
+        const consumed = bar_validation.bars.some((bar) => {
+          const at = timestamp_ms(bar.timestamp);
+          return at >= setupAt && at <= confirmationAt && (plan.direction === 'bullish'
+            ? bar.high_usd >= plan.target_underlying_usd
+            : bar.low_usd <= plan.target_underlying_usd);
+        });
+        if (consumed) {
+          candidate_block_reasons.add('target_consumed_before_confirmation');
+          continue;
+        }
+      }
       if (plan.blocked_reason) {
         candidate_block_reasons.add(plan.blocked_reason);
         continue;
@@ -870,7 +887,10 @@ export function evaluate_junk_gex_strategy({
   const dominant_magnet = dominant_magnet_node(snapshot.nodes);
 
   const option_right = selected.direction === 'bullish' ? 'call' : 'put';
-  const option_reference = directional_option_gex_reference({
+  const atm_selection = resolved_policy.option_selection_mode === 'atm';
+  const option_reference = atm_selection
+    ? { strike_usd: last_price_usd, source: 'confirmed_underlying_price_atm' }
+    : directional_option_gex_reference({
     option_chain_snapshot,
     direction: selected.direction,
     expiration: snapshot.session_date_et,
@@ -880,7 +900,7 @@ export function evaluate_junk_gex_strategy({
   });
   if (!option_reference) return no_trade(base, [`missing_${option_right}_directional_gex_reference`]);
   const strike_step = Number(resolved_policy.option_strike_step_points);
-  const strike_offset = Number(resolved_policy.option_strike_offset_points);
+  const strike_offset = atm_selection ? 0 : Number(resolved_policy.option_strike_offset_points);
   const toward_current_price = Math.sign(last_price_usd - option_reference.strike_usd) * strike_offset;
   const shifted_strike = option_reference.strike_usd + toward_current_price;
   const option_strike_reference_usd = Math.round(shifted_strike / strike_step) * strike_step;
@@ -924,7 +944,7 @@ export function evaluate_junk_gex_strategy({
       option_right,
       expiry_days: Number(resolved_policy.option_expiry_days),
       strike_reference_usd: rounded(option_strike_reference_usd),
-      strike_basis: `max_${option_right}_gamma_oi_shifted_toward_current_price`,
+      strike_basis: atm_selection ? 'atm_confirmed_underlying_price' : `max_${option_right}_gamma_oi_shifted_toward_current_price`,
       source_node: option_reference,
       strike_offset_points: rounded(strike_offset),
       quote_and_liquidity_gate_required: true,

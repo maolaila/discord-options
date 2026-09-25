@@ -432,3 +432,28 @@ test('Retry-After parser accepts delta seconds and HTTP dates', () => {
   assert.equal(parse_retry_after_ms('Sun, 10 Aug 2026 12:00:03 GMT', now_ms), 3_000);
   assert.equal(parse_retry_after_ms('invalid', now_ms), null);
 });
+
+function paginated_client(pages) {
+  let index = 0;
+  return create_nightwatch_rest_client({ api_key: 'test_token',
+    snapshot_rate_limiter: create_snapshot_rate_limiter({ now_ms: () => 0, sleep: async () => {} }),
+    fetch_impl: async () => json_response(200, pages[index++]) });
+}
+function chain_page(symbol, cursor = null, changes = {}) {
+  return { data: { ticker: 'SPX', expiration: '2026-09-25', snapshot_at: '2026-09-25T13:30:00Z',
+    contracts: [{ contract_symbol: symbol }], returned_contracts: 1, ...changes },
+    _meta: { next_cursor: cursor, truncated: Boolean(cursor), data_freshness_seconds: 1 } };
+}
+test('chain pagination merges counts and preserves terminal truncation', async () => {
+  const complete = await paginated_client([chain_page('a', 'next'), chain_page('b')]).get_options_chain_snapshot_complete('SPX');
+  assert.equal(complete.data.returned_contracts, 2);
+  assert.equal(complete._meta.truncated, false);
+  const terminal = chain_page('b'); terminal._meta.truncated = true;
+  const incomplete = await paginated_client([chain_page('a', 'next'), terminal]).get_options_chain_snapshot_complete('SPX');
+  assert.equal(incomplete._meta.truncated, true);
+});
+test('chain pagination rejects mixed snapshots, duplicate contracts, and repeated cursors', async () => {
+  await assert.rejects(paginated_client([chain_page('a', 'next'), chain_page('b', null, { snapshot_at: '2026-09-25T13:35:00Z' })]).get_options_chain_snapshot_complete('SPX'), /inconsistent snapshot_at/);
+  await assert.rejects(paginated_client([chain_page('a', 'next'), chain_page('a')]).get_options_chain_snapshot_complete('SPX'), /duplicate contracts/);
+  await assert.rejects(paginated_client([chain_page('a', 'next'), chain_page('b', 'next')]).get_options_chain_snapshot_complete('SPX'), /repeated cursor/);
+});

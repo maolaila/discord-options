@@ -17,6 +17,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const HOST = process.env.CONTROL_CONSOLE_HOST || '127.0.0.1';
 const PORT = Number(process.env.CONTROL_CONSOLE_PORT || 18766);
 const DEFAULT_ENV_FILE = process.env.MOOMOO_CONTROL_ENV_FILE || path.join(ROOT, '.env');
+const READ_ONLY = process.env.CONTROL_CONSOLE_READ_ONLY === 'true';
 const MAX_LOG_LINES = 300;
 const DEFAULT_RESTART_DELAY_MS = 15_000;
 const RUNTIME_HEARTBEAT_FRESH_MS = 90_000;
@@ -309,7 +310,7 @@ function externalJunkRuntime(junkStatus, runtimeLock) {
       note: 'JUNKMAN supervisor and watcher are read-only here; this console never starts or stops them.',
     },
     runtime_lock: runtimeLock,
-    recent_supervisor_log: tailText('logs/zero-dte-options-supervisor.log', 8),
+    recent_supervisor_log: tailText(`logs/${junkStatus?.business_line || 'zero-dte-options'}-supervisor.log`, 8),
   };
 }
 
@@ -388,6 +389,9 @@ function statusPayload() {
   const captureHealth = deriveCaptureHealth(captureStatus, {
     processRunning: isRunning(processes.get('capture')),
   });
+  const newStatus = readJson(path.join(logsDir, 'junkman_new_20260925-status.json'));
+  const newRuntime = externalJunkRuntime(newStatus, readJson(path.join(logsDir, 'junkman_new_20260925-runtime.lock.json')));
+  const newReadiness = assess_junk_readiness({ status: newStatus || {}, watcher: newRuntime.watcher, broker_check: moomooCheck || {} });
   const externalRuntime = externalJunkRuntime(junkStatus, runtimeLock);
   const tradingReadiness = assess_junk_readiness({
     status: junkStatus || {}, watcher: externalRuntime.watcher,
@@ -401,6 +405,7 @@ function statusPayload() {
       port: PORT,
       default_env_file: DEFAULT_ENV_FILE,
       scope: 'junkman_only',
+      read_only: READ_ONLY,
     },
     processes: Object.fromEntries(
       [...processes.entries()].map(([name, entry]) => [name, processSnapshot(entry)]),
@@ -411,6 +416,10 @@ function statusPayload() {
     capture_status: captureStatus,
     capture_health: captureHealth,
     junk_status: junkStatus,
+    junk_new_status: newStatus,
+    external_junk_new_runtime: newRuntime,
+    junk_new_readiness: newReadiness,
+    junk_new_experiment_summary: readJson(path.join(logsDir, 'junkman_new_20260925-experiment-summary.json')),
     experiment_summary: experimentSummary,
     moomoo_check: moomooCheck,
     files: [
@@ -434,13 +443,16 @@ function statusPayload() {
   };
 }
 
-function junkPerformancePayload() {
+function junkPerformancePayload(line = 'zero-dte-options') {
   const mainReport = build_junk_performance_report({
-    events: read_ndjson(path.join(logsDir, 'zero-dte-options-trades.ndjson')),
-    policy: readJson(path.join(ROOT, 'config', 'zero-dte-options-policy.json')) || {},
-    experimentSummary: readJson(path.join(logsDir, 'zero-dte-options-experiment-summary.json')),
+    businessLine: line,
+    source: `logs/${line}-trades.ndjson`,
+    title: line === 'zero-dte-options' ? 'JUNKMAN 收益报表' : 'JUNKMAN NEW 20260925 收益报表',
+    events: read_ndjson(path.join(logsDir, `${line}-trades.ndjson`)),
+    policy: readJson(path.join(ROOT, 'config', `${line}-policy.json`)) || {},
+    experimentSummary: readJson(path.join(logsDir, `${line}-experiment-summary.json`)),
   });
-  return { ...mainReport, onchain: trade_notary_status() };
+  return { ...mainReport, onchain: line === 'zero-dte-options' ? trade_notary_status() : { enabled: false } };
 }
 
 function sendJson(res, payload, status = 200, extraHeaders = {}) {
@@ -493,6 +505,7 @@ async function readBody(req) {
 }
 
 async function routePost(req, res, pathname) {
+  if (READ_ONLY) return sendJson(res, { error: 'read_only_console' }, 403);
   const body = await readBody(req);
   const envFile = body.env_file || body.envFile || DEFAULT_ENV_FILE;
 
@@ -541,7 +554,7 @@ async function handler(req, res) {
   }
   if (req.method === 'GET' && url.pathname === '/api/status') return sendJson(res, statusPayload());
   if (req.method === 'GET' && url.pathname === '/api/junk-performance') {
-    return sendJson(res, junkPerformancePayload(), 200, { 'Access-Control-Allow-Origin': '*' });
+    return sendJson(res, junkPerformancePayload(url.searchParams.get('strategy') === 'junkman_new_20260925' ? 'junkman_new_20260925' : 'zero-dte-options'), 200, { 'Access-Control-Allow-Origin': '*' });
   }
   if (req.method === 'POST' && url.pathname.startsWith('/api/')) {
     return routePost(req, res, url.pathname);
@@ -597,7 +610,7 @@ function dashboardHtmlPage() {
   </style>
 </head>
 <body>
-  <header><h1>JUNKMAN Simulation Console</h1><div style="display:flex;align-items:center;gap:12px"><a class="report-link" href="/junkman-performance.html">收益报表</a><div class="mono" id="clock"></div></div></header>
+  <header><h1>JUNKMAN Simulation Console</h1><div style="display:flex;align-items:center;gap:12px"><a class="report-link" href="/junkman-performance.html">旧策略报表</a><a class="report-link" href="/junkman-performance.html?strategy=junkman_new_20260925">新策略报表</a><div class="mono" id="clock"></div></div></header>
   <main>
     <section class="summary">
       <div class="metric"><div class="label">Discord Flow Capture</div><div class="value" id="capture">-</div></div>
@@ -698,6 +711,10 @@ function dashboardHtmlPage() {
         ['Entry data blockers', (data.trading_readiness?.data_reasons || []).join(', ') || '-'],
         ['Direction chain', status.provider?.directional_option_chain?.status || 'not checked'],
         ['Direction API error', status.provider?.directional_option_chain?.error_code || '-'],
+        ['New strategy', data.junk_new_status?.strategy || '-'],
+        ['New watcher', (data.external_junk_new_runtime?.watcher?.running ? 'running' : 'stopped') + ' / pid=' + (data.external_junk_new_runtime?.watcher?.pid || '-')],
+        ['New phase / error', (data.junk_new_status?.phase || '-') + ' / ' + (data.junk_new_status?.last_error || '-')],
+        ['New entry readiness', data.junk_new_readiness?.ready_for_entry_evaluation ? 'ready' : 'waiting for data / market'],
         ['Latest preflight', data.preflight_status?.checked_at || '-'],
         ['Preflight chain', data.preflight_status?.chain?.error_code || data.preflight_status?.chain?.status || '-'],
       ];

@@ -843,3 +843,17 @@ test('exit preflight failures are retryable without submission while PlaceOrder 
       && error.submission_phase === 'exit_place_order',
   );
 });
+
+test('new strategy exits use their own namespace and cannot liquidate baseline positions', () => {
+  const cfg = config({ businessLine: 'junkman_new_20260925' });
+  cfg.policy.business_line.id = 'junkman_new_20260925';
+  cfg.policy.strategy = { id: 'junkman_new_20260925' };
+  const args = { option_snapshot: snapshot({ bid: 4, ask: 4.1 }), requested_exit_qty: 2,
+    reason: 'experiment_variant_exit_batch', config: cfg, now: new Date('2026-08-10T14:31:00.000Z') };
+  const owned = ownedPosition({ business_line: 'junkman_new_20260925', strategy: 'junkman_new_20260925' });
+  const plan = buildZeroDteSimulatedExplicitExitPlan({ ...args, owned_position: owned });
+  assert.equal(plan.gate.passed, true);
+  assert.match(plan.order.remark, /^junk_new_20260925_exit:/);
+  assert.equal(buildZeroDteSimulatedExplicitExitPlan({ ...args, owned_position: ownedPosition() }).gate.passed, false);
+  assert.equal(buildZeroDteSimulatedExplicitExitPlan({ ...args, config: config(), owned_position: owned }).gate.passed, false);
+});

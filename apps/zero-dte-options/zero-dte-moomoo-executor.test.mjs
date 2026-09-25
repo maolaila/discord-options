@@ -730,3 +730,14 @@ test('entry preflight failures are definitely not submitted while PlaceOrder tim
       && error.submission_phase === 'entry_place_order',
   );
 });
+
+test('dated strategy can prepare a gated entry with distinct ownership and rejects baseline signals', () => {
+  const cfg = config({ businessLine: 'junkman_new_20260925' });
+  cfg.policy.business_line.id = 'junkman_new_20260925';
+  cfg.policy.strategy = { id: 'junkman_new_20260925' };
+  const args = { contract: contract(), option_snapshot: optionSnapshot(), config: cfg, now };
+  const plan = buildZeroDteSimulatedEntryPlan({ ...args, signal: strategySignal({ business_line: 'junkman_new_20260925', strategy: 'junkman_new_20260925' }) });
+  assert.equal(plan.gate.passed, true);
+  assert.match(plan.order.remark, /^junk_new_20260925:/);
+  assert.equal(buildZeroDteSimulatedEntryPlan({ ...args, signal: strategySignal() }).gate.passed, false);
+});

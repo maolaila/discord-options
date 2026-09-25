@@ -1379,6 +1379,19 @@ function Start-JunkSupervisor {
     -PassThru
 }
 
+function Ensure-JunkNewSupervisor {
+  Assert-SimulationOnlyConfiguration
+  $newSupervisorPath = Join-Path $rootPath 'run-junk-new.ps1'
+  $existing = @(Get-RepositoryProcesses -CommandLineToken 'run-junk-new.ps1' -ProcessNames @('powershell.exe', 'pwsh.exe') -ExactPowerShellFilePath $newSupervisorPath)
+  if ($existing.Count -gt 0) { return $true }
+  # Preserve an orphan child: its runtime lock and existing exposure must not be displaced.
+  $children = @(Get-RepositoryProcesses -CommandLineToken 'apps\junkman_new_20260925\zero-dte-line.mjs' -ProcessNames @('node.exe'))
+  if ($children.Count -gt 0) { return $true }
+  $null = Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $newSupervisorPath) -WorkingDirectory $rootPath -WindowStyle Hidden -PassThru
+  Set-ComponentState -Name 'junk_new_supervisor' -State 'started' -Detail 'mode=simulate_only'
+  return $true
+}
+
 function Ensure-JunkSupervisor {
   Assert-SimulationOnlyConfiguration
 
@@ -1623,6 +1636,7 @@ try {
     if ($script:lastMoomooApiHealthy) {
       try {
         $null = Ensure-JunkSupervisor
+        $null = Ensure-JunkNewSupervisor
       } catch {
         Set-ComponentState -Name 'junk_supervisor' -State 'error' -Detail $_.Exception.Message -Level 'ERROR'
       }

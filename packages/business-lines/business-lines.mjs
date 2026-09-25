@@ -12,6 +12,12 @@ export const BUSINESS_LINES = Object.freeze({
     enabled: true,
     legacyLogPrefixes: [],
   }),
+  'junkman_new_20260925': Object.freeze({
+    key: 'junkman_new_20260925', kind: 'options',
+    label: 'JUNKMAN 20260925 ATM and unconsumed target simulation',
+    policyPath: path.join(PROJECT_ROOT, 'config', 'junkman_new_20260925-policy.json'),
+    logPrefix: 'junkman_new_20260925', requiredAdviceFormat: 'gex', enabled: true, legacyLogPrefixes: [],
+  }),
   'junk-multi-options': Object.freeze({
     key: 'junk-multi-options',
     kind: 'options',

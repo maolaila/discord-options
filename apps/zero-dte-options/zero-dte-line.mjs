@@ -1,3 +1,4 @@
+import { JUNK_ORDER_PREFIX } from './junk-runtime-identity.mjs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -124,9 +125,9 @@ const oi_background_path = businessLineLogPath(business_line, 'oi-structure-back
 const research_context_path = businessLineLogPath(business_line, 'research-context.json');
 const research_history_path = businessLineLogPath(business_line, 'research-context.ndjson');
 const replay_observations_path = businessLineLogPath(business_line, 'replay-observations.ndjson');
-const flow_events_path = businessLineLogPath(business_line, 'flow-events.ndjson');
+const flow_events_path = businessLineLogPath('zero-dte-options', 'flow-events.ndjson');
 const capture_status_path = path.join(path.dirname(status_path), 'capture-status.json');
-const oi_research_db_path = path.join(PROJECT_ROOT, 'data', 'junk-oi-research', 'junk-oi-research.sqlite');
+const oi_research_db_path = path.join(PROJECT_ROOT, 'data', 'junk-oi-research', ZERO_DTE_BUSINESS_LINE === 'zero-dte-options' ? 'junk-oi-research.sqlite' : `${ZERO_DTE_BUSINESS_LINE}.sqlite`);
 const oi_research_raw_dir = path.join(PROJECT_ROOT, 'data', 'junk-oi-research', 'raw');
 const runtime_lock_path = businessLineLogPath(business_line, 'runtime.lock.json');
 const junk_multi_state_path = businessLineLogPath(resolveBusinessLine(JUNK_MULTI_BUSINESS_LINE), 'runtime-state.json');
@@ -261,6 +262,7 @@ async function write_experiment_event(event, row, payload = {}) {
     event,
     business_line: ZERO_DTE_BUSINESS_LINE,
     strategy: JUNK_GEX_STRATEGY,
+    option_selection_mode: ZERO_DTE_BUSINESS_LINE === 'junkman_new_20260925' ? 'atm' : 'directional_gex',
     execution_environment: 'simulate_only',
     ...experiment_event_fields(row),
     ...payload,
@@ -541,6 +543,7 @@ function default_state() {
     schema_version: 3,
     business_line: ZERO_DTE_BUSINESS_LINE,
     strategy: JUNK_GEX_STRATEGY,
+    option_selection_mode: ZERO_DTE_BUSINESS_LINE === 'junkman_new_20260925' ? 'atm' : 'directional_gex',
     session_date_et: null,
     started_at: new Date().toISOString(),
     updated_at: null,
@@ -589,6 +592,7 @@ function normalized_state(state) {
     schema_version: Math.max(3, Math.trunc(finite_number(source.schema_version, 0))),
     business_line: ZERO_DTE_BUSINESS_LINE,
     strategy: JUNK_GEX_STRATEGY,
+    option_selection_mode: ZERO_DTE_BUSINESS_LINE === 'junkman_new_20260925' ? 'atm' : 'directional_gex',
     executed_signal_ids: Array.isArray(source.executed_signal_ids)
       ? [...new Set(source.executed_signal_ids.map(String))].slice(-1000)
       : [],
@@ -1042,7 +1046,7 @@ function broker_remark(row) {
 }
 
 function exit_remark_base(row) {
-  return `junk_gex_exit:${String(row?.plan_id || '').slice(-20)}`.slice(0, 60);
+  return `${JUNK_ORDER_PREFIX}_exit:${String(row?.plan_id || '').slice(-20)}`.slice(0, 60);
 }
 
 export function build_exit_attempt_remark(plan_id, attempt_no) {
@@ -1359,7 +1363,7 @@ function entry_row_from_plan(plan, broker_order, now) {
   const plan_id = String(plan?.plan_id || `zero_dte_recovered_${recovery_id || randomUUID().replaceAll('-', '')}`).trim();
   const row = {
     plan_id: plan_id.startsWith('zero_dte_') ? plan_id : `zero_dte_${plan_id}`,
-    signal_id: String(signal.signal_id || broker_remark(broker_order).slice('junk_gex:'.length) || `recovered_${recovery_id}`).trim(),
+    signal_id: String(signal.signal_id || broker_remark(broker_order).slice(`${JUNK_ORDER_PREFIX}:`.length) || `recovered_${recovery_id}`).trim(),
     status: fill.qty > 0 ? 'open' : 'entry_submitted',
     code: String(order.code || contract.code || broker_order?.code || '').trim(),
     contract_market: finite_number(contract.market, QOT_MARKET_US_SECURITY),
@@ -1438,8 +1442,8 @@ async function recover_line_ownership({ runtime, state, now, persist_state }) {
   const fills = broker_rows(fills_response, 'orderFillList');
   const positions = broker_rows(positions_response, 'positionList');
   const fills_by_order = fill_identity_map(fills);
-  const entry_orders = orders.filter((row) => broker_remark(row).startsWith('junk_gex:'));
-  const exit_orders = orders.filter((row) => broker_remark(row).startsWith('junk_gex_exit:'));
+  const entry_orders = orders.filter((row) => broker_remark(row).startsWith(`${JUNK_ORDER_PREFIX}:`));
+  const exit_orders = orders.filter((row) => broker_remark(row).startsWith(`${JUNK_ORDER_PREFIX}_exit:`));
   const plans = plan_rows.filter((row) => row?.business_line === ZERO_DTE_BUSINESS_LINE
     && [JUNK_GEX_STRATEGY, 'junk_gex_nodes_v2', 'junk_gex_nodes_v1'].includes(row?.strategy)
     && row?.order?.side === 'buy_to_open');
@@ -1459,11 +1463,11 @@ async function recover_line_ownership({ runtime, state, now, persist_state }) {
     const id = broker_order_id(order);
     if (order_keys.some((key) => referenced_entry_ids.has(key))) continue;
     const matched_plan = plan_for_order(order);
-    const orphan_experiment_entry = !matched_plan && broker_remark(order).startsWith('junk_gex:exp:');
+    const orphan_experiment_entry = !matched_plan && broker_remark(order).startsWith(`${JUNK_ORDER_PREFIX}:exp:`);
     const plan = matched_plan || {
       plan_id: `zero_dte_recovered_${id || randomUUID().replaceAll('-', '')}`,
       signal: {
-        signal_id: broker_remark(order).slice('junk_gex:'.length),
+        signal_id: broker_remark(order).slice(`${JUNK_ORDER_PREFIX}:`.length),
         expiration: expiration_from_option_code(order?.code),
       },
       contract: { code: order?.code, market: QOT_MARKET_US_SECURITY },
@@ -1515,7 +1519,7 @@ async function recover_line_ownership({ runtime, state, now, persist_state }) {
     }
     const recovery_start_status = String(row.status || '');
     const tracked_exit_at_start = Boolean(row.exit_remark) || row_has_order_identity(row, 'exit');
-    const expected_entry_remark = row.entry_remark || `junk_gex:${row.signal_id}`.slice(0, 60);
+    const expected_entry_remark = row.entry_remark || `${JUNK_ORDER_PREFIX}:${row.signal_id}`.slice(0, 60);
     let entry_order = find_by_row_identity(orders_by_id, row, 'entry')
       || entry_orders.find((order) => broker_remark(order) === expected_entry_remark)
       || null;
@@ -2121,6 +2125,7 @@ async function write_trade_event(event, payload = {}) {
     event,
     business_line: ZERO_DTE_BUSINESS_LINE,
     strategy: JUNK_GEX_STRATEGY,
+    option_selection_mode: ZERO_DTE_BUSINESS_LINE === 'junkman_new_20260925' ? 'atm' : 'directional_gex',
     strategy_label: 'JUNKMAN',
     execution_environment: 'simulate_only',
     ...payload,
@@ -2131,6 +2136,7 @@ export function exit_owned_position(row) {
   return {
     business_line: ZERO_DTE_BUSINESS_LINE,
     strategy: JUNK_GEX_STRATEGY,
+    option_selection_mode: ZERO_DTE_BUSINESS_LINE === 'junkman_new_20260925' ? 'atm' : 'directional_gex',
     plan_id: row.plan_id,
     code: row.code,
     expiration: row.expiration,
@@ -2231,6 +2237,7 @@ function experiment_variant_owned_position(row, variant) {
   return {
     business_line: ZERO_DTE_BUSINESS_LINE,
     strategy: JUNK_GEX_STRATEGY,
+    option_selection_mode: ZERO_DTE_BUSINESS_LINE === 'junkman_new_20260925' ? 'atm' : 'directional_gex',
     plan_id: `${row.plan_id}:${variant.line_id}`,
     experiment_id: row.experiment_ledger.experiment_id,
     cohort_id: row.experiment_ledger.cohort_id,
@@ -2324,7 +2331,7 @@ function clear_experiment_exit_latch(row, line_id) {
 }
 
 function experiment_exit_attempt_remark(row, attempt_no) {
-  return `junk_gex_exit:exp:${String(row.experiment_ledger.cohort_id).slice(-16)}:${attempt_no}`.slice(0, 60);
+  return `${JUNK_ORDER_PREFIX}_exit:exp:${String(row.experiment_ledger.cohort_id).slice(-16)}:${attempt_no}`.slice(0, 60);
 }
 
 function reset_experiment_exit_attempt(row, now) {
@@ -2977,7 +2984,7 @@ async function reconcile_line_orders({
   } catch { /* optional research must not interrupt position management */ }
 
   for (const row of active_rows) {
-    const expected_entry_remark = row.entry_remark || `junk_gex:${row.signal_id}`.slice(0, 60);
+    const expected_entry_remark = row.entry_remark || `${JUNK_ORDER_PREFIX}:${row.signal_id}`.slice(0, 60);
     let buy_order = find_by_row_identity(orders, row, 'entry')
       || order_rows.find((order) => broker_remark(order) === expected_entry_remark)
       || null;
@@ -3625,6 +3632,7 @@ async function write_status(payload) {
     updated_at: new Date().toISOString(),
     business_line: ZERO_DTE_BUSINESS_LINE,
     strategy: JUNK_GEX_STRATEGY,
+    option_selection_mode: ZERO_DTE_BUSINESS_LINE === 'junkman_new_20260925' ? 'atm' : 'directional_gex',
     strategy_label: 'JUNKMAN',
     enabled: business_line.enabled,
     flow_dependency: 'none',
@@ -3653,6 +3661,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
       phase: 'not_started',
       business_line: ZERO_DTE_BUSINESS_LINE,
       strategy: JUNK_GEX_STRATEGY,
+      option_selection_mode: ZERO_DTE_BUSINESS_LINE === 'junkman_new_20260925' ? 'atm' : 'directional_gex',
       strategy_label: 'JUNKMAN',
       enabled: business_line.enabled,
       execution_environment: 'simulate_only',
@@ -3880,6 +3889,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
         updated_at: new Date().toISOString(),
         business_line: ZERO_DTE_BUSINESS_LINE,
         strategy: JUNK_GEX_STRATEGY,
+        option_selection_mode: ZERO_DTE_BUSINESS_LINE === 'junkman_new_20260925' ? 'atm' : 'directional_gex',
         execution_environment: 'simulate_only',
         ...refreshed.compact,
       });
@@ -4411,6 +4421,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
 
     const strategy_policy = {
       ...(config.policy?.strategy || {}),
+      business_line: ZERO_DTE_BUSINESS_LINE,
       execution_environment: 'simulate_only',
       real_trading_allowed: false,
     };

@@ -156,11 +156,14 @@
   </main>
 
   <script>
-    const API_URL = location.protocol === 'http:' || location.protocol === 'https:'
+    const IS_NEW = new URLSearchParams(location.search).get('strategy') === 'junkman_new_20260925';
+    const API_BASE = location.protocol === 'http:' || location.protocol === 'https:'
       ? '/api/junk-performance'
       : 'http://127.0.0.1:18766/api/junk-performance';
-    const CACHE_KEY = 'junkman-performance-report-main-v5-three-lines';
-    const CAN_PUBLISH = location.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(location.hostname);
+    const API_URL = API_BASE + (IS_NEW ? '?strategy=junkman_new_20260925' : '');
+    const CACHE_KEY = 'junkman-performance-report-main-v5-three-lines' + (IS_NEW ? '-new-20260925' : '');
+    if (IS_NEW) { document.title = 'JUNKMAN NEW 20260925'; document.querySelector('h1').textContent = document.title; }
+    const CAN_PUBLISH = !IS_NEW && location.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(location.hostname);
     const $ = (id) => document.getElementById(id);
     const safe = (value) => String(value ?? '—')
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')

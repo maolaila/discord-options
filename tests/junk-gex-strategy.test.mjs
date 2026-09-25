@@ -923,3 +923,45 @@ test('policy cannot opt the strategy into real trading', () => {
     /restricted to simulate_only/,
   );
 });
+
+const new_policy = JSON.parse(readFileSync(new URL('../config/junkman_new_20260925-policy.json', import.meta.url), 'utf8')).strategy;
+test('dated strategy uses ATM without directional GEX-chain selection and retains identity', () => {
+  const result = evaluate_bullish({ policy: { ...new_policy, business_line: new_policy.id }, option_chain_snapshot: null });
+  assert.equal(result.decision, 'trade');
+  assert.equal(result.strategy, 'junkman_new_20260925');
+  assert.equal(result.business_line, 'junkman_new_20260925');
+  assert.equal(result.option_selection.strike_reference_usd, 5005);
+  assert.equal(result.option_selection.strike_basis, 'atm_confirmed_underlying_price');
+});
+test('dated strategy rejects consumed target and does not relabel the retest as rejection', () => {
+  const bars = bullish_bars.map((bar, index) => index === 1 ? { ...bar, high_usd: 5011 } : { ...bar });
+  const context = { ...bullish_context(), bars_5m: bars };
+  assert.equal(evaluate_bullish({ market_context: context }).decision, 'trade');
+  const result = evaluate_bullish({ policy: new_policy, market_context: context });
+  assert.equal(result.decision, 'no_trade');
+  assert.ok(result.reason_codes.includes('target_consumed_before_confirmation'));
+});
+test('dated strategy does not enter when target is touched within the confirmation candle', () => {
+  const bars = bullish_bars.map((bar, index) => index === 2 ? { ...bar, high_usd: 5010 } : { ...bar });
+  const result = evaluate_bullish({ policy: new_policy, market_context: { ...bullish_context(), bars_5m: bars } });
+  assert.equal(result.decision, 'no_trade');
+  assert.ok(result.reason_codes.includes('target_consumed_before_confirmation'));
+});
+
+test('dated target consumption is symmetric for bearish breakout retests', () => {
+  const bars = bullish_bars.map((bar, index) => ({ ...bar,
+    open_usd: 10000 - bar.open_usd, close_usd: 10000 - bar.close_usd,
+    high_usd: 10000 - bar.low_usd, low_usd: index === 1 ? 4989 : 10000 - bar.high_usd }));
+  const result = evaluate_bullish({ policy: new_policy,
+    market_context: { ...bullish_context(), last_price_usd: 4996, bars_5m: bars } });
+  assert.equal(result.decision, 'no_trade');
+  assert.ok(result.reason_codes.includes('target_consumed_before_confirmation'));
+});
+test('an independent new body crossing rearms after a previous target touch', () => {
+  const bars = [{ timestamp: '2026-08-10T14:10:00.000Z', open_usd: 5005,
+    high_usd: 5011, low_usd: 4995, close_usd: 4997, volume: 1500 }, ...bullish_bars];
+  const result = evaluate_bullish({ policy: new_policy,
+    market_context: { ...bullish_context(), bars_5m: bars } });
+  assert.equal(result.decision, 'trade');
+  assert.equal(result.setup_type, 'breakout_retest');
+});

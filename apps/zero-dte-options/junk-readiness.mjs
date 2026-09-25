@@ -29,12 +29,13 @@ export function assess_junk_readiness({ status = {}, watcher = {}, broker_check 
     || provider.last_gex?.session_date_et !== status.session_date_et) data_reasons.push('gex_not_ready');
   if (status.market_context?.price_action_ready !== true) data_reasons.push('price_action_not_ready');
   const chain = provider.directional_option_chain;
-  if (!chain) data_reasons.push('directional_chain_not_checked');
-  else if (chain.status !== 'ready' || chain.validation?.ready !== true
+  const requires_directional_chain = status.option_selection_mode !== 'atm';
+  if (requires_directional_chain && !chain) data_reasons.push('directional_chain_not_checked');
+  else if (requires_directional_chain && (chain.status !== 'ready' || chain.validation?.ready !== true
     || chain.expiration !== status.session_date_et
     || !fresh(chain.snapshot_at, now_ms, JUNK_GEX_MAX_AGE_MS)
     || !fresh(chain.greeks_as_of, now_ms, JUNK_GEX_MAX_AGE_MS)
-    || !fresh(chain.available_at, now_ms, JUNK_GEX_MAX_AGE_MS)) {
+    || !fresh(chain.available_at, now_ms, JUNK_GEX_MAX_AGE_MS))) {
     data_reasons.push(...(chain.validation?.reason_codes?.length
       ? chain.validation.reason_codes : [chain.error_code || 'directional_chain_not_ready']));
   }

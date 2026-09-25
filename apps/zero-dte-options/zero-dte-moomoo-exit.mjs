@@ -1,3 +1,4 @@
+import { junk_order_prefix } from './junk-runtime-identity.mjs';
 import {
   TRD_ENV_SIMULATE,
   buildOptionExecutionQuote,
@@ -69,9 +70,7 @@ function expectedStrategy(config) {
 
 function exitRemark(config, planId) {
   const line = expectedBusinessLine(config);
-  const prefix = line === JUNK_MULTI_BUSINESS_LINE
-    ? 'junk_multi_exit'
-    : (line === JUNK_FLOW_HEATMAP_BUSINESS_LINE ? 'junk_flow_hm_exit' : 'junk_gex_exit');
+  const prefix = `${junk_order_prefix(line)}_exit`;
   return `${prefix}:${normalizedString(planId).slice(-20)}`.slice(0, 60);
 }
 

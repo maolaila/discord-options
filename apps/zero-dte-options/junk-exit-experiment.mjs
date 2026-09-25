@@ -1,3 +1,4 @@
+import { junk_order_prefix } from './junk-runtime-identity.mjs';
 import { createHash } from 'node:crypto';
 import { trade_day_exclusion, excluded_trade_days } from '../../packages/business-lines/trade-day-validity.mjs';
 
@@ -245,7 +246,7 @@ export function build_junk_experiment_cohort(base_plan, manifest, { line_partici
     order: base_plan.order ? {
       ...base_plan.order,
       qty: aggregateQty,
-      remark: `junk_gex:exp:${cohort_id.slice(-20)}`.slice(0, 60),
+      remark: `${junk_order_prefix(base_plan.business_line)}:exp:${cohort_id.slice(-20)}`.slice(0, 60),
     } : null,
     experiment: {
       experiment_id: manifest.experiment_id,

@@ -47,3 +47,11 @@ test('a cached Call check cannot hide a subsequent missing Put reference', () =>
   fixture.status.last_decision.reason_codes = ['missing_put_directional_gex_reference'];
   assert.equal(assess_junk_readiness(fixture).entry_data_ready, false);
 });
+
+test('ATM readiness requires fresh GEX and price but does not require directional contract ranking', () => {
+  const fixture = input(); fixture.status.option_selection_mode = 'atm';
+  delete fixture.status.provider.directional_option_chain;
+  assert.equal(assess_junk_readiness(fixture).ready_for_entry_evaluation, true);
+  fixture.status.market_context.price_action_ready = false;
+  assert.equal(assess_junk_readiness(fixture).ready_for_entry_evaluation, false);
+});

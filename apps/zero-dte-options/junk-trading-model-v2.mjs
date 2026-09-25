@@ -360,7 +360,7 @@ export function apply_junk_v2_evidence({
   ]);
   return {
     ...core,
-    strategy: 'junk_gex_nodes_v3',
+    strategy: core.strategy || 'junk_gex_nodes_v3',
     model_version: MODEL_ID,
     flow_dependency: 'none',
     automated_flow_usage: 'confirmation_context_only',

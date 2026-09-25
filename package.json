@@ -29,7 +29,10 @@
     "onchain:status": "node ./apps/trade-notary/trade-notary-cli.mjs status",
     "onchain:dry-run": "node ./apps/trade-notary/trade-notary-cli.mjs dry-run",
     "onchain:publish": "node ./apps/trade-notary/trade-notary-cli.mjs publish",
-    "test": "node --test \"./tests/*.mjs\" \"./tests/*.cjs\" \"./apps/zero-dte-options/*.test.mjs\""
+    "test": "node --test \"./tests/*.mjs\" \"./tests/*.cjs\" \"./apps/zero-dte-options/*.test.mjs\"",
+    "junk:new:status": "node ./apps/junkman_new_20260925/zero-dte-line.mjs --status",
+    "junk:new:plan": "node ./apps/junkman_new_20260925/zero-dte-line.mjs --dry-run",
+    "junk:new:watch-sim": "node ./apps/junkman_new_20260925/zero-dte-line.mjs --watch --execute-simulate"
   },
   "engines": {
     "node": ">=24.15.0"

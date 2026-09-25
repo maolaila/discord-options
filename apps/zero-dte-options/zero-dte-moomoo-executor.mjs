@@ -12,11 +12,14 @@ import {
 } from '../../packages/moomoo-opend/moomoo-opend.mjs';
 import { JUNK_GEX_MAX_AGE_MS } from './junk-gex-freshness.mjs';
 
-export const ZERO_DTE_BUSINESS_LINE = 'zero-dte-options';
+import { JUNK_RUNTIME_BUSINESS_LINE, JUNK_RUNTIME_STRATEGY, NEW_JUNK_BUSINESS_LINE, junk_order_prefix } from './junk-runtime-identity.mjs';
+export const ZERO_DTE_BUSINESS_LINE = JUNK_RUNTIME_BUSINESS_LINE;
 export const JUNK_MULTI_BUSINESS_LINE = 'junk-multi-options';
 export const JUNK_FLOW_HEATMAP_BUSINESS_LINE = 'junk-flow-heatmap-options';
-export const JUNK_GEX_STRATEGY = 'junk_gex_nodes_v3';
+export const JUNK_GEX_STRATEGY = JUNK_RUNTIME_STRATEGY;
 const SUPPORTED_JUNK_BUSINESS_LINES = Object.freeze([
+  NEW_JUNK_BUSINESS_LINE,
+  'zero-dte-options',
   ZERO_DTE_BUSINESS_LINE,
   JUNK_MULTI_BUSINESS_LINE,
   JUNK_FLOW_HEATMAP_BUSINESS_LINE,
@@ -630,9 +633,7 @@ export function buildZeroDteSimulatedEntryPlan({
   };
   const plannedAt = now.toISOString();
   const line = expectedBusinessLine(config);
-  const remarkPrefix = line === JUNK_MULTI_BUSINESS_LINE
-    ? 'junk_multi'
-    : (line === JUNK_FLOW_HEATMAP_BUSINESS_LINE ? 'junk_flow_hm' : 'junk_gex');
+  const remarkPrefix = junk_order_prefix(line);
   const remark = `${remarkPrefix}:${signal.signal_id}`.slice(0, 60);
   const exitRules = config?.policy?.exit_rules || {};
 

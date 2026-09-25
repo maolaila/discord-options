@@ -9,9 +9,10 @@ import { connectMoomoo, loadMoomooConfig, fetchGlobalState, fetchMoomooAccounts,
   selectSimulatedUsOptionAccount, fetchPositionList, fetchOrderList, maskId } from '../packages/moomoo-opend/moomoo-opend.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const policy = JSON.parse(await fsp.readFile(path.join(root, 'config/zero-dte-options-policy.json'), 'utf8'));
-const config = loadMoomooConfig({ businessLine: 'zero-dte-options',
-  envFile: path.join(root, '.env'), policyFile: path.join(root, 'config/zero-dte-options-policy.json') });
+const businessLine = process.argv.includes('--strategy=junkman_new_20260925') ? 'junkman_new_20260925' : 'zero-dte-options';
+const policyFile = path.join(root, 'config', `${businessLine}-policy.json`);
+const policy = JSON.parse(await fsp.readFile(policyFile, 'utf8'));
+const config = loadMoomooConfig({ businessLine, envFile: path.join(root, '.env'), policyFile });
 if (config.trdEnv !== 0 || config.allowRealTrading || policy.execution?.real_trading_allowed !== false) {
   throw new Error('Preflight requires the simulation-only configuration');
 }
@@ -82,11 +83,12 @@ const [chain, broker, gex, discovery] = await Promise.all([
   api.discover_datasets().then(response => ({ quota: response.data?.quota,
     capabilities: response.data?.capabilities?.filter(id => /chain_greeks|volume_rank|vex/i.test(id)) })).catch(api_error),
 ]);
-const report = { checked_at: new Date().toISOString(), session_date_et: target,
+const report = { business_line: businessLine, option_selection_mode: policy.strategy.option_selection_mode || 'directional_gex', checked_at: new Date().toISOString(), session_date_et: target,
   simulation_only: true, market_open: market_schedule(policy, ny_context(new Date())).market_open,
   scope: 'read_only_dependencies_not_a_trade_or_fill_test', chain, broker, gex, discovery };
 await fsp.mkdir(path.join(root, 'logs'), { recursive: true });
-await fsp.writeFile(path.join(root, 'logs/junk-preflight.json'), `${JSON.stringify(report, null, 2)}\n`);
+await fsp.writeFile(path.join(root, 'logs', businessLine === 'zero-dte-options' ? 'junk-preflight.json' : 'junkman_new_20260925-preflight.json'), `${JSON.stringify(report, null, 2)}\n`);
 console.log(JSON.stringify(report, null, 2));
-if (broker.status !== 'authenticated' || chain.status === 'request_failed'
-  || (report.market_open && (chain.status !== 'ready' || gex.readiness !== 'ready'))) process.exitCode = 2;
+const requiresChain = policy.strategy.option_selection_mode !== 'atm';
+if (broker.status !== 'authenticated' || (requiresChain && chain.status === 'request_failed')
+  || (report.market_open && ((requiresChain && chain.status !== 'ready') || gex.readiness !== 'ready'))) process.exitCode = 2;

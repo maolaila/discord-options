@@ -587,3 +587,19 @@ test('manifest rejects per-line capital drift and a control that no longer match
   duplicateProfile.exit_experiment.lines[1].catastrophic_stop_loss_pct = 15;
   assert.throws(() => load_junk_exit_experiment(duplicateProfile), /unique entry plus exit profiles/);
 });
+
+test('dated strategy cohort has distinct broker ownership and identical three exit profiles', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const oldPolicy = JSON.parse(await readFile(new URL('../config/zero-dte-options-policy.json', import.meta.url), 'utf8'));
+  const newPolicy = JSON.parse(await readFile(new URL('../config/junkman_new_20260925-policy.json', import.meta.url), 'utf8'));
+  const oldManifest = load_junk_exit_experiment(oldPolicy);
+  const newManifest = load_junk_exit_experiment(newPolicy);
+  assert.deepEqual(newManifest.lines, oldManifest.lines);
+  assert.equal(newManifest.line_count, 3);
+  assert.notEqual(newManifest.experiment_id, oldManifest.experiment_id);
+  const oldCohort = build_junk_experiment_cohort(basePlan(), oldManifest);
+  const newCohort = build_junk_experiment_cohort({ ...basePlan(), business_line: 'junkman_new_20260925', strategy: 'junkman_new_20260925' }, newManifest);
+  assert.match(newCohort.order.remark, /^junk_new_20260925:exp:/);
+  assert.match(oldCohort.order.remark, /^junk_gex:exp:/);
+  assert.notEqual(newCohort.plan_id, oldCohort.plan_id);
+});

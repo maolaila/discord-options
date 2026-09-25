@@ -339,12 +339,23 @@ export function create_nightwatch_rest_client({
 
     const path = `/v1/options/chain-snapshot/${encodeURIComponent(normalized_ticker(ticker))}`;
     const pages = [];
+    const seen_cursors = new Set();
     let cursor = query?.cursor ? String(query.cursor) : null;
     for (let page_index = 0; page_index < page_limit; page_index += 1) {
+      if (cursor && seen_cursors.has(cursor)) throw new NightwatchRestError('Nightwatch chain pagination repeated cursor', { path });
+      if (cursor) seen_cursors.add(cursor);
       const page_query = page_index === 0
         ? { ...query }
         : { ...query, cursor };
       const page = await get_json(path, { query: page_query, signal });
+      const first_page = pages[0];
+      if (first_page) {
+        for (const key of ['ticker', 'expiration', 'snapshot_at', 'greeks_as_of', 'open_interest_as_of', 'total_contracts']) {
+          if (first_page.data?.[key] !== page.data?.[key]) {
+            throw new NightwatchRestError(`Nightwatch chain pagination inconsistent ${key}`, { path });
+          }
+        }
+      }
       pages.push(page);
       cursor = next_cursor_from_page(page);
       if (!cursor) break;
@@ -359,12 +370,18 @@ export function create_nightwatch_rest_client({
       .map((page) => Number(page?._meta?.data_freshness_seconds))
       .filter((value) => Number.isFinite(value));
     const final_page = pages[pages.length - 1];
-    const still_truncated = Boolean(next_cursor_from_page(final_page));
+    const symbols = contracts.map((row) => row.contract_symbol).filter(Boolean);
+    if (new Set(symbols).size !== symbols.length) throw new NightwatchRestError('Nightwatch chain pagination duplicate contracts', { path });
+    const total = Number(first.data?.total_contracts ?? first._meta?.total_contracts);
+    const still_truncated = Boolean(next_cursor_from_page(final_page)) || final_page?._meta?.truncated === true
+      || final_page?.data?.truncated === true || (Number.isFinite(total) && total !== contracts.length);
     return {
       ...first,
       data: {
         ...(first.data || {}),
         contracts,
+        returned_contracts: contracts.length,
+        next_cursor: next_cursor_from_page(final_page),
       },
       _meta: {
         ...(first._meta || {}),
@@ -373,6 +390,7 @@ export function create_nightwatch_rest_client({
         data_freshness_seconds: page_freshness.length > 0
           ? Math.max(...page_freshness)
           : first?._meta?.data_freshness_seconds,
+        returned_contracts: contracts.length,
         page_count: pages.length,
         page_contract_counts: pages.map((page) => (Array.isArray(page?.data?.contracts) ? page.data.contracts.length : 0)),
         page_request_ids,

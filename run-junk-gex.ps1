@@ -1,3 +1,7 @@
+param(
+  [ValidateSet('zero-dte-options', 'junkman_new_20260925')][string]$Variant = 'zero-dte-options',
+  [int]$AdoptProcessId = 0
+)
 $ErrorActionPreference = 'Stop'
 
 Set-Location -LiteralPath $PSScriptRoot
@@ -190,7 +194,8 @@ function Read-JunkGexWatchdogStatusAssessment {
 function Test-ExactJunkGexWatcherProcess {
   param(
     [Parameter(Mandatory = $true)]$Process,
-    [Parameter(Mandatory = $true)][string]$RootPath
+    [Parameter(Mandatory = $true)][string]$RootPath,
+    [string]$ScriptRelativePath = 'apps\zero-dte-options\zero-dte-line.mjs'
   )
 
   if ([string]$Process.Name -ine 'node.exe') { return $false }
@@ -207,7 +212,7 @@ function Test-ExactJunkGexWatcherProcess {
   if ($commandLine -match $forbiddenLiveModePattern) { return $false }
 
   $expectedFullPath = [IO.Path]::GetFullPath(
-    (Join-Path $RootPath 'apps\zero-dte-options\zero-dte-line.mjs')
+    (Join-Path $RootPath $ScriptRelativePath)
   )
   $scriptMatches = [regex]::Matches(
     $commandLine,
@@ -240,6 +245,7 @@ function Invoke-JunkGexWatchdogRecycle {
     [Parameter(Mandatory = $true)][string]$StatusPath,
     [Parameter(Mandatory = $true)][int]$ExpectedProcessId,
     [Parameter(Mandatory = $true)][string]$RootPath,
+    [string]$ScriptRelativePath = 'apps\zero-dte-options\zero-dte-line.mjs',
     [int]$MaxAgeSeconds = 300,
     [DateTimeOffset]$MinimumHeartbeatAt = [DateTimeOffset]::MinValue
   )
@@ -275,7 +281,7 @@ function Invoke-JunkGexWatchdogRecycle {
 
   $verifiedProcesses = @(
     Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
-      Where-Object { Test-ExactJunkGexWatcherProcess -Process $_ -RootPath $RootPath }
+      Where-Object { Test-ExactJunkGexWatcherProcess -Process $_ -RootPath $RootPath -ScriptRelativePath $ScriptRelativePath }
   )
   $matchingProcesses = @(
     $verifiedProcesses | Where-Object { [int]$_.ProcessId -eq $ExpectedProcessId }
@@ -305,10 +311,12 @@ function Invoke-JunkGexWatchdogRecycle {
   }
 }
 
+$scriptRelativePath = "apps\$Variant\zero-dte-line.mjs"
+$mutexName = if ($Variant -eq 'zero-dte-options') { 'Local\DiscordOptionsJunkGexSupervisor' } else { 'Local\DiscordOptionsJunkNewSupervisor' }
 $createdNew = $false
 $supervisorMutex = [System.Threading.Mutex]::new(
   $true,
-  'Local\DiscordOptionsJunkGexSupervisor',
+  $mutexName,
   [ref] $createdNew
 )
 if (-not $createdNew) {
@@ -336,19 +344,27 @@ try {
     throw 'JUNKMAN requires Node.js 24.15 or newer for the built-in node:sqlite release-candidate API.'
   }
   $logDirectory = Join-Path $PSScriptRoot 'logs'
-  $supervisorPath = Join-Path $logDirectory 'zero-dte-options-supervisor.log'
-  $statusPath = Join-Path $logDirectory 'zero-dte-options-status.json'
+  $supervisorPath = Join-Path $logDirectory "$Variant-supervisor.log"
+  $statusPath = Join-Path $logDirectory "$Variant-status.json"
   New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
   $attempt = 0
 
   do {
     $attempt += 1
-    $stdoutPath = Join-Path $logDirectory "zero-dte-options-runtime-$PID-$attempt.stdout.log"
-    $stderrPath = Join-Path $logDirectory "zero-dte-options-runtime-$PID-$attempt.stderr.log"
+    $stdoutPath = Join-Path $logDirectory "$Variant-runtime-$PID-$attempt.stdout.log"
+    $stderrPath = Join-Path $logDirectory "$Variant-runtime-$PID-$attempt.stderr.log"
+    if ($attempt -eq 1 -and $AdoptProcessId -gt 0) {
+      $existingWatcher = Get-CimInstance Win32_Process -Filter "ProcessId=$AdoptProcessId"
+      if (-not $existingWatcher -or -not (Test-ExactJunkGexWatcherProcess -Process $existingWatcher -RootPath $PSScriptRoot -ScriptRelativePath $scriptRelativePath)) {
+        throw 'Refusing to adopt a process without an exact simulation watcher identity.'
+      }
+      $watcher = Get-Process -Id $AdoptProcessId -ErrorAction Stop
+      Add-Content -LiteralPath $supervisorPath -Value "$(Get-Date -Format o) adopted existing simulation watcher pid=$AdoptProcessId"
+    } else {
     $watcher = Start-Process `
       -FilePath $nodeCommand.Source `
       -ArgumentList @(
-        (Join-Path $PSScriptRoot 'apps\zero-dte-options\zero-dte-line.mjs'),
+        (Join-Path $PSScriptRoot $scriptRelativePath),
         '--watch',
         '--execute-simulate'
       ) `
@@ -356,6 +372,7 @@ try {
       -RedirectStandardError $stderrPath `
       -WindowStyle Hidden `
       -PassThru
+    }
     $watcherStartedAt = Get-Date
     $watchdogTriggered = $false
     $lastWatchdogState = $null
@@ -369,6 +386,7 @@ try {
         -StatusPath $statusPath `
         -ExpectedProcessId $watcher.Id `
         -RootPath $PSScriptRoot `
+        -ScriptRelativePath $scriptRelativePath `
         -MaxAgeSeconds 300 `
         -MinimumHeartbeatAt ([DateTimeOffset]$watcherStartedAt)
       if ($watchdogResult.Action -eq 'recycle') {

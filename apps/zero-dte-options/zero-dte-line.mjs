@@ -1,3 +1,4 @@
+import { assess_both_chain_directions, start_spy_quote_warmup } from './junk-data-warmup.mjs';
 import { JUNK_ORDER_PREFIX } from './junk-runtime-identity.mjs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
@@ -3821,6 +3822,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
 
   async function ensure_moomoo() {
     if (!moomoo_runtime) moomoo_runtime = await create_moomoo_runtime(args);
+    start_spy_quote_warmup(moomoo_runtime, context_builder.ingest_spy_sample);
     return moomoo_runtime;
   }
 
@@ -4011,7 +4013,8 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
       expected_bucket_at: request_plan.expected_bucket_at,
       attempted_at: at_ms,
       outcome: classification,
-      retry_after_ms: error?.retry_after_ms ?? null,
+      retry_after_ms: error?.retry_after_ms
+        ?? (classification === 'read_model_unavailable' ? Math.max(60_000, poll_ms) : null),
     });
     return classification;
   }
@@ -4034,7 +4037,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
       expected_bucket_at: request_plan.expected_bucket_at,
       attempted_at: at_ms,
       outcome: 'read_model_unavailable',
-      retry_after_ms: poll_ms,
+      retry_after_ms: Math.max(60_000, poll_ms),
     });
   }
 
@@ -4105,6 +4108,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
 
     runtime = runtime || await ensure_moomoo();
 
+    start_spy_quote_warmup(runtime, context_builder.ingest_spy_sample);
     const allow_broker_execution = execute_simulate && schedule.market_open;
     const broker_first_reconcile = await reconcile_line_orders({
       runtime,
@@ -4432,9 +4436,16 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
       ticker,
       expiration: state.session_date_et,
     });
-    const cached_directional_chain = directional_option_chain_cache?.key === directional_chain_cache_key
-      ? directional_option_chain_cache.response
-      : null;
+    const chain_validation = directional_option_chain_cache?.key === directional_chain_cache_key
+      ? assess_both_chain_directions(directional_option_chain_cache.response, {
+        ticker, expiration: state.session_date_et, now_ms: market_context_at,
+      }) : null;
+    const cached_directional_chain = chain_validation?.ready
+      ? directional_option_chain_cache.response : null;
+    if (chain_validation && state.directional_option_chain) {
+      state.directional_option_chain.validation = chain_validation;
+      state.directional_option_chain.status = chain_validation.ready ? 'ready' : 'directional_reference_unavailable';
+    }
     const directional_chain_retry_blocked = directional_option_chain_retry?.key === directional_chain_request_key
       && directional_option_chain_retry.retry_at_ms > market_context_at;
     const strategy_input = {
@@ -4451,7 +4462,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
     const directional_reference_reason = (core_decision.reason_codes || [])
       .find((reason) => /^missing_(call|put)_directional_gex_reference$/.test(String(reason)));
     if (
-      directional_reference_reason
+      strategy_policy.option_selection_mode !== 'atm'
       && !cached_directional_chain
       && !directional_chain_retry_blocked
       && schedule.entry_open
@@ -4463,7 +4474,8 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
       && market_context.price_action_ready
       && provider_wait_ms() === 0
     ) {
-      const requested_right = directional_reference_reason.includes('_call_') ? 'call' : 'put';
+      const requested_right = directional_reference_reason
+        ? (directional_reference_reason.includes('_call_') ? 'call' : 'put') : 'both';
       try {
         const chain_response = await nightwatch.get_options_chain_snapshot_complete(ticker, {
           query: { expiration: state.session_date_et },
@@ -4491,10 +4503,8 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
           retry_after_ms: null,
           retry_at: null,
           error: null,
-          validation: assess_directional_chain_provenance({
-            option_chain_snapshot: chain_response, ticker, expiration: state.session_date_et,
-            direction: requested_right === 'call' ? 'bullish' : 'bearish',
-            now_ms: chain_received_at_ms, max_age_ms: JUNK_GEX_MAX_AGE_MS,
+          validation: assess_both_chain_directions(chain_response, {
+            ticker, expiration: state.session_date_et, now_ms: chain_received_at_ms,
           }),
         };
         if (chain_contracts.length > 0) {
@@ -4503,8 +4513,9 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
             now_ms: chain_received_at_ms,
             option_chain_snapshot: chain_response,
           });
-          const reference_still_missing = (core_decision.reason_codes || [])
-            .some((reason) => /^missing_(call|put)_directional_gex_reference$/.test(String(reason)));
+          // Prewarming without a candidate must not treat no_trade as proof
+          // that the chain is complete, fresh, or valid for either direction.
+          const reference_still_missing = !state.directional_option_chain.validation.ready;
           state.directional_option_chain.status = reference_still_missing
             ? 'directional_reference_unavailable'
             : 'ready';
@@ -4518,7 +4529,7 @@ export async function run_zero_dte_line(cli_args = process.argv.slice(2)) {
           } else {
             const retry_after_ms = directional_chain_retry_delay_ms(
               chain_response,
-              NIGHTWATCH_FIXED_SAMPLE_INTERVAL_MS,
+              60_000,
             );
             const retry_at_ms = Date.now() + retry_after_ms;
             directional_option_chain_retry = {

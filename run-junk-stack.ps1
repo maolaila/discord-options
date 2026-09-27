@@ -680,6 +680,74 @@ function Start-OpenD {
     -PassThru
 }
 
+function Start-OpenDWebSocket {
+  param(
+    [Parameter(Mandatory = $true)][string]$OpenDExecutablePath,
+    [Parameter(Mandatory = $true)][int]$CorePort
+  )
+
+  $websocketExecutablePath = Join-Path (Split-Path -Parent $OpenDExecutablePath) 'WebSocket.exe'
+  if (-not (Test-Path -LiteralPath $websocketExecutablePath -PathType Leaf)) {
+    throw 'OpenD WebSocket.exe was not found.'
+  }
+
+  $configuredKeyFile = Get-DotEnvValue -FilePath $envPath -Name 'MOOMOO_OPEND_WS_KEY_FILE'
+  if ([string]::IsNullOrWhiteSpace($configuredKeyFile)) {
+    throw 'MOOMOO_OPEND_WS_KEY_FILE is not configured.'
+  }
+  $keyFilePath = if ([IO.Path]::IsPathRooted($configuredKeyFile)) {
+    [IO.Path]::GetFullPath($configuredKeyFile)
+  } else {
+    [IO.Path]::GetFullPath((Join-Path $rootPath $configuredKeyFile))
+  }
+  if (-not (Test-Path -LiteralPath $keyFilePath -PathType Leaf)) {
+    throw 'OpenD WebSocket key file was not found.'
+  }
+  $key = (Get-Content -LiteralPath $keyFilePath -Raw -Encoding UTF8).Trim()
+  if ([string]::IsNullOrWhiteSpace($key)) {
+    throw 'OpenD WebSocket key file is empty.'
+  }
+  $md5 = [Security.Cryptography.MD5]::Create()
+  try {
+    $keyMd5 = [BitConverter]::ToString(
+      $md5.ComputeHash([Text.Encoding]::UTF8.GetBytes($key))
+    ).Replace('-', '').ToLowerInvariant()
+  } finally {
+    $md5.Dispose()
+  }
+  $key = $null
+
+  # OpenD's WebSocket helper consumes and removes its XML on startup. Keep the
+  # MD5 inside the ignored secrets directory and never put it on the command line.
+  $configPath = Join-Path $rootPath 'secrets\moomoo_ws_runtime.xml'
+  $config = [xml]::new()
+  $null = $config.AppendChild($config.CreateXmlDeclaration('1.0', 'utf-8', $null))
+  $root = $config.CreateElement('futu_websocket')
+  $null = $config.AppendChild($root)
+  foreach ($entry in @(
+    @('log_level', '2'),
+    @('opend_addr', '127.0.0.1'),
+    @('opend_port', [string]$CorePort),
+    @('websocket_addr', '127.0.0.1'),
+    @('websocket_key', $keyMd5),
+    @('websocket_port', [string]$OpenDPort)
+  )) {
+    $element = $config.CreateElement([string]$entry[0])
+    $element.InnerText = [string]$entry[1]
+    $null = $root.AppendChild($element)
+  }
+  $config.Save($configPath)
+  $keyMd5 = $null
+
+  Write-StackLog -Message 'Starting OpenD WebSocket helper for the logged-in core API.'
+  $null = Start-Process `
+    -FilePath $websocketExecutablePath `
+    -ArgumentList @('--xml_config', ('"{0}"' -f $configPath)) `
+    -WorkingDirectory (Split-Path -Parent $websocketExecutablePath) `
+    -WindowStyle Hidden `
+    -PassThru
+}
+
 function Ensure-OpenD {
   param([Parameter(Mandatory = $true)][string]$ExecutablePath)
 
@@ -696,6 +764,43 @@ function Ensure-OpenD {
     $script:openDDownChecks = 0
     Start-OpenD -ExecutablePath $ExecutablePath
   } else {
+    # A logged-in OpenD can keep its core API alive while the optional
+    # WebSocket service is disabled. Restarting the GUI in that state cannot
+    # repair the WebSocket setting and repeatedly interrupts a usable login.
+    $corePort = 11111
+    try {
+      $configPath = Join-Path (Split-Path -Parent $ExecutablePath) 'OpenD.xml'
+      if (Test-Path -LiteralPath $configPath -PathType Leaf) {
+        [xml]$openDConfig = Get-Content -LiteralPath $configPath -Raw -ErrorAction Stop
+        $configuredCorePort = [int]$openDConfig.DocumentElement.SelectSingleNode('./api_port').InnerText
+        if ($configuredCorePort -ge 1 -and $configuredCorePort -le 65535) {
+          $corePort = $configuredCorePort
+        }
+      }
+    } catch { }
+    $coreListening = $false
+    try {
+      $openDProcessIds = @($processes | ForEach-Object { [int]$_.Id })
+      $coreListening = @(
+        Get-NetTCPConnection -State Listen -LocalPort $corePort -ErrorAction Stop |
+          Where-Object { $openDProcessIds -contains [int]$_.OwningProcess }
+      ).Count -gt 0
+    } catch { }
+    if ($coreListening) {
+      $script:openDDownChecks = 0
+      Start-OpenDWebSocket -OpenDExecutablePath $ExecutablePath -CorePort $corePort
+      if (Wait-LocalTcpPort -Port $OpenDPort -TimeoutSeconds 10) {
+        Set-ComponentState -Name 'opend' -State 'healthy' -Detail "tcp_port=$OpenDPort; websocket_helper=started"
+        return $true
+      }
+      Set-ComponentState `
+        -Name 'opend' `
+        -State 'websocket_unavailable' `
+        -Detail "core_port=$corePort healthy; websocket_port=$OpenDPort unavailable after helper start; preserving OpenD login" `
+        -Level 'ERROR'
+      return $false
+    }
+
     $script:openDDownChecks += 1
     if ($script:openDDownChecks -lt $OpenDStallRestartChecks) {
       Set-ComponentState `
@@ -1358,20 +1463,26 @@ function Test-JunkWatcherRunning {
 }
 
 function Start-JunkSupervisor {
+  param([int]$AdoptProcessId = 0)
+
   $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
   $stdoutPath = Join-Path $logDirectory "junk-supervisor-stack-$stamp.stdout.log"
   $stderrPath = Join-Path $logDirectory "junk-supervisor-stack-$stamp.stderr.log"
   Write-StackLog -Message 'Starting the simulation-only JUNKMAN strategy supervisor.'
   Remove-Item Env:MOOMOO_OPEND_WS_KEY -ErrorAction SilentlyContinue
+  $arguments = @(
+    '-NoProfile',
+    '-ExecutionPolicy',
+    'Bypass',
+    '-File',
+    ('"{0}"' -f $junkSupervisorPath)
+  )
+  if ($AdoptProcessId -gt 0) {
+    $arguments += @('-AdoptProcessId', [string]$AdoptProcessId)
+  }
   $null = Start-Process `
     -FilePath $powershellPath `
-    -ArgumentList @(
-      '-NoProfile',
-      '-ExecutionPolicy',
-      'Bypass',
-      '-File',
-      ('"{0}"' -f $junkSupervisorPath)
-    ) `
+    -ArgumentList $arguments `
     -WorkingDirectory $rootPath `
     -WindowStyle Hidden `
     -RedirectStandardOutput $stdoutPath `
@@ -1426,11 +1537,23 @@ function Ensure-JunkSupervisor {
   }
 
   if ($watcherRunning) {
-    Set-ComponentState `
-      -Name 'junk_supervisor' `
-      -State 'orphan_watcher' `
-      -Detail 'a watcher is still running; deferring supervisor launch to avoid a duplicate runtime' `
-      -Level 'WARN'
+    $verifiedWatchers = @(Get-VerifiedJunkWatcherProcesses)
+    $statusPath = Join-Path $logDirectory 'zero-dte-options-status.json'
+    if ($verifiedWatchers.Count -eq 1 -and (Test-Path -LiteralPath $statusPath -PathType Leaf)) {
+      try {
+        $status = Get-Content -LiteralPath $statusPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $assessment = Get-JunkWatcherStatusAssessment -Status $status
+        if (
+          $assessment.ProcessId -eq [int]$verifiedWatchers[0].ProcessId -and
+          $assessment.ContractValid -and $assessment.Fresh
+        ) {
+          Start-JunkSupervisor -AdoptProcessId $assessment.ProcessId
+          Set-ComponentState -Name 'junk_supervisor' -State 'adopting_watcher' -Detail "pid=$($assessment.ProcessId); mode=simulate_only"
+          return $true
+        }
+      } catch { }
+    }
+    Set-ComponentState -Name 'junk_supervisor' -State 'orphan_watcher' -Detail 'watcher identity or fresh simulation status unconfirmed; no duplicate runtime started' -Level 'WARN'
     return $true
   }
 
